@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Overview · Motion Library</title><link rel="stylesheet" href="/css/styles.css"></head>
+<body>
+<script type="module">
+import { initLayout } from '/js/layout.js';
+import { get } from '/js/api.js';
+import { escapeHtml } from '/js/app.js';
+
+if (await initLayout('Overview')) {
+	const root = document.getElementById('page-content');
+	root.innerHTML = `<div class="grid stats" id="stats"></div>
+		<div style="display:flex;align-items:center;justify-content:space-between;gap:18px;padding:24px;margin-bottom:22px;border-radius:18px;background:linear-gradient(120deg,#244e57,#397079);color:#fff"><div><span class="eyebrow" style="color:#b9d4cd">HOME CONTENT</span><h2 style="font-family:Georgia,serif;margin:8px 0 4px">Publish a new session</h2><p style="margin:0;color:#d9ebe5">Add the title, image, video, audience, and details your users will see on Home.</p></div><a class="btn" style="background:#f1c5a6;color:#243d40;white-space:nowrap" href="/card-form.html">Create Home card</a></div>
+		<div class="panel"><div class="panel-head"><h2>Recent cards</h2><a class="btn" href="/card-form.html">Add card</a></div>
+		<div class="table-wrap"><table class="table"><thead><tr><th>Title</th><th>Status</th><th>Category</th><th>Created</th></tr></thead><tbody id="recent"></tbody></table></div></div>
+		<div class="panel" style="margin-top:22px"><div class="panel-head"><div><h2>User activity</h2><span class="eyebrow">Registration and latest login times</span></div></div>
+		<div class="table-wrap"><table class="table"><thead><tr><th>User</th><th>Gender</th><th>Registered</th><th>Last login</th><th>Logins</th></tr></thead><tbody id="users"></tbody></table></div></div>`;
+	const { data } = await get('/dashboard/stats');
+	document.getElementById('stats').innerHTML = [['Total cards', data.total], ['Published', data.published], ['Drafts', data.drafts], ['Users', data.users.total]].map(([label, value]) => `<div class="stat"><span class="eyebrow">${label}</span><strong>${value}</strong></div>`).join('');
+	document.getElementById('recent').innerHTML = data.recent.length ? data.recent.map(c => `<tr><td>${escapeHtml(c.title)}</td><td><span class="badge ${c.status}">${c.status}</span></td><td>${escapeHtml(c.category)}</td><td>${new Date(c.createdAt).toLocaleDateString()}</td></tr>`).join('') : '<tr><td colspan="4" class="empty">No cards yet.</td></tr>';
+	document.getElementById('users').innerHTML = data.users.recent.length ? data.users.recent.map(user => `<tr><td><strong>${escapeHtml(user.name)}</strong><br><span class="eyebrow">${escapeHtml(user.email)}</span></td><td><span class="badge">${escapeHtml(user.gender || 'not set')}</span></td><td>${new Date(user.createdAt).toLocaleString()}</td><td>${user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never'}</td><td>${user.loginCount || 0}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">No app users registered yet.</td></tr>';
+}
+</script>
+</body></html>

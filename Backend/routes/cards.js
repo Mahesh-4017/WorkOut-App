@@ -1,0 +1,13 @@
+const router = require('express').Router();
+const { requireAuth } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const { objectId, cardFields, cardQuery } = require('../utils/validators');
+const controller = require('../controllers/cardController');
+router.use(requireAuth);
+router.get('/', cardQuery, validate, controller.listCards);
+router.post('/', cardFields, validate, controller.createCard);
+router.patch('/reorder', controller.reorderCards);
+router.get('/:id', objectId, validate, controller.getCard);
+router.put('/:id', objectId, cardFields, validate, controller.updateCard);
+router.delete('/:id', objectId, validate, controller.deleteCard);
+module.exports = router;

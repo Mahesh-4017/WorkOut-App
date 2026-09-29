@@ -1,0 +1,23 @@
+# Secrets
+.env
+.env.*
+!.env.example
+Backend/.env
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# React Native / Android / iOS generated files
+**/build/
+**/.gradle/
+**/Pods/
+**/DerivedData/
+**/xcuserdata/
+**/*.keystore
+**/.watchmanconfig.local
+
+# Local files
+.DS_Store
+npm-debug.log*
+coverage/

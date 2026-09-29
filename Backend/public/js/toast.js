@@ -1,0 +1,1 @@
+export function toast(message, type = 'info') { const node = document.createElement('div'); node.className = 'toast'; node.textContent = message; if (type === 'error') node.style.background = 'var(--danger)'; document.body.append(node); setTimeout(() => node.remove(), 3200); }

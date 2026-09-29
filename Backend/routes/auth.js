@@ -1,0 +1,10 @@
+const router = require('express').Router();
+const { body } = require('express-validator');
+const validate = require('../middleware/validate');
+const { requireAuth } = require('../middleware/auth');
+const controller = require('../controllers/authController');
+router.post('/login', [body('email').isEmail(), body('password').isString().notEmpty()], validate, controller.login);
+router.get('/me', requireAuth, controller.me);
+router.post('/logout', controller.logout);
+router.patch('/password', requireAuth, [body('currentPassword').isString().notEmpty(), body('newPassword').isLength({ min: 10 })], validate, controller.changePassword);
+module.exports = router;
