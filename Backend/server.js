@@ -21,9 +21,27 @@ const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const port = process.env.PORT || 5000;
+const LIVE_URL = 'https://workout-app-g3ag.onrender.com';
+const clientUrl = process.env.CLIENT_URL || LIVE_URL;
+
+const allowedOrigins = [
+  LIVE_URL,
+  clientUrl,
+  `http://localhost:${port}`,
+  'http://localhost:5000',
+  'http://localhost:5001'
+].filter(Boolean);
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: process.env.CLIENT_URL || `http://localhost:${port}`, credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

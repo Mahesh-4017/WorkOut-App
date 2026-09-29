@@ -16,6 +16,11 @@
   A full-stack, personalized mobile fitness and workout tracking ecosystem featuring a high-performance <b>React Native (TypeScript)</b> mobile application, a resilient <b>Node.js/Express</b> RESTful backend, and an integrated <b>Admin Management Portal</b> for workout card curation and platform analytics.
 </p>
 
+<p align="center">
+  🌐 <b>Live Deployed Backend & Admin Portal:</b> <a href="https://workout-app-g3ag.onrender.com" target="_blank"><code>https://workout-app-g3ag.onrender.com</code></a>
+</p>
+
+[Live Demo](https://workout-app-g3ag.onrender.com) •
 [Explore Features](#-key-features) •
 [Architecture](#-system-architecture) •
 [Quick Start](#-getting-started) •
