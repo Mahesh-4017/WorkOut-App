@@ -11,7 +11,6 @@ import { useTheme } from "../../theme/ThemeProvider";
 import { useUser } from "../../data/UserProvider";
 import { exercises } from "../../data/exercises";
 import { ROUTES } from "../../navigation/routes";
-import { useAuth } from "../../context/AuthContext";
 
 const goal = {
   title: "Build Muscle",
@@ -34,7 +33,6 @@ export default function ProfileScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
   const { name, email, history } = useUser();
-  const { logout } = useAuth();
   const stats = [
     { label: "Exercises", value: `${history.length}` },
     { label: "Sessions", value: `${Math.ceil(history.length / 3)}` },
@@ -47,8 +45,8 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: responsiveWidth(5),
-          paddingTop: 16,
-          paddingBottom: 40,
+          paddingTop: 24,
+          paddingBottom: 78,
         }}
       >
         {/* Header */}
@@ -217,7 +215,7 @@ export default function ProfileScreen() {
         </Text>
         <View style={{ flexDirection: "row", gap: 10 }}>
           {[
-            { label: "Dashboard", icon: "grid-outline" as const, route: ROUTES.HOME },
+            { label: "Dashboard", icon: "grid-outline" as const, route: ROUTES.DASHBOARD },
             { label: "Calendar", icon: "calendar-outline" as const, route: ROUTES.WORKOUTCALENDAR },
             { label: "Analysis", icon: "analytics-outline" as const, route: ROUTES.ANALYSIS },
           ].map(item => (
@@ -347,8 +345,7 @@ export default function ProfileScreen() {
               key={row.label}
               onPress={async () => {
                 if (row.label === "Log Out") {
-                  await logout();
-                  navigation.reset({ index: 0, routes: [{ name: ROUTES.WELCOME }] });
+                  navigation.navigate(ROUTES.LOGOUT);
                   return;
                 }
                 navigation.navigate(row.label === "Help & Support" ? ROUTES.HELP_SUPPORT : ROUTES.SETTINGS);

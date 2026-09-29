@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { ROUTES } from "../../navigation/routes";
+import { useTheme } from "../../theme/ThemeProvider";
 import {
   responsiveWidth,
   responsiveHeight,
@@ -17,6 +18,8 @@ import {
 
 export default function Welcome() {
     const navigation = useNavigation<any>();
+    const { theme } = useTheme();
+    const styles = createStyles(theme);
 
     return (
         <View style={styles.container}>
@@ -61,10 +64,10 @@ export default function Welcome() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#111111",
+        backgroundColor: theme.colors.background,
     },
     backgroundImage: {
         width: responsiveWidth(100),
@@ -73,7 +76,7 @@ const styles = StyleSheet.create({
     },
     overlay: {
         ...StyleSheet.absoluteFill,
-        backgroundColor: "rgba(0, 0, 0, 0.30)",
+        backgroundColor: theme.colors.overlay,
     },
     safeArea: {
         flex: 1,
@@ -88,7 +91,8 @@ const styles = StyleSheet.create({
         paddingBottom: 5,
     },
     title: {
-        color: "#FFFFFF",
+        fontFamily: theme.typography.fontFamilyBold,
+        color: theme.colors.white,
         fontSize: responsiveFontSize(4),
         lineHeight: 34,
         fontWeight: "800",
@@ -96,7 +100,9 @@ const styles = StyleSheet.create({
         marginBottom: 18,
     },
     description: {
-        color: "rgba(255, 255, 255, 0.78)",
+        fontFamily: theme.typography.fontFamily,
+        color: theme.colors.white,
+        opacity: 0.78,
         fontSize: responsiveFontSize(2),
         lineHeight: 20,
         fontWeight: "400",
@@ -106,12 +112,13 @@ const styles = StyleSheet.create({
         height: responsiveHeight(5),
         width: responsiveWidth(90),
         borderRadius: 25,
-        backgroundColor: "#A8F52E",
+        backgroundColor: theme.colors.primary,
         alignItems: "center",
         justifyContent: "center",
     },
     buttonText: {
-        color: "#111111",
+        fontFamily: theme.typography.fontFamilyBold,
+        color: theme.colors.onPrimary,
         fontSize: responsiveFontSize(2),
         fontWeight: "700",
     },
@@ -122,7 +129,8 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
     secondaryButtonText: {
-        color: "#FFFFFF",
+        fontFamily: theme.typography.fontFamilyMedium,
+        color: theme.colors.white,
         fontSize: responsiveFontSize(1.7),
         fontWeight: "700",
     },

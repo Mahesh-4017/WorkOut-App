@@ -18,6 +18,7 @@ import {
 import { useTheme } from "../../theme/ThemeProvider";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { ROUTES } from "../../navigation/routes";
+import Ionicons from "@react-native-vector-icons/ionicons";
 
 /* =========================================================
    Responsive Helpers
@@ -47,7 +48,14 @@ type Workout = {
   muscles: string;
   exercises: number;
   duration: string;
-  icon: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+};
+
+const dateAtOffset = (days: number) => {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
 };
 
 /* =========================================================
@@ -57,46 +65,46 @@ type Workout = {
 const workouts: Workout[] = [
   {
     id: "upper-body-push",
-    date: "2026-01-23",
+    date: dateAtOffset(0),
     label: "Today",
     name: "Upper Body Push",
     muscles: "Chest • Shoulders • Triceps",
     exercises: 4,
     duration: "45 min",
-    icon: "💪",
+    icon: "barbell-outline",
   },
 
   {
     id: "lower-body",
-    date: "2026-01-24",
+    date: dateAtOffset(1),
     label: "Tomorrow",
     name: "Lower Body",
     muscles: "Quads • Hamstrings • Glutes",
     exercises: 5,
     duration: "50 min",
-    icon: "🦵",
+    icon: "fitness-outline",
   },
 
   {
     id: "pull-day",
-    date: "2026-01-25",
+    date: dateAtOffset(2),
     label: "Friday",
     name: "Pull Day",
     muscles: "Back • Biceps • Rear Delts",
     exercises: 4,
     duration: "45 min",
-    icon: "🏋️",
+    icon: "body-outline",
   },
 
   {
     id: "full-body",
-    date: "2026-01-27",
+    date: dateAtOffset(4),
     label: "Sunday",
     name: "Full Body",
     muscles: "Full Body • Core",
     exercises: 6,
     duration: "55 min",
-    icon: "🔥",
+    icon: "flame-outline",
   },
 ];
 
@@ -111,7 +119,7 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
   const styles = createStyles(theme);
 
   const [selectedDate, setSelectedDate] = useState(
-    initialDate ?? "2026-01-23"
+    initialDate ?? dateAtOffset(0)
   );
 
   useEffect(() => {
@@ -397,14 +405,12 @@ function WorkoutCard({
 
           {
             backgroundColor: selected
-              ? "rgba(182, 240, 0, 0.15)"
+              ? styles.colors.primary
               : styles.colors.surface,
           },
         ]}
       >
-        <Text style={styles.workoutEmoji}>
-          {workout.icon}
-        </Text>
+        <Ionicons name={workout.icon} size={22} color={selected ? styles.colors.onPrimary : styles.colors.icon} />
       </View>
 
       {/* Workout Content */}
@@ -443,9 +449,7 @@ function WorkoutCard({
       {/* Arrow */}
 
       <View style={styles.arrowContainer}>
-        <Text style={styles.cardArrow}>
-          ›
-        </Text>
+        <Ionicons name="chevron-forward" size={19} color={styles.colors.icon} />
       </View>
     </Pressable>
   );
@@ -465,9 +469,7 @@ function EmptyWorkoutCard({
       {/* Icon */}
 
       <View style={styles.emptyIcon}>
-        <Text style={styles.emptyPlus}>
-          +
-        </Text>
+        <Ionicons name="add" size={22} color={styles.colors.icon} />
       </View>
 
       {/* Content */}
@@ -520,7 +522,7 @@ const createStyles = (theme: any) =>
         rw(18),
 
       paddingBottom:
-        rh(30),
+        rh(78),
     },
 
     /*

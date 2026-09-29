@@ -13,6 +13,7 @@ import WorkoutCalendar from "../pages/Calendar/WorkoutCalendar";
 import { ROUTES } from "./routes";
 import AppHeader from "../components/AppHeader";
 import Workout from "../pages/workout/Workout";
+import ActiveWorkout from "../pages/workout/ActiveWorkout";
 import MainTabs from "./MainTabs";
 import LoginScreen from "../pages/auth/Login";
 import RegisterScreen from "../pages/auth/Register";
@@ -23,8 +24,10 @@ import {
     EditGoalsScreen,
     GoalDetailScreen,
     HelpSupportScreen,
+    LogoutScreen,
     SettingsScreen,
 } from "../pages/profile/ProfileUtilityScreens";
+import Dashboard from "../pages/profile/Dashboard";
 
 const PlaceholderScreen = ({ routeName }: { routeName: string }) => (
     <View
@@ -145,13 +148,23 @@ const RootStack = createNativeStackNavigator({
         },
 
         [ROUTES.ACTIVE_WORKOUT]: {
-            screen: () => <PlaceholderScreen routeName={ROUTES.ACTIVE_WORKOUT} />,
+            screen: ActiveWorkout,
             options: { headerShown: false },
         },
 
         [ROUTES.PROFILE]: {
             screen: MainTabs,
             initialParams: { tab: "profile" },
+            options: { headerShown: false },
+        },
+
+        [ROUTES.DASHBOARD]: {
+            screen: Dashboard,
+            options: { headerShown: false },
+        },
+
+        [ROUTES.LOGOUT]: {
+            screen: LogoutScreen,
             options: { headerShown: false },
         },
 

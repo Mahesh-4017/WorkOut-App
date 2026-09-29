@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import {
@@ -8,39 +8,40 @@ import {
 import Ionicons from "@react-native-vector-icons/ionicons";
 import BottomTabBar from "../../components/BottomTabBar";
 import { useTheme } from "../../theme/ThemeProvider";
+import { useUser } from "../../data/UserProvider";
+import { exercises } from "../../data/exercises";
 
 type Range = "Week" | "Month" | "3 Months" | "Year";
 
 const ranges: Range[] = ["Week", "Month", "3 Months", "Year"];
 
-const frequency = [
-  { day: "Mon", value: 3 },
-  { day: "Tue", value: 4 },
-  { day: "Wed", value: 2 },
-  { day: "Thu", value: 5 },
-  { day: "Fri", value: 4 },
-  { day: "Sat", value: 5 },
-  { day: "Sun", value: 1 },
-];
-
-const muscleGroups = [
-  { label: "Chest", percent: 32, color: "#6C63FF" },
-  { label: "Back", percent: 24, color: "#4FD1C5" },
-  { label: "Legs", percent: 18, color: "#68D391" },
-  { label: "Shoulders", percent: 15, color: "#F6AD55" },
-  { label: "Arms", percent: 11, color: "#FC8181" },
-];
-
-const personalBests = [
-  { exercise: "Bench Press", weightKg: 80, icon: "barbell-outline" as const },
-  { exercise: "Squat", weightKg: 100, icon: "medal-outline" as const },
-];
-
 export default function Analysis() {
   const { theme } = useTheme();
+  const { history } = useUser();
   const [selectedRange, setSelectedRange] = useState<Range>("Month");
-
-  const maxFrequency = Math.max(...frequency.map((f) => f.value));
+  const rangeDays: Record<Range, number> = { Week: 7, Month: 30, "3 Months": 90, Year: 365 };
+  const filteredHistory = useMemo(() => {
+    const cutoff = Date.now() - rangeDays[selectedRange] * 24 * 60 * 60 * 1000;
+    return history.filter(item => new Date(item.completedAt).getTime() >= cutoff);
+  }, [history, selectedRange]);
+  const frequency = useMemo(() => Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (6 - index));
+    const key = date.toISOString().slice(0, 10);
+    return { day: date.toLocaleDateString(undefined, { weekday: "short" }), value: filteredHistory.filter(item => item.completedAt.slice(0, 10) === key).length };
+  }), [filteredHistory]);
+  const maxFrequency = Math.max(1, ...frequency.map(item => item.value));
+  const muscleGroups = useMemo(() => {
+    const counts = filteredHistory.reduce<Record<string, number>>((result, item) => {
+      const exercise = exercises.find(value => value.id === item.exerciseId);
+      if (exercise) result[exercise.muscle] = (result[exercise.muscle] || 0) + 1;
+      return result;
+    }, {});
+    const total = Object.values(counts).reduce((sum, value) => sum + value, 0) || 1;
+    const colors = [theme.colors.primary, theme.colors.success, theme.colors.warning, theme.colors.icon, theme.colors.primaryDark];
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, count], index) => ({ label, percent: Math.round((count / total) * 100), color: colors[index % colors.length] }));
+  }, [filteredHistory, theme.colors]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -48,10 +49,13 @@ export default function Analysis() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: responsiveWidth(5),
-          paddingTop: 16,
-          paddingBottom: 40,
+          paddingTop: 6,
+          paddingBottom: 78,
         }}
       >
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
+          {[["Completed", filteredHistory.length.toString(), "checkmark-circle-outline"], ["This week", history.filter(item => Date.now() - new Date(item.completedAt).getTime() <= 7 * 24 * 60 * 60 * 1000).length.toString(), "calendar-outline"], ["Streak", filteredHistory.length ? "Active" : "Start", "flame-outline"]].map(([label, value, icon]) => <View key={label} style={{ flex: 1, padding: 13, borderRadius: 16, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }}><Ionicons name={icon as React.ComponentProps<typeof Ionicons>["name"]} size={18} color={theme.colors.icon} /><Text style={{ marginTop: 8, fontSize: responsiveFontSize(1.8), fontWeight: "900", color: theme.colors.text }}>{value}</Text><Text style={{ marginTop: 2, fontSize: responsiveFontSize(1.15), color: theme.colors.textSecondary }}>{label}</Text></View>)}
+        </View>
         {/* Range tabs */}
         <View
           style={{
@@ -180,14 +184,10 @@ export default function Analysis() {
           </Text>
 
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <MuscleDonut
-              segments={muscleGroups}
-              trackColor={theme.colors.border}
-              centerLabelColor={theme.colors.text}
-            />
+            {muscleGroups.length ? <MuscleDonut segments={muscleGroups} trackColor={theme.colors.border} centerLabelColor={theme.colors.text} totalValue={filteredHistory.length.toString()} /> : <View style={{ width: 130, height: 130, borderRadius: 65, borderWidth: 16, borderColor: theme.colors.border, alignItems: "center", justifyContent: "center" }}><Ionicons name="barbell-outline" size={28} color={theme.colors.muted} /></View>}
 
             <View style={{ flex: 1, marginLeft: 20 }}>
-              {muscleGroups.map((group) => (
+              {muscleGroups.length ? muscleGroups.map((group) => (
                 <View
                   key={group.label}
                   style={{
@@ -227,12 +227,12 @@ export default function Analysis() {
                     {group.percent}%
                   </Text>
                 </View>
-              ))}
+              )) : <Text style={{ color: theme.colors.textSecondary }}>Complete exercises to see your training balance.</Text>}
             </View>
           </View>
         </View>
 
-        {/* Personal Bests */}
+        {/* Activity summary */}
         <Text
           style={{
             marginTop: 26,
@@ -242,11 +242,11 @@ export default function Analysis() {
             color: theme.colors.text,
           }}
         >
-          Personal Bests
+          Activity summary
         </Text>
 
         <View style={{ flexDirection: "row", gap: 12 }}>
-          {personalBests.map((best) => (
+          {[{ exercise: "Exercises completed", value: `${filteredHistory.length}`, icon: "checkmark-circle-outline" as const }, { exercise: "Training balance", value: muscleGroups.length ? `${muscleGroups[0].label} focus` : "Not started", icon: "analytics-outline" as const }].map((best) => (
             <View
               key={best.exercise}
               style={{
@@ -281,7 +281,7 @@ export default function Analysis() {
                   color: theme.colors.text,
                 }}
               >
-                {best.weightKg} kg
+                {best.value}
               </Text>
               <Text
                 style={{
@@ -291,7 +291,7 @@ export default function Analysis() {
                   opacity: 0.45,
                 }}
               >
-                1RM (est)
+                {selectedRange} overview
               </Text>
             </View>
           ))}
@@ -306,10 +306,12 @@ function MuscleDonut({
   segments,
   trackColor,
   centerLabelColor,
+  totalValue,
 }: {
   segments: { label: string; percent: number; color: string }[];
   trackColor: string;
   centerLabelColor: string;
+  totalValue: string;
 }) {
   const size = 130;
   const strokeWidth = 16;
@@ -317,7 +319,6 @@ function MuscleDonut({
   const circumference = 2 * Math.PI * radius;
 
   let cumulativePercent = 0;
-  const totalVolumeKg = 8420;
 
   return (
     <View style={{ width: size, height: size }}>
@@ -371,7 +372,7 @@ function MuscleDonut({
             opacity: 0.55,
           }}
         >
-          Total Volume
+          Completed
         </Text>
         <Text
           style={{
@@ -380,7 +381,7 @@ function MuscleDonut({
             color: centerLabelColor,
           }}
         >
-          {totalVolumeKg.toLocaleString()} kg
+          {totalValue}
         </Text>
       </View>
     </View>

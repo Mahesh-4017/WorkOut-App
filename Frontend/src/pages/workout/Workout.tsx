@@ -76,6 +76,9 @@ export default function TodayWorkoutScreen() {
       })
       .filter((exercise): exercise is WorkoutExercise => exercise !== null),
   };
+  const completedCount = todaysWorkout.exercises.filter(exercise => history.some(item => item.exerciseId === exercise.id)).length;
+  const completionPercent = todaysWorkout.exerciseCount ? Math.round((completedCount / todaysWorkout.exerciseCount) * 100) : 0;
+  const todayLabel = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   const [, refreshCompletionState] = React.useState(0);
 
@@ -204,6 +207,10 @@ export default function TodayWorkoutScreen() {
           {todaysWorkout.tags.join(" • ")}
         </Text>
 
+        <Text style={{ marginTop: 8, fontSize: responsiveFontSize(1.35), color: theme.colors.textSecondary }}>
+          {todayLabel}
+        </Text>
+
         {/* Meta row */}
         <View
           style={{
@@ -253,6 +260,19 @@ export default function TodayWorkoutScreen() {
               {todaysWorkout.durationMinutes} min
             </Text>
           </View>
+        </View>
+
+        <View style={{ marginTop: 18, padding: 14, borderRadius: 16, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={{ fontSize: responsiveFontSize(1.5), fontWeight: "800", color: theme.colors.text }}>Today&apos;s progress</Text>
+            <Text style={{ fontSize: responsiveFontSize(1.45), fontWeight: "800", color: theme.colors.primaryDark }}>{completionPercent}%</Text>
+          </View>
+          <View style={{ height: 8, marginTop: 10, borderRadius: 4, backgroundColor: theme.colors.border, overflow: "hidden" }}>
+            <View style={{ width: `${completionPercent}%`, height: "100%", borderRadius: 4, backgroundColor: theme.colors.primary }} />
+          </View>
+          <Text style={{ marginTop: 7, fontSize: responsiveFontSize(1.25), color: theme.colors.textSecondary }}>
+            {completedCount} of {todaysWorkout.exerciseCount} exercises completed
+          </Text>
         </View>
 
         {/* Start workout button */}

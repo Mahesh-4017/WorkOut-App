@@ -219,6 +219,10 @@ function AnimatedTab({
                         color={active ? theme.colors.onPrimary : theme.colors.icon}
                     />
                 </Animated.View>
+
+                {active && (
+                    <Text style={styles.navLabel}>{tab.label}</Text>
+                )}
             </Animated.View>
         </Pressable>
     );
@@ -285,9 +289,10 @@ const createStyles = (theme: any) =>
         },
 
         navLabel: {
+            fontFamily: theme.typography.fontFamilyMedium,
             color: theme.colors.onPrimary,
-            fontSize: 11,
-            fontWeight: "700",
+            fontSize: theme.typography.sizes.xs,
+            fontWeight: theme.typography.weights.bold,
             marginLeft: 5,
         },
     });

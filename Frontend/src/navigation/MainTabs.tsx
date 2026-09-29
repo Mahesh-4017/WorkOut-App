@@ -41,13 +41,7 @@ export default function MainTabs({ route }: { route?: { params?: { tab?: MainTab
           />
         );
       case "profile":
-        return (
-          <AppHeader
-            title="Profile"
-            description="Your fitness summary"
-            showBack={false}
-          />
-        );
+        return null;
       case "home":
       default:
         return null;

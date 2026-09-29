@@ -6,6 +6,7 @@ import { responsiveFontSize, responsiveWidth } from "react-native-responsive-dim
 import AppHeader from "../../components/AppHeader";
 import { useTheme } from "../../theme/ThemeProvider";
 import { useUser } from "../../data/UserProvider";
+import { useAuth } from "../../context/AuthContext";
 
 function Page({ title, children }: { title: string; children: React.ReactNode }) {
   const { theme } = useTheme();
@@ -59,4 +60,11 @@ export function GoalDetailScreen() {
   const route = useRoute<any>();
   const goal = route.params?.goal ?? { title: "Your goal", progress: 0 };
   return <Page title="Goal detail"><Text style={{ fontSize: responsiveFontSize(3), fontWeight: "800", color: theme.colors.text }}>{goal.title}</Text><Text style={{ marginTop: 10, color: theme.colors.textSecondary }}>You are {Math.round(goal.progress * 100)}% of the way there. Keep the next session small and consistent.</Text></Page>;
+}
+
+export function LogoutScreen() {
+  const { theme } = useTheme();
+  const navigation = useNavigation<any>();
+  const { logout } = useAuth();
+  return <Page title="Log out"><View style={{ alignItems: "center", paddingTop: 24 }}><Ionicons name="log-out-outline" size={44} color={theme.colors.primaryDark} /><Text style={{ marginTop: 18, color: theme.colors.text, fontSize: responsiveFontSize(2.6), fontWeight: "900" }}>Leave your session?</Text><Text style={{ marginTop: 8, color: theme.colors.textSecondary, textAlign: "center", lineHeight: 22 }}>You can log back in anytime. Your workout history will stay saved on this device.</Text><Pressable onPress={async () => { await logout(); navigation.reset({ index: 0, routes: [{ name: "Welcome" }] }); }} style={{ width: "100%", marginTop: 26, padding: 15, borderRadius: 15, alignItems: "center", backgroundColor: theme.colors.primary }}><Text style={{ color: theme.colors.onPrimary, fontWeight: "800" }}>Log out</Text></Pressable><Pressable onPress={() => navigation.goBack()} style={{ marginTop: 16, padding: 12 }}><Text style={{ color: theme.colors.text, fontWeight: "700" }}>Stay signed in</Text></Pressable></View></Page>;
 }

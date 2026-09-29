@@ -11,6 +11,8 @@ export const ROUTES = {
     EXERCISE_DETAIL: "ExerciseDetail",
     ACTIVE_WORKOUT: "ActiveWorkout",
     PROFILE: "Profile",
+    DASHBOARD: "Dashboard",
+    LOGOUT: "Logout",
     NOTIFICATIONS: "Notifications",
     WORKOUTCALENDAR: "WorkoutCalendar",
     FORGET: "Forget",

@@ -1,7 +1,6 @@
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import {
-  responsiveFontSize,
   responsiveScreenHeight,
   responsiveWidth,
 } from "react-native-responsive-dimensions";
@@ -32,10 +31,10 @@ export default function AppHeader({
   return (
     <View
       style={{
-        height: 110,
+        height: 86,
         flexDirection: "row",
         alignItems: "flex-end",
-        paddingBottom: 10,
+        paddingBottom: 7,
         paddingHorizontal: 15,
         backgroundColor: theme.colors.background,
       }}
@@ -55,7 +54,8 @@ export default function AppHeader({
           >
             <Text
               style={{
-                fontSize: 32,
+                fontFamily: theme.typography.fontFamily,
+                fontSize: theme.typography.sizes.display,
                 color: theme.colors.text,
                 fontWeight: "400",
               }}
@@ -76,9 +76,10 @@ export default function AppHeader({
         {/* Title */}
         <Text
           style={{
-            fontWeight: "800",
+            fontFamily: theme.typography.fontFamilyBold,
+            fontSize: theme.typography.sizes.xl,
+            fontWeight: theme.typography.weights.heavy,
             color: theme.colors.text,
-            fontSize: responsiveFontSize(3.4),
             letterSpacing: -0.7,
           }}
           numberOfLines={1}
@@ -91,8 +92,9 @@ export default function AppHeader({
           <Text
             style={{
               marginTop: 1,
-              fontSize: responsiveFontSize(1.5),
-              fontWeight: "400",
+              fontFamily: theme.typography.fontFamily,
+              fontSize: theme.typography.sizes.xs,
+              fontWeight: theme.typography.weights.regular,
               color: theme.colors.text,
               opacity: 0.6,
             }}
@@ -130,7 +132,8 @@ export default function AppHeader({
     >
       <Text
         style={{
-          fontSize: responsiveFontSize(3),
+          fontFamily: theme.typography.fontFamily,
+          fontSize: theme.typography.sizes.lg,
           color: theme.colors.icon,
         }}
       >

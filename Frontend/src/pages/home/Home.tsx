@@ -40,9 +40,10 @@ const rf = (value: number) =>
 export default function Home() {
     const navigation = useNavigation<any>();
     const { theme, isDark, toggleTheme } = useTheme();
-    const { name } = useUser();
+    const { name, history } = useUser();
     const { user } = useAuth();
     const styles = createStyles(theme);
+    const [today] = React.useState(() => new Date());
     const [featuredCards, setFeaturedCards] = React.useState<ApiCard[]>([]);
     const [cardsLoading, setCardsLoading] = React.useState(true);
 
@@ -63,22 +64,19 @@ export default function Home() {
         };
     }, [user?.gender]);
 
-   const dates = [
-    { day: "Mon", date: "22" },
-    { day: "Tue", date: "23" },
-    { day: "Wed", date: "24" },
-    { day: "Thu", date: "25", active: true },
-    { day: "Fri", date: "26" },
-    { day: "Sat", date: "27" },
-    { day: "Sun", date: "28" },
-    { day: "Mon", date: "29" },
-    { day: "Tue", date: "30" },
-    { day: "Wed", date: "31" },
-    { day: "Thu", date: "01" },
-    { day: "Fri", date: "02" },
-    { day: "Sat", date: "03" },
-    { day: "Sun", date: "04" },
-];
+    const dates = React.useMemo(() => Array.from({ length: 14 }, (_, index) => {
+        const date = new Date(today);
+        date.setDate(today.getDate() + index);
+        return {
+            day: date.toLocaleDateString(undefined, { weekday: "short" }),
+            date: String(date.getDate()).padStart(2, "0"),
+            dateString: date.toISOString().slice(0, 10),
+            active: index === 0,
+        };
+    }), [today]);
+    const todayLabel = today.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+    const monthLabel = today.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    const completion = Math.min(history.length / 5, 1);
 
     return (
         <View style={styles.container}>
@@ -106,7 +104,7 @@ export default function Home() {
                                 </Text>
 
                                 <Text style={styles.today}>
-                                    Thursday, 25 January
+                                    {todayLabel}
                                 </Text>
                             </View>
                         </View>
@@ -183,7 +181,7 @@ export default function Home() {
                     <View style={styles.datePickerContainer}>
                         <View style={styles.datePickerHeader}>
                             <Text style={styles.datePickerTitle}>Choose a day</Text>
-                            <Text style={styles.datePickerMonth}>January 2026</Text>
+                            <Text style={styles.datePickerMonth}>{monthLabel}</Text>
                         </View>
 
                         <ScrollView
@@ -198,7 +196,7 @@ export default function Home() {
                                     activeOpacity={0.75}
                                     onPress={() =>
                                         navigation.navigate(ROUTES.WORKOUTCALENDAR, {
-                                            selectedDate: `2026-01-${item.date.padStart(2, "0")}`,
+                                            selectedDate: item.dateString,
                                         })
                                     }
                                     style={[
@@ -222,7 +220,7 @@ export default function Home() {
                     <TouchableOpacity
                         activeOpacity={0.88}
                         style={styles.startWorkoutCard}
-                        onPress={() => navigation.navigate(ROUTES.WORKOUTCALENDAR)}
+                        onPress={() => navigation.navigate(ROUTES.WORKOUT)}
                     >
                         <View style={styles.startWorkoutContent}>
                             <View>
@@ -238,10 +236,10 @@ export default function Home() {
 
                         <View style={styles.startWorkoutBottom}>
                             <View style={styles.workoutProgress}>
-                                <View style={styles.workoutProgressFill} />
+                                <View style={[styles.workoutProgressFill, { width: `${completion * 100}%` }]} />
                             </View>
 
-                            <Text style={styles.workoutProgressText}>0% completed</Text>
+                            <Text style={styles.workoutProgressText}>{Math.round(completion * 100)}% completed</Text>
                         </View>
                     </TouchableOpacity>
 
@@ -273,7 +271,8 @@ export default function Home() {
                                         </View>
                                     )}
                                     <Text numberOfLines={1} style={styles.featuredTitle}>{card.title}</Text>
-                                    <Text numberOfLines={1} style={styles.featuredCategory}>{card.category}</Text>
+                                    <Text numberOfLines={2} style={styles.featuredDescription}>{card.description}</Text>
+                                    <Text numberOfLines={1} style={styles.featuredCategory}>{card.category} · {card.audience === "all" ? "Everyone" : card.audience}</Text>
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
@@ -435,7 +434,7 @@ const createStyles = (theme: any) =>
 
         /* Challenge */
 
-        challenge: { height: rh(120), borderRadius: 22, backgroundColor: theme.colors.primary, overflow: "visible", flexDirection: "row", marginBottom: 24, position: "relative", marginTop: 0 }, challengeText: { flex: 1, paddingLeft: 17, paddingTop: 15, paddingBottom: 9, zIndex: 2, }, challengeLabel: { color: theme.colors.primaryDark, fontSize: rf(9), fontWeight: "800", letterSpacing: 1, marginBottom: 5, }, challengeTitle: { color: theme.colors.onPrimary, fontSize: rf(18), lineHeight: 19, fontWeight: "800", maxWidth: 155, }, challengeSubtitle: { color: theme.colors.primaryDark, fontSize: rf(10), fontWeight: "600", marginTop: 5, }, challengeBottom: { flexDirection: "row", alignItems: "center", marginTop: 8, }, challengePeople: { flexDirection: "row", alignItems: "center", }, miniAvatar: { width: rw(25), height: rh(25), borderRadius: 15, backgroundColor: theme.colors.white, alignItems: "center", justifyContent: "center", marginRight: -8, borderWidth: 1, borderColor: theme.colors.primary, overflow: "hidden", }, morePeople: { width: rw(20), height: rh(20), borderRadius: 15, backgroundColor: theme.colors.onPrimary, alignItems: "center", justifyContent: "center", marginLeft: 1, }, moreText: { color: theme.colors.primary, fontSize: rf(8), fontWeight: "800", }, challengeJoined: { color: theme.colors.primaryDark, fontSize: rf(10), fontWeight: "600", marginLeft: 4, }, challengeImage: { width: rw(125), height: rh(180), position: "absolute", right: -8, bottom: -3 },
+        challenge: { height: rh(120), borderRadius: 22, backgroundColor: theme.colors.primary, overflow: "visible", flexDirection: "row", marginBottom: 24, position: "relative", marginTop: 0 }, challengeText: { flex: 1, paddingLeft: 17, paddingTop: 15, paddingBottom: 9, zIndex: 2, }, challengeLabel: { color: theme.colors.primaryDark, fontSize: rf(9), fontWeight: "800", letterSpacing: 1, marginBottom: 5, }, challengeTitle: { color: theme.colors.onPrimary, fontSize: rf(18), lineHeight: 19, fontWeight: "800", maxWidth: 155, }, challengeSubtitle: { color: theme.colors.primaryDark, fontSize: rf(10), fontWeight: "600", marginTop: 5, }, challengeBottom: { flexDirection: "row", alignItems: "center", marginTop: 8, }, challengePeople: { flexDirection: "row", alignItems: "center", }, miniAvatar: { width: rw(25), height: rh(25), borderRadius: 15, backgroundColor: theme.colors.white, alignItems: "center", justifyContent: "center", marginRight: -8, borderWidth: 1, borderColor: theme.colors.primary, overflow: "hidden", }, morePeople: { width: rw(20), height: rh(20), borderRadius: 15, backgroundColor: theme.colors.onPrimary, alignItems: "center", justifyContent: "center", marginLeft: 1, }, moreText: { color: theme.colors.primary, fontSize: rf(8), fontWeight: "800", }, challengeJoined: { color: theme.colors.primaryDark, fontSize: rf(10), fontWeight: "600", marginLeft: 4, }, challengeImage: { width: rw(125), height: rh(140), position: "absolute", right: -7, bottom: 0 },
 /* =========================
    Start Workout
 ========================= */
@@ -785,7 +784,7 @@ featuredRow: {
 },
 
 featuredCard: {
-    width: rw(150),
+    width: rw(178),
     marginRight: 12,
 },
 
@@ -817,6 +816,13 @@ featuredCategory: {
     color: theme.colors.muted,
     fontSize: rf(7),
     marginTop: 2,
+},
+
+featuredDescription: {
+    color: theme.colors.textSecondary,
+    fontSize: rf(7.5),
+    lineHeight: rf(10),
+    marginTop: 4,
 },
         
     });
