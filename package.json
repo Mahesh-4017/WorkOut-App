@@ -1,0 +1,11 @@
+{
+  "name": "workout-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WorkOut App Monorepo Root",
+  "scripts": {
+    "postinstall": "cd Backend && npm install",
+    "build": "cd Backend && npm install",
+    "start": "cd Backend && npm start"
+  }
+}
