@@ -14,6 +14,10 @@ A single-admin video card dashboard built with Express, MongoDB/Mongoose, JWT co
 
 The server exposes both `/api/...` and version-ready `/api/v1/...` routes.
 
+### Password reset email
+
+For Gmail delivery, enable two-step verification on the sending Google account and create a Google App Password. Configure `SMTP_USER` and `SMTP_APP_PASSWORD` on the backend; optionally set `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, and `SMTP_FROM`. Set `PUBLIC_APP_URL` to the public HTTPS backend URL so reset emails link to its `reset-password.html` page. Do not use the Gmail account password or commit these values. Reset tokens are one-use and expire after one hour.
+
 ## API examples
 
 ```bash

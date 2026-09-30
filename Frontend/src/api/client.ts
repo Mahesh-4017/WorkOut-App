@@ -8,6 +8,19 @@ export const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+let warmupPromise: Promise<void> | null = null;
+
+export function warmUpApi() {
+  if (!warmupPromise) {
+    warmupPromise = apiClient.get("/health", { timeout: 60000 })
+      .then(() => undefined)
+      .catch(() => {
+        warmupPromise = null;
+      });
+  }
+  return warmupPromise;
+}
+
 apiClient.interceptors.request.use(async config => {
   const token = await AsyncStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;

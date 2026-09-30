@@ -6,15 +6,19 @@ export type AppUser = OnboardingData & { id: string; name: string; email: string
 type AuthResponse = { data: { token: string; user: AppUser } };
 
 export async function registerUser(payload: { name: string; email: string; password: string } & OnboardingData) {
-  const response = await apiClient.post<AuthResponse>("/app/auth/register", payload);
+  const response = await apiClient.post<AuthResponse>("/app/auth/register", payload, { timeout: 60000 });
   await AsyncStorage.setItem("token", response.data.data.token);
   return response.data.data.user;
 }
 
 export async function loginUser(email: string, password: string) {
-  const response = await apiClient.post<AuthResponse>("/app/auth/login", { email, password });
+  const response = await apiClient.post<AuthResponse>("/app/auth/login", { email, password }, { timeout: 60000 });
   await AsyncStorage.setItem("token", response.data.data.token);
   return response.data.data.user;
+}
+
+export async function requestPasswordReset(email: string) {
+  await apiClient.post("/app/auth/forgot-password", { email }, { timeout: 30000 });
 }
 
 export async function getCurrentUser() {

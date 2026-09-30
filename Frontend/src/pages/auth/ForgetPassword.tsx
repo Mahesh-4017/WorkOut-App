@@ -16,6 +16,8 @@ import { useNavigation } from "@react-navigation/native";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { useTheme } from "../../theme/ThemeProvider";
+import { requestPasswordReset } from "../../api/auth";
+import { apiErrorMessage } from "../../api/client";
 
 export default function ForgotPasswordScreen() {
   const { theme } = useTheme();
@@ -24,6 +26,7 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const emailValid = /\S+@\S+\.\S+/.test(email);
   const canSubmit = emailValid && !submitting;
@@ -31,10 +34,12 @@ export default function ForgotPasswordScreen() {
   const handleSendLink = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
+    setErrorMessage("");
     try {
-      // Wire up your real password-reset call here.
-      // await sendPasswordResetEmail(email);
+      await requestPasswordReset(email.trim());
       setSent(true);
+    } catch (error) {
+      setErrorMessage(apiErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -164,6 +169,12 @@ export default function ForgotPasswordScreen() {
               </View>
             </View>
 
+            {errorMessage ? (
+              <Text style={{ marginTop: 12, color: theme.colors.danger, textAlign: "center" }}>
+                {errorMessage}
+              </Text>
+            ) : null}
+
             {/* Send link */}
             <Pressable
               onPress={handleSendLink}
@@ -235,6 +246,12 @@ export default function ForgotPasswordScreen() {
               . Follow the link to set a new password.
             </Text>
 
+            {errorMessage ? (
+              <Text style={{ marginTop: 12, color: theme.colors.danger, textAlign: "center" }}>
+                {errorMessage}
+              </Text>
+            ) : null}
+
             <Pressable
               onPress={handleSendLink}
               disabled={submitting}
@@ -247,7 +264,7 @@ export default function ForgotPasswordScreen() {
                   color: theme.colors.icon,
                 }}
               >
-                Didn&apos;t get it? Resend link
+                {submitting ? "Sending…" : "Didn&apos;t get it? Resend link"}
               </Text>
             </Pressable>
 

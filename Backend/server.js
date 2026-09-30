@@ -49,7 +49,7 @@ app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { success: false, message: 'Too many login attempts. Try again later.' } });
-app.use(['/api/auth/login', '/api/v1/auth/login', '/api/app/auth/login', '/api/app/auth/register'], loginLimiter);
+app.use(['/api/auth/login', '/api/v1/auth/login', '/api/app/auth/login', '/api/app/auth/register', '/api/app/auth/forgot-password', '/api/v1/app/auth/forgot-password', '/api/app/auth/reset-password', '/api/v1/app/auth/reset-password'], loginLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/cards', cardRoutes);

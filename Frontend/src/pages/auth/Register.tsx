@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -18,7 +18,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { useTheme } from "../../theme/ThemeProvider";
 import { useUser } from "../../data/UserProvider";
 import { useAuth } from "../../context/AuthContext";
-import { apiErrorMessage } from "../../api/client";
+import { apiErrorMessage, warmUpApi } from "../../api/client";
 import { clearOnboarding, getOnboarding } from "../../utils/onboarding";
 import { ROUTES } from "../../navigation/routes";
 
@@ -36,6 +36,20 @@ export default function RegisterScreen() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [waitingForServer, setWaitingForServer] = useState(false);
+
+  useEffect(() => {
+    void warmUpApi();
+  }, []);
+
+  useEffect(() => {
+    if (!submitting) {
+      setWaitingForServer(false);
+      return;
+    }
+    const timeout = setTimeout(() => setWaitingForServer(true), 3000);
+    return () => clearTimeout(timeout);
+  }, [submitting]);
 
   const nameValid = name.trim().length > 1;
   const emailValid = /\S+@\S+\.\S+/.test(email);
@@ -57,9 +71,9 @@ export default function RegisterScreen() {
     try {
       const onboarding = await getOnboarding();
       const user = await register({ name: name.trim(), email: email.trim(), password, ...onboarding });
-      await clearOnboarding();
       setUser(user.name, user.email);
       navigation.reset({ index: 0, routes: [{ name: ROUTES.HOME }] });
+      void clearOnboarding().catch(() => undefined);
     } catch (error) {
       setErrorMessage(apiErrorMessage(error));
     } finally {
@@ -295,7 +309,7 @@ export default function RegisterScreen() {
               color: theme.colors.onPrimary,
             }}
           >
-            {submitting ? "Creating account…" : "Create Account"}
+            {submitting ? waitingForServer ? "Waking server…" : "Creating account…" : "Create Account"}
           </Text>
         </Pressable>
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -18,7 +18,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { useTheme } from "../../theme/ThemeProvider";
 import RegisterScreen from "./Register";
 import { ROUTES } from "../../navigation/routes";
-import { apiErrorMessage } from "../../api/client";
+import { apiErrorMessage, warmUpApi } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { useUser } from "../../data/UserProvider";
 
@@ -33,6 +33,20 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [waitingForServer, setWaitingForServer] = useState(false);
+
+  useEffect(() => {
+    void warmUpApi();
+  }, []);
+
+  useEffect(() => {
+    if (!submitting) {
+      setWaitingForServer(false);
+      return;
+    }
+    const timeout = setTimeout(() => setWaitingForServer(true), 3000);
+    return () => clearTimeout(timeout);
+  }, [submitting]);
 
   const emailValid = /\S+@\S+\.\S+/.test(email);
   const canSubmit = emailValid && password.length >= 6 && !submitting;
@@ -237,7 +251,7 @@ export default function LoginScreen() {
               color: theme.colors.onPrimary,
             }}
           >
-            {submitting ? "Logging in…" : "Log In"}
+            {submitting ? waitingForServer ? "Waking server…" : "Logging in…" : "Log In"}
           </Text>
         </Pressable>
         {errorMessage ? (
