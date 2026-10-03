@@ -16,6 +16,11 @@ function normalizeTarget(purpose, target) {
   return purpose === 'verifyPhone' ? value.replace(/[\s()-]/g, '') : value.toLowerCase();
 }
 
+function findUserByEmail(target) {
+  const email = String(target || '').trim().toLowerCase();
+  return User.findOne({ email }).collation({ locale: 'en', strength: 2 });
+}
+
 function hashCode(purpose, target, code) {
   const secret = process.env.OTP_SECRET || process.env.JWT_SECRET;
   return crypto.createHmac('sha256', secret).update(`${purpose}:${target}:${code}`).digest('hex');
@@ -113,8 +118,9 @@ async function send(req, res) {
   }
 
   try {
-    const query = purpose === 'verifyPhone' ? { phone: target } : { email: target };
-    const user = await User.findOne(query);
+    const user = purpose === 'verifyPhone'
+      ? await User.findOne({ phone: target })
+      : await findUserByEmail(target);
     if (!user) {
       if (purpose === 'resetPassword') {
         return sendSuccess(res, 200, null, 'If an account exists, a code has been sent.');
@@ -164,7 +170,9 @@ async function verify(req, res) {
   }
 
   try {
-    const user = await User.findOne(purpose === 'verifyPhone' ? { phone: target } : { email: target });
+    const user = purpose === 'verifyPhone'
+      ? await User.findOne({ phone: target })
+      : await findUserByEmail(target);
     const challenge = user && await OtpChallenge.findOne({ userId: user._id, purpose, target });
     if (!challenge || challenge.expiresAt <= new Date()) {
       if (challenge) await challenge.deleteOne();
@@ -206,7 +214,7 @@ async function resetPassword(req, res) {
   }
 
   try {
-    const user = await User.findOne({ email });
+    const user = await findUserByEmail(email);
     const challenge = user && await OtpChallenge.findOne({ userId: user._id, purpose: 'resetPassword', target: email });
     if (!challenge || challenge.expiresAt <= new Date() || !challenge.verifiedAt || !matchesCode(challenge, String(code))) {
       return res.status(400).json({ success: false, message: 'Verify a current reset code before changing the password.' });

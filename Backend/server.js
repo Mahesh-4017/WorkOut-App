@@ -1,6 +1,6 @@
 require('dotenv').config();
 if (!process.env.JWT_SECRET) {
-  process.env.JWT_SECRET = 'workout-app-secret-jwt-key-2026';
+  throw new Error('JWT_SECRET is not configured');
 }
 const path = require('path');
 const express = require('express');
