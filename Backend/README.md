@@ -1,4 +1,30 @@
+# App OTP delivery
+
+The mobile app's email verification and password-reset endpoints are mounted
+under `/api/app/auth/otp`. Configure `EMAIL_USER` and `EMAIL_PASS` for
+Nodemailer. Gmail accounts should use a Google App Password; other SMTP servers
+can use `SMTP_HOST`, `SMTP_PORT`, and `SMTP_SECURE`. `EMAIL_SERVICE` defaults
+to `gmail`, and `EMAIL_FROM` optionally overrides the sender address. Set a
+private `OTP_SECRET` for keying stored code hashes.
+
+Phone verification requires a separate SMS provider. Set
+`OTP_SMS_WEBHOOK_URL` to an HTTPS endpoint accepting a JSON POST with
+`channel`, `recipient`, `purpose`, `code`, and `expiresInSeconds`; set
+`OTP_DELIVERY_TOKEN` if it requires a bearer token. Without delivery
+configuration the API returns 503 and does not claim that a code was sent.
+
+Supported routes are `POST /api/app/auth/otp/send`,
+`POST /api/app/auth/otp/verify`, and
+`POST /api/app/auth/otp/reset-password`. Codes expire after ten minutes and
+are limited to five verification attempts.
+
 # Motion Library Admin Dashboard
+
+## Google sign-in
+
+Create a Google OAuth Web client ID and set it as `GOOGLE_CLIENT_ID` in the backend environment. Set the same value in `Frontend/src/api/config.ts` as `GOOGLE_WEB_CLIENT_ID`. Configure an Android OAuth client with the app package name and signing-certificate SHA-1, and add the reversed iOS client ID as a URL scheme in the iOS target. Google users are created or matched by verified email and appear in the dashboard's user activity table with their sign-in method.
+
+For Apple sign-in, set `APPLE_CLIENT_IDS` to a comma-separated list containing the iOS bundle ID and Android Apple Service ID. Set the Android Service ID in `APPLE_ANDROID_CLIENT_ID` in `Frontend/src/api/config.ts`, and register the configured `APPLE_REDIRECT_URI` as a Return URL for that Service ID. Enable the Sign in with Apple capability for the iOS app target. Apple ID tokens are verified with the configured audiences and request nonce before the user is stored.
 
 A single-admin video card dashboard built with Express, MongoDB/Mongoose, JWT cookies, and a no-build vanilla frontend.
 
