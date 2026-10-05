@@ -17,6 +17,7 @@ const publicRoutes = require('./routes/public');
 const settingsRoutes = require('./routes/settings');
 const appAuthRoutes = require('./routes/appAuth');
 const appProfileRoutes = require('./routes/appProfile');
+const nutritionRoutes = require('./routes/nutrition');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -64,6 +65,7 @@ app.use('/api/app/auth', appAuthRoutes);
 app.use('/api/v1/app/auth', appAuthRoutes);
 app.use('/api/app/profile', appProfileRoutes);
 app.use('/api/v1/app/profile', appProfileRoutes);
+app.use('/api/nutrition', nutritionRoutes);
 
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'Server is healthy', data: { uptime: process.uptime() } }));
 app.get('*', (req, res, next) => {
