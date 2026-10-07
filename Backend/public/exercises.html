@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Workout library · Motion Library</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+<script type="module">
+import { initLayout } from '/js/layout.js';
+import { get, remove } from '/js/api.js';
+import { escapeHtml } from '/js/app.js';
+import { confirmAction } from '/js/modal.js';
+
+if (await initLayout('Workout library')) {
+  const root = document.getElementById('page-content');
+  root.innerHTML = `
+    <div class="toolbar">
+      <input id="search" placeholder="Search exercises…">
+      <input id="body-part" placeholder="Body part (e.g. Chest)">
+      <input id="category" placeholder="Category (e.g. Upper chest)">
+      <select id="status"><option value="">All statuses</option><option value="published">Published</option><option value="draft">Drafts</option></select>
+      <a class="btn" href="/exercise-form.html">+ Add exercise</a>
+    </div>
+    <div class="grid cards-grid" id="exercises"></div>
+    <div class="pagination" id="pagination"></div>`;
+  const searchInput = document.getElementById('search');
+  const bodyPartInput = document.getElementById('body-part');
+  const categoryInput = document.getElementById('category');
+  const statusSelect = document.getElementById('status');
+  const exerciseList = document.getElementById('exercises');
+  const pagination = document.getElementById('pagination');
+  let page = 1;
+  async function load() {
+    const params = new URLSearchParams({ page: String(page), limit: '12' });
+    if (searchInput.value.trim()) params.set('search', searchInput.value.trim());
+    if (bodyPartInput.value.trim()) params.set('bodyPart', bodyPartInput.value.trim());
+    if (categoryInput.value.trim()) params.set('category', categoryInput.value.trim());
+    if (statusSelect.value) params.set('status', statusSelect.value);
+    try {
+      const { data } = await get(`/exercises?${params}`);
+      exerciseList.innerHTML = data.items.length
+        ? data.items.map(exercise => `<article class="video-card exercise-admin-card">
+            <div class="video-thumb">${exercise.imageUrl ? `<img src="${escapeHtml(exercise.imageUrl)}" alt="">` : '<div class="video-placeholder">▶</div>'}</div>
+            <div class="video-card-body">
+              <span class="badge ${escapeHtml(exercise.status)}">${escapeHtml(exercise.status)}</span>
+              <h3>${escapeHtml(exercise.title)}</h3>
+              <span class="exercise-admin-meta">${escapeHtml(exercise.bodyPart)} · ${escapeHtml(exercise.category)} · ${escapeHtml(exercise.level)}</span>
+              <p class="exercise-admin-description">${escapeHtml(exercise.description || 'No description')}</p>
+              <div class="card-actions"><a class="btn secondary" href="/exercise-form.html?id=${encodeURIComponent(exercise._id)}">Edit</a><button class="btn danger delete" data-id="${escapeHtml(exercise._id)}">Delete</button></div>
+            </div>
+          </article>`).join('')
+        : '<div class="empty">No workout exercises match these filters.</div>';
+      pagination.innerHTML = Array.from({ length: data.pagination.pages }, (_, index) =>
+        `<button class="btn ${index + 1 === page ? '' : 'secondary'} page" data-page="${index + 1}">${index + 1}</button>`
+      ).join('');
+      document.querySelectorAll('.delete').forEach(button => {
+        button.onclick = async () => {
+          if (!await confirmAction('This workout exercise will be permanently removed.')) return;
+          try {
+            await remove(`/exercises/${encodeURIComponent(button.dataset.id)}`);
+            await load();
+          } catch (error) {
+            window.alert(error instanceof Error ? error.message : 'Unable to delete this exercise.');
+          }
+        };
+      });
+      pagination.querySelectorAll('.page').forEach(button => {
+        button.onclick = () => {
+          page = Number(button.dataset.page);
+          load();
+        };
+      });
+    } catch (error) {
+      exerciseList.innerHTML = `<div class="notice error" role="alert">${escapeHtml(error instanceof Error ? error.message : 'Unable to load exercises.')}</div>`;
+    }
+  }
+  let debounce;
+  for (const input of [searchInput, bodyPartInput, categoryInput]) {
+    input.oninput = () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => { page = 1; load(); }, 250);
+    };
+  }
+  statusSelect.onchange = () => { page = 1; load(); };
+  await load();
+}
+</script>
+</body>
+</html>

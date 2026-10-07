@@ -19,6 +19,8 @@ const appAuthRoutes = require('./routes/appAuth');
 const appProfileRoutes = require('./routes/appProfile');
 const nutritionRoutes = require('./routes/nutrition');
 const appProgressRoutes = require('./routes/appProgress');
+const mediaRoutes = require('./routes/media');
+const exerciseRoutes = require('./routes/exercises');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -69,6 +71,8 @@ app.use('/api/v1/app/profile', appProfileRoutes);
 app.use('/api/app/progress', appProgressRoutes);
 app.use('/api/v1/app/progress', appProgressRoutes);
 app.use('/api/nutrition', nutritionRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/exercises', exerciseRoutes);
 
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'Server is healthy', data: { uptime: process.uptime() } }));
 app.get('*', (req, res, next) => {

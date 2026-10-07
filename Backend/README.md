@@ -73,6 +73,31 @@ The admin dashboard links to individual video-card and member detail pages.
 `GET /api/dashboard/users/:id` returns the selected member's profile and
 activity fields to authenticated admins; password hashes are never included.
 
+Home cards use `thumbnailUrl` for their preview image. The card editor accepts
+an image URL or an uploaded JPEG, PNG, or WebP image (up to 8 MB), including
+drop-to-upload; uploads are persisted in MongoDB GridFS and served from
+`/api/media/images/:id`.
+
+## Workout exercise library
+
+Admins manage workout exercises in the Workout library. Each MongoDB exercise
+stores its body part, category, muscles, level, duration, equipment, image,
+description, instructions, video URL, and draft/published status. Only
+published exercises appear in the mobile app. For example, add a `Chest` body
+part and an `Upper chest` category to let users browse that muscle group.
+
+```text
+POST /api/media/images                      (admin session; multipart image)
+GET  /api/public/exercises/body-parts        (published body parts and categories)
+GET  /api/public/exercises?bodyPart=Chest&category=Upper%20chest
+GET  /api/public/exercises/:id               (published exercise details)
+GET  /api/exercises                          (admin list/filter)
+POST /api/exercises                          (admin create)
+GET  /api/exercises/:id                      (admin detail)
+PUT  /api/exercises/:id                      (admin update)
+DELETE /api/exercises/:id                    (admin delete)
+```
+
 ## Mobile app user API
 
 The React Native app uses a separate bearer-token auth flow. It does not share the single admin account.

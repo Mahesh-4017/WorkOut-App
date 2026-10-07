@@ -1,1 +1,91 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cards · Motion Library</title><link rel="stylesheet" href="/css/styles.css"></head><body><script type="module">import {initLayout} from '/js/layout.js';import {get,remove} from '/js/api.js';import {escapeHtml} from '/js/app.js';import {confirmAction} from '/js/modal.js';if(await initLayout('Video cards')){const root=document.getElementById('page-content');root.innerHTML='<div class="toolbar"><input id="search" placeholder="Search cards..."><select id="status"><option value="">All statuses</option><option value="published">Published</option><option value="draft">Drafts</option></select><a class="btn" href="/card-form.html">+ Add card</a></div><div class="grid cards-grid" id="cards"></div><div class="pagination" id="pagination"></div>';let page=1;async function load(){const params=new URLSearchParams({page,limit:9,search:search.value,status:status.value});const {data}=await get('/cards?'+params);cards.innerHTML=data.items.length?data.items.map(c=>`<article class="video-card"><div class="video-placeholder">▶</div><div class="video-card-body"><span class="badge ${c.status}">${c.status}</span><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.description||'No description')}</p><div class="card-actions"><a class="btn secondary" href="/card-form.html?id=${c._id}">Edit</a><button class="btn danger delete" data-id="${c._id}">Delete</button></div></div></article>`).join(''):'<div class="empty">No cards match your filters.</div>';pagination.innerHTML=Array.from({length:data.pagination.pages},(_,i)=>`<button class="btn ${i+1===page?'':'secondary'} page" data-page="${i+1}">${i+1}</button>`).join('');document.querySelectorAll('.delete').forEach(b=>b.onclick=async()=>{if(await confirmAction('This card will be permanently removed.')){await remove('/cards/'+b.dataset.id);load()}});document.querySelectorAll('.page').forEach(b=>b.onclick=()=>{page=Number(b.dataset.page);load()})}search.oninput=()=>{page=1;load()};status.onchange=()=>{page=1;load()};await load();}</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Home cards · Motion Library</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+<script type="module">
+import { initLayout } from '/js/layout.js';
+import { get, remove } from '/js/api.js';
+import { escapeHtml } from '/js/app.js';
+import { confirmAction } from '/js/modal.js';
+
+if (await initLayout('Home cards')) {
+  const root = document.getElementById('page-content');
+  root.innerHTML = `
+    <div class="toolbar">
+      <input id="search" placeholder="Search Home cards...">
+      <select id="status"><option value="">All statuses</option><option value="published">Published</option><option value="draft">Drafts</option></select>
+      <a class="btn" href="/card-form.html">+ Add Home card</a>
+    </div>
+    <div class="grid cards-grid" id="cards"></div>
+    <div class="pagination" id="pagination"></div>`;
+  const searchInput = document.getElementById('search');
+  const statusSelect = document.getElementById('status');
+  const cardList = document.getElementById('cards');
+  const pagination = document.getElementById('pagination');
+  let page = 1;
+
+  async function load() {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: '9',
+      search: searchInput.value.trim(),
+      status: statusSelect.value
+    });
+    try {
+      const { data } = await get(`/cards?${params}`);
+      cardList.innerHTML = data.items.length
+        ? data.items.map(card => `<article class="video-card">
+            <div class="video-thumb">${card.thumbnailUrl ? `<img src="${escapeHtml(card.thumbnailUrl)}" alt="">` : '<div class="video-placeholder">▶</div>'}</div>
+            <div class="video-card-body">
+              <span class="badge ${escapeHtml(card.status)}">${escapeHtml(card.status)}</span>
+              <h3>${escapeHtml(card.title)}</h3>
+              <p>${escapeHtml(card.description || 'No description')}</p>
+              <div class="card-actions">
+                <a class="btn secondary" href="/card-form.html?id=${encodeURIComponent(card._id)}">Edit</a>
+                <button class="btn danger delete" data-id="${escapeHtml(card._id)}">Delete</button>
+              </div>
+            </div>
+          </article>`).join('')
+        : '<div class="empty">No Home cards match your filters.</div>';
+      pagination.innerHTML = Array.from({ length: data.pagination.pages }, (_, index) =>
+        `<button class="btn ${index + 1 === page ? '' : 'secondary'} page" data-page="${index + 1}">${index + 1}</button>`
+      ).join('');
+      cardList.querySelectorAll('.delete').forEach(button => {
+        button.onclick = async () => {
+          if (!await confirmAction('This card will be permanently removed.')) return;
+          try {
+            await remove(`/cards/${encodeURIComponent(button.dataset.id)}`);
+            await load();
+          } catch (error) {
+            window.alert(error instanceof Error ? error.message : 'Unable to delete this card.');
+          }
+        };
+      });
+      pagination.querySelectorAll('.page').forEach(button => {
+        button.onclick = () => {
+          page = Number(button.dataset.page);
+          load();
+        };
+      });
+    } catch (error) {
+      cardList.innerHTML = `<div class="notice error" role="alert">${escapeHtml(error instanceof Error ? error.message : 'Unable to load Home cards.')}</div>`;
+    }
+  }
+
+  let debounce;
+  searchInput.oninput = () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => { page = 1; load(); }, 250);
+  };
+  statusSelect.onchange = () => { page = 1; load(); };
+  await load();
+}
+</script>
+</body>
+</html>

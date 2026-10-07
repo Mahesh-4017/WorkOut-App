@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Exercise editor · Motion Library</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+<script type="module">
+import { initLayout } from '/js/layout.js';
+import { get, post, put } from '/js/api.js';
+import { toast } from '/js/toast.js';
+import { escapeHtml } from '/js/app.js';
+import { mountImagePicker } from '/js/image-picker.js';
+
+if (await initLayout('Exercise editor')) {
+  const root = document.getElementById('page-content');
+  root.innerHTML = `
+    <div class="detail-toolbar"><a class="text-link" href="/exercises.html">← Workout library</a></div>
+    <form id="form" class="form-grid">
+      <div class="panel">
+        <div class="field"><label for="title">Exercise name</label><input id="title" name="title" maxlength="160" required placeholder="Incline dumbbell press"></div>
+        <div class="field"><label for="description">Details / coaching description</label><textarea id="description" name="description" maxlength="3000" placeholder="Describe the movement and what users should focus on."></textarea></div>
+        <div class="field"><label for="bodyPart">Body part</label><input id="bodyPart" name="bodyPart" maxlength="80" required placeholder="Chest"></div>
+        <div class="field"><label for="category">Category</label><input id="category" name="category" maxlength="80" required placeholder="Upper chest"></div>
+        <div class="field"><label for="muscles">Muscles</label><input id="muscles" name="muscles" placeholder="Upper chest, shoulders"></div>
+        <div class="field"><label for="instructions">Instructions (one step per line)</label><textarea id="instructions" name="instructions" placeholder="Set the bench to a slight incline.&#10;Lower the weights with control.&#10;Press up while keeping your shoulders stable."></textarea></div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="field"><label for="videoUrl">Exercise video URL</label><input id="videoUrl" name="videoUrl" type="url" required placeholder="https://…"></div>
+          <div class="field"><label for="imageUrl">Exercise image URL</label><input id="imageUrl" name="imageUrl" type="text" placeholder="Or select an image below"></div>
+          <div class="field">
+            <label for="imageFile">Upload exercise image</label>
+            <div id="drop-zone" class="image-drop-zone" tabindex="0">
+              <span class="drop-icon" aria-hidden="true">↑</span><strong>Drop an image here</strong>
+              <span>or choose from your computer or photo library</span>
+              <button type="button" class="btn secondary" id="choose-image">Choose image</button>
+              <input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+            </div>
+            <span class="field-hint">JPEG, PNG, or WebP · up to 8 MB · stored in MongoDB</span>
+          </div>
+          <span id="image-error" class="upload-error hidden" role="alert"></span>
+          <div id="image-preview-wrap" class="image-preview-wrap hidden"><img id="image-preview" alt="Exercise image preview"><button type="button" class="btn secondary" id="remove-image">Remove image</button></div>
+          <div class="field"><label for="level">Level</label><select id="level" name="level"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></div>
+          <div class="field"><label for="durationMinutes">Duration in minutes</label><input id="durationMinutes" name="durationMinutes" type="number" min="1" max="600" value="10" required></div>
+          <div class="field"><label for="equipment">Equipment</label><input id="equipment" name="equipment" placeholder="Dumbbells, bench"></div>
+          <div class="field"><label for="order">Display order</label><input id="order" name="order" type="number" value="0"></div>
+          <div class="field"><label for="status">Status</label><select id="status" name="status"><option value="draft">Draft</option><option value="published">Published to the app</option></select></div>
+          <button class="btn" type="submit">Save exercise</button>
+        </div>
+      </div>
+    </form>`;
+  const form = document.getElementById('form');
+  const id = new URLSearchParams(location.search).get('id');
+  const imagePicker = mountImagePicker({ urlInputId: 'imageUrl' });
+
+  if (id) {
+    try {
+      const { data } = await get(`/exercises/${encodeURIComponent(id)}`);
+      for (const [key, value] of Object.entries(data)) {
+        const field = form.elements[key];
+        if (!field) continue;
+        if (key === 'muscles' || key === 'equipment') field.value = value.join(', ');
+        else if (key === 'instructions') field.value = value.join('\n');
+        else field.value = value;
+      }
+      imagePicker.refresh();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Unable to load this exercise.', 'error');
+    }
+  }
+
+  form.onsubmit = async event => {
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      const data = Object.fromEntries(new FormData(form));
+      data.imageUrl = await imagePicker.getUrl();
+      data.durationMinutes = Number(data.durationMinutes);
+      data.order = Number(data.order);
+      data.muscles = data.muscles.split(',').map(value => value.trim()).filter(Boolean);
+      data.equipment = data.equipment.split(',').map(value => value.trim()).filter(Boolean);
+      data.instructions = data.instructions.split('\n').map(value => value.trim()).filter(Boolean);
+      if (id) await put(`/exercises/${encodeURIComponent(id)}`, data);
+      else await post('/exercises', data);
+      toast('Workout exercise saved.');
+      setTimeout(() => { location.href = '/exercises.html'; }, 500);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Unable to save this exercise.', 'error');
+      button.disabled = false;
+    }
+  };
+  window.addEventListener('pagehide', () => imagePicker.dispose(), { once: true });
+}
+</script>
+</body>
+</html>
