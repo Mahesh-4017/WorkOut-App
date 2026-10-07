@@ -8,4 +8,11 @@ async function stats(req, res) {
   ]);
   return sendSuccess(res, 200, { total, published, drafts, featured, recent, users: { total: userTotal, male: maleUsers, female: femaleUsers, recent: recentUsers } });
 }
-module.exports = { stats };
+async function getUser(req, res) {
+  const user = await User.findById(req.params.id)
+    .select('name email emailVerified phone phoneVerified authProviders gender age height weight goal createdAt updatedAt lastLoginAt loginCount')
+    .lean();
+  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+  return sendSuccess(res, 200, user);
+}
+module.exports = { stats, getUser };

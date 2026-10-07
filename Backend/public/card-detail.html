@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Card details · Motion Library</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+<script type="module">
+import { initLayout } from '/js/layout.js';
+import { get } from '/js/api.js';
+import { escapeHtml } from '/js/app.js';
+
+function externalUrl(value) {
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) ? escapeHtml(url.href) : '';
+  } catch {
+    return '';
+  }
+}
+
+if (await initLayout('Card details')) {
+  const root = document.getElementById('page-content');
+  const id = new URLSearchParams(location.search).get('id');
+  root.innerHTML = '<div class="detail-toolbar"><a class="text-link" href="/dashboard.html">← Dashboard</a><div id="detail-actions"></div></div><div id="detail-content"><div class="panel empty">Loading card details…</div></div>';
+  try {
+    if (!id) throw new Error('A card ID is required to view details.');
+    const { data: card } = await get(`/cards/${encodeURIComponent(id)}`);
+    const extraFields = card.extraFields && typeof card.extraFields === 'object' ? Object.entries(card.extraFields) : [];
+    const videoUrl = externalUrl(card.videoUrl);
+    const thumbnailUrl = externalUrl(card.thumbnailUrl);
+    document.getElementById('detail-actions').innerHTML = `<a class="btn" href="/card-form.html?id=${encodeURIComponent(card._id)}">Edit card</a>`;
+    document.getElementById('detail-content').innerHTML = `
+      <section class="detail-hero">
+        <div class="detail-hero-copy">
+          <span class="eyebrow">VIDEO CARD</span>
+          <h2>${escapeHtml(card.title)}</h2>
+          <p>${escapeHtml(card.description || 'No description has been added.')}</p>
+          <div class="detail-badges"><span class="badge ${escapeHtml(card.status)}">${escapeHtml(card.status)}</span><span class="badge">${escapeHtml(card.category || 'General')}</span><span class="badge">Audience: ${escapeHtml(card.audience || 'all')}</span>${card.isFeatured ? '<span class="badge featured-badge">Featured</span>' : ''}</div>
+        </div>
+        <div class="detail-play" aria-hidden="true">▶</div>
+      </section>
+      <section class="detail-grid">
+        <article class="panel detail-section">
+          <span class="eyebrow">PUBLISHING</span><h2>Card information</h2>
+          <dl class="detail-list">
+            <div><dt>Status</dt><dd>${escapeHtml(card.status)}</dd></div>
+            <div><dt>Category</dt><dd>${escapeHtml(card.category || 'General')}</dd></div>
+            <div><dt>Audience</dt><dd>${escapeHtml(card.audience || 'all')}</dd></div>
+            <div><dt>Display order</dt><dd>${Number(card.order) || 0}</dd></div>
+            <div><dt>Created</dt><dd>${new Date(card.createdAt).toLocaleString()}</dd></div>
+            <div><dt>Updated</dt><dd>${new Date(card.updatedAt).toLocaleString()}</dd></div>
+          </dl>
+        </article>
+        <article class="panel detail-section">
+          <span class="eyebrow">MEDIA & TAGS</span><h2>Session resources</h2>
+          <dl class="detail-list">
+            <div><dt>Video</dt><dd>${videoUrl ? `<a class="text-link" href="${videoUrl}" target="_blank" rel="noopener noreferrer">Open video ↗</a>` : 'Invalid video URL'}</dd></div>
+            <div><dt>Thumbnail</dt><dd>${thumbnailUrl ? `<a class="text-link" href="${thumbnailUrl}" target="_blank" rel="noopener noreferrer">Open image ↗</a>` : 'No thumbnail'}</dd></div>
+            <div><dt>Tags</dt><dd>${card.tags?.length ? card.tags.map(tag => `<span class="badge">${escapeHtml(tag)}</span>`).join(' ') : 'No tags'}</dd></div>
+          </dl>
+        </article>
+        ${extraFields.length ? `<article class="panel detail-section detail-wide"><span class="eyebrow">ADDITIONAL DATA</span><h2>Custom details</h2><dl class="detail-list">${extraFields.map(([key, value]) => `<div><dt>${escapeHtml(key)}</dt><dd>${escapeHtml(typeof value === 'object' ? JSON.stringify(value) : value)}</dd></div>`).join('')}</dl></article>` : ''}
+      </section>`;
+  } catch (error) {
+    const message = escapeHtml(error instanceof Error ? error.message : 'Unable to load card details.');
+    document.getElementById('detail-content').innerHTML = `<div class="notice error" role="alert">${message}</div>`;
+  }
+}
+</script>
+</body>
+</html>

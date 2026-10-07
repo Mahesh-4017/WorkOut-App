@@ -1,6 +1,12 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Overview · Motion Library</title><link rel="stylesheet" href="/css/styles.css"></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Overview · Motion Library</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
 <body>
 <script type="module">
 import { initLayout } from '/js/layout.js';
@@ -8,17 +14,87 @@ import { get } from '/js/api.js';
 import { escapeHtml } from '/js/app.js';
 
 if (await initLayout('Overview')) {
-	const root = document.getElementById('page-content');
-	root.innerHTML = `<div class="grid stats" id="stats"></div>
-		<div style="display:flex;align-items:center;justify-content:space-between;gap:18px;padding:24px;margin-bottom:22px;border-radius:18px;background:linear-gradient(120deg,#244e57,#397079);color:#fff"><div><span class="eyebrow" style="color:#b9d4cd">HOME CONTENT</span><h2 style="font-family:Georgia,serif;margin:8px 0 4px">Publish a new session</h2><p style="margin:0;color:#d9ebe5">Add the title, image, video, audience, and details your users will see on Home.</p></div><a class="btn" style="background:#f1c5a6;color:#243d40;white-space:nowrap" href="/card-form.html">Create Home card</a></div>
-		<div class="panel"><div class="panel-head"><h2>Recent cards</h2><a class="btn" href="/card-form.html">Add card</a></div>
-		<div class="table-wrap"><table class="table"><thead><tr><th>Title</th><th>Status</th><th>Category</th><th>Created</th></tr></thead><tbody id="recent"></tbody></table></div></div>
-		<div class="panel" style="margin-top:22px"><div class="panel-head"><div><h2>User activity</h2><span class="eyebrow">Registration and latest login times</span></div></div>
-		<div class="table-wrap"><table class="table"><thead><tr><th>User</th><th>Gender</th><th>Sign-in method</th><th>Registered</th><th>Last login</th><th>Logins</th></tr></thead><tbody id="users"></tbody></table></div></div>`;
-	const { data } = await get('/dashboard/stats');
-	document.getElementById('stats').innerHTML = [['Total cards', data.total], ['Published', data.published], ['Drafts', data.drafts], ['Users', data.users.total]].map(([label, value]) => `<div class="stat"><span class="eyebrow">${label}</span><strong>${value}</strong></div>`).join('');
-	document.getElementById('recent').innerHTML = data.recent.length ? data.recent.map(c => `<tr><td>${escapeHtml(c.title)}</td><td><span class="badge ${c.status}">${c.status}</span></td><td>${escapeHtml(c.category)}</td><td>${new Date(c.createdAt).toLocaleDateString()}</td></tr>`).join('') : '<tr><td colspan="4" class="empty">No cards yet.</td></tr>';
-	document.getElementById('users').innerHTML = data.users.recent.length ? data.users.recent.map(user => `<tr><td><strong>${escapeHtml(user.name)}</strong><br><span class="eyebrow">${escapeHtml(user.email)}</span></td><td><span class="badge">${escapeHtml(user.gender || 'not set')}</span></td><td><span class="badge">${escapeHtml((user.authProviders || ['password']).join(', '))}</span></td><td>${new Date(user.createdAt).toLocaleString()}</td><td>${user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never'}</td><td>${user.loginCount || 0}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">No app users registered yet.</td></tr>';
+  const root = document.getElementById('page-content');
+  root.innerHTML = `
+    <section class="dashboard-welcome">
+      <div>
+        <span class="eyebrow">STUDIO OVERVIEW</span>
+        <h2>Make every session count.</h2>
+        <p>Manage your library, review your community, and keep new sessions moving.</p>
+      </div>
+      <a class="btn dashboard-welcome-action" href="/card-form.html">Create a session <span aria-hidden="true">↗</span></a>
+    </section>
+    <section class="dashboard-stats grid stats" id="stats" aria-label="Library summary">
+      ${Array.from({ length: 5 }, () => '<div class="stat stat-loading" aria-hidden="true"></div>').join('')}
+    </section>
+    <section class="panel dashboard-panel">
+      <div class="panel-head">
+        <div><span class="eyebrow">CONTENT LIBRARY</span><h2>Recently added cards</h2></div>
+        <a class="text-link" href="/cards.html">Browse all cards <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>Session</th><th>Status</th><th>Category</th><th>Audience</th><th>Created</th><th></th></tr></thead>
+        <tbody id="recent"><tr><td colspan="6" class="empty">Loading recent cards…</td></tr></tbody>
+      </table></div>
+    </section>
+    <section class="panel dashboard-panel">
+      <div class="panel-head">
+        <div><span class="eyebrow">COMMUNITY</span><h2>Recently joined members</h2></div>
+        <span class="dashboard-count" id="member-count"></span>
+      </div>
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>Member</th><th>Gender</th><th>Sign-in method</th><th>Joined</th><th>Last login</th><th>Logins</th><th></th></tr></thead>
+        <tbody id="users"><tr><td colspan="7" class="empty">Loading members…</td></tr></tbody>
+      </table></div>
+    </section>`;
+
+  try {
+    const { data } = await get('/dashboard/stats');
+    const metrics = [
+      { label: 'Total cards', value: data.total, detail: 'Across your library' },
+      { label: 'Published', value: data.published, detail: 'Visible to members' },
+      { label: 'Drafts', value: data.drafts, detail: 'Ready for your review' },
+      { label: 'Featured', value: data.featured, detail: 'Highlighted sessions' },
+      { label: 'Members', value: data.users.total, detail: 'Registered accounts' },
+    ];
+    document.getElementById('stats').innerHTML = metrics.map((metric, index) => `
+      <article class="stat dashboard-stat">
+        <div class="stat-icon stat-icon-${index + 1}" aria-hidden="true">${['▤', '✓', '✎', '✦', '◎'][index]}</div>
+        <span class="eyebrow">${metric.label}</span>
+        <strong>${metric.value}</strong>
+        <span class="stat-detail">${metric.detail}</span>
+      </article>`).join('');
+
+    document.getElementById('recent').innerHTML = data.recent.length
+      ? data.recent.map(card => `<tr>
+          <td><strong>${escapeHtml(card.title)}</strong></td>
+          <td><span class="badge ${escapeHtml(card.status)}">${escapeHtml(card.status)}</span></td>
+          <td>${escapeHtml(card.category || 'General')}</td>
+          <td>${escapeHtml(card.audience || 'all')}</td>
+          <td>${new Date(card.createdAt).toLocaleDateString()}</td>
+          <td><a class="row-link" href="/card-detail.html?id=${encodeURIComponent(card._id)}">Details <span aria-hidden="true">→</span></a></td>
+        </tr>`).join('')
+      : '<tr><td colspan="6" class="empty">No cards yet. Create your first session to get started.</td></tr>';
+
+    document.getElementById('member-count').textContent = `${data.users.total} total`;
+    document.getElementById('users').innerHTML = data.users.recent.length
+      ? data.users.recent.map(user => `<tr>
+          <td><strong>${escapeHtml(user.name)}</strong><br><span class="eyebrow">${escapeHtml(user.email)}</span></td>
+          <td>${escapeHtml(user.gender || 'Not set')}</td>
+          <td>${escapeHtml((user.authProviders || ['password']).join(', '))}</td>
+          <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+          <td>${user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}</td>
+          <td>${user.loginCount || 0}</td>
+          <td><a class="row-link" href="/user-detail.html?id=${encodeURIComponent(user._id)}">Details <span aria-hidden="true">→</span></a></td>
+        </tr>`).join('')
+      : '<tr><td colspan="7" class="empty">No members have registered yet.</td></tr>';
+  } catch (error) {
+    const message = escapeHtml(error instanceof Error ? error.message : 'Unable to load dashboard data.');
+    document.getElementById('stats').innerHTML = `<div class="notice error" role="alert">${message}</div>`;
+    document.getElementById('recent').innerHTML = '<tr><td colspan="6" class="empty">Dashboard data could not be loaded.</td></tr>';
+    document.getElementById('users').innerHTML = '<tr><td colspan="7" class="empty">Dashboard data could not be loaded.</td></tr>';
+  }
 }
 </script>
-</body></html>
+</body>
+</html>
