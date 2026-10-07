@@ -26,7 +26,7 @@ const FuelProgressScreen = () => {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logo}>Velocity Health</Text>
+          <Text style={styles.logo}>WorkOut</Text>
         </View>
 
         {/* Hero panel */}

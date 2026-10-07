@@ -9,7 +9,7 @@ function searchFilter(search) {
 }
 
 async function listExercises(req, res, publicOnly = false) {
-  const { page = 1, limit = 20, search = '', bodyPart, category, status, level } = req.query;
+  const { page = 1, limit = 20, search = '', bodyPart, category, status, level, sort } = req.query;
   const filter = { ...searchFilter(search) };
   if (publicOnly) filter.status = 'published';
   if (bodyPart) filter.bodyPart = bodyPart;
@@ -19,7 +19,11 @@ async function listExercises(req, res, publicOnly = false) {
   const pageNumber = Number(page);
   const pageSize = Number(limit);
   const [items, total] = await Promise.all([
-    WorkoutExercise.find(filter).sort({ order: 1, createdAt: -1 }).skip((pageNumber - 1) * pageSize).limit(pageSize).lean(),
+    WorkoutExercise.find(filter)
+      .sort(publicOnly && sort === 'latest' ? { createdAt: -1, _id: -1 } : { order: 1, createdAt: -1 })
+      .skip((pageNumber - 1) * pageSize)
+      .limit(pageSize)
+      .lean(),
     WorkoutExercise.countDocuments(filter)
   ]);
   return sendSuccess(res, 200, { items, pagination: { page: pageNumber, limit: pageSize, total, pages: Math.ceil(total / pageSize) } });

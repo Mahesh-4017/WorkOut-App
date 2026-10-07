@@ -14,21 +14,24 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { responsiveWidth } from "react-native-responsive-dimensions";
 
 import { useTheme } from "../../theme/ThemeProvider";
+import { useUser } from "../../data/UserProvider";
 import { ROUTES } from "../../navigation/routes";
 import { WORKOUT_ROUTES } from "../../navigation/workoutRoutes";
-import { useUser } from "../../data/UserProvider";
+import { useSession } from "../../data/SessionProvider";
 import { useAuth } from "../../context/AuthContext";
 import { getAllPublicCards, ApiCard } from "../../api/cards";
+import { getPublicExercises, PublicExercise } from "../../api/exercises";
 import { resolveApiMediaUrl } from "../../api/client";
 import { FOOD_ROUTES } from "../../navigation/foodRoutes";
 
-const WEEKLY_GOAL = 5; // workouts per week
+const DEFAULT_WEEKLY_GOAL = 5;
 const DARK_TEXT = "#1B1F1A"; // text on the pastel tiles
 
 export default function Home() {
   const navigation = useNavigation<any>();
   const { theme, isDark, toggleTheme } = useTheme();
-  const { name, history } = useUser();
+  const { name } = useUser();
+  const { history, goals, loading: progressLoading, error: progressError } = useSession();
   const { user } = useAuth();
   const s = createStyles(theme);
 
@@ -38,7 +41,23 @@ export default function Home() {
     error: null,
   });
   const [loading, setLoading] = React.useState(true);
+  const [latestExercises, setLatestExercises] = React.useState<PublicExercise[]>([]);
+  const [latestLoading, setLatestLoading] = React.useState(true);
+  const [latestError, setLatestError] = React.useState<string | null>(null);
   const { items: cards, error: cardsError } = cardsState;
+
+  const loadLatestExercises = React.useCallback(async () => {
+    setLatestLoading(true);
+    setLatestError(null);
+    try {
+      const result = await getPublicExercises({ page: 1, limit: 6, sort: "latest" });
+      setLatestExercises(result.items);
+    } catch (error) {
+      setLatestError(error instanceof Error ? error.message : "Unable to load the latest workouts.");
+    } finally {
+      setLatestLoading(false);
+    }
+  }, []);
 
   React.useEffect(() => {
     let mounted = true;
@@ -59,6 +78,10 @@ export default function Home() {
     };
   }, [user?.gender]);
 
+  React.useEffect(() => {
+    loadLatestExercises();
+  }, [loadLatestExercises]);
+
   // ---- derived values ----
   const hour = today.getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -70,8 +93,13 @@ export default function Home() {
     .map(w => w.charAt(0).toUpperCase())
     .join("");
 
-  const done = Math.min(history.length, WEEKLY_GOAL);
-  const progress = done / WEEKLY_GOAL;
+  const weekStart = new Date(today);
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+  const weeklySessions = history.filter(item => new Date(item.startedAt) >= weekStart).length;
+  const weeklyGoal = goals?.weeklySessions ?? DEFAULT_WEEKLY_GOAL;
+  const done = Math.min(weeklySessions, weeklyGoal);
+  const progress = done / weeklyGoal;
   // Monday -> Sunday of the current week
   const week = React.useMemo(() => {
     const offset = (today.getDay() + 6) % 7;
@@ -92,13 +120,14 @@ export default function Home() {
   const goCalendar = (selectedDate?: string) => navigation.navigate(ROUTES.WORKOUTCALENDAR, { selectedDate });
   const goWorkoutSchedule = () => navigation.navigate(WORKOUT_ROUTES.SCHEDULE);
   const goFood = () => navigation.navigate(FOOD_ROUTES.WELCOME);
+  const goYoga = () => navigation.navigate(ROUTES.YOGA);
 
   return (
     <SafeAreaView style={s.screen} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         {/* App bar */}
         <View style={s.appBar}>
-          <Text style={s.appTitle}>Velocity Health</Text>
+          <Text style={s.appTitle}>WorkOut</Text>
           <View style={s.appActions}>
             <Pressable onPress={toggleTheme} style={s.iconButton} accessibilityLabel="Toggle theme">
               <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={18} color={theme.colors.text} />
@@ -162,9 +191,11 @@ export default function Home() {
           <View style={s.weekHeader}>
             <Text style={s.weekTitle}>This week</Text>
             <Text style={s.weekCount}>
-              {done} of {WEEKLY_GOAL} workouts
+              {done} of {weeklyGoal} saved sessions
             </Text>
           </View>
+          {progressLoading ? <Text style={s.message}>Loading your saved workout activity…</Text> : null}
+          {progressError ? <Text style={s.message}>{progressError}</Text> : null}
           <View style={s.weekRow}>
             {week.map(d => (
               <Pressable key={d.dateString} onPress={() => goCalendar(d.dateString)} style={s.dayCol} accessibilityLabel={`Open ${d.dateString} in calendar`}>
@@ -182,22 +213,32 @@ export default function Home() {
 
         {/* What's next */}
         <Text style={s.sectionTitle}>What's next for you?</Text>
-        <View style={s.tileRow}>
-          <Pressable onPress={goWorkout} style={[s.tile, { backgroundColor: "#E8E3F7" }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tileRow}>
+          <Pressable onPress={goWorkout} style={[s.tile, { backgroundColor: "#E8E3F7" }]} accessibilityRole="button">
             <View style={s.tileIcon}>
               <Ionicons name="barbell-outline" size={18} color={DARK_TEXT} />
             </View>
             <Text style={s.tileTitle}>Explore Workouts</Text>
-            <Text style={s.tileSub}>Find your fit in 27 sessions</Text>
+            <Text style={s.tileSub}>Browse workouts from your studio library.</Text>
+            <Text style={s.tileAction}>Explore →</Text>
           </Pressable>
-          <Pressable onPress={goWorkoutSchedule} style={[s.tile, { backgroundColor: "#F8F0CF" }]}>
+          <Pressable onPress={goYoga} style={[s.tile, { backgroundColor: "#E5F0E5" }]} accessibilityRole="button">
+            <View style={s.tileIcon}>
+              <Ionicons name="leaf-outline" size={18} color={DARK_TEXT} />
+            </View>
+            <Text style={s.tileTitle}>Yoga &amp; mobility</Text>
+            <Text style={s.tileSub}>Browse published Yoga sessions.</Text>
+            <Text style={s.tileAction}>Explore Yoga →</Text>
+          </Pressable>
+          <Pressable onPress={goWorkoutSchedule} style={[s.tile, { backgroundColor: "#F8F0CF" }]} accessibilityRole="button">
             <View style={s.tileIcon}>
               <Ionicons name="calendar-outline" size={18} color={DARK_TEXT} />
             </View>
-            <Text style={s.tileTitle}>Workout Schedule</Text>
-            <Text style={s.tileSub}>Plan and manage upcoming classes</Text>
+            <Text style={s.tileTitle}>Plan your week</Text>
+            <Text style={s.tileSub}>Choose workouts and build your schedule.</Text>
+            <Text style={s.tileAction}>Make a plan →</Text>
           </Pressable>
-        </View>
+        </ScrollView>
 
         <Text style={s.sectionTitle}>Running</Text>
         <Pressable
@@ -279,6 +320,55 @@ export default function Home() {
             ))}
           </ScrollView>
         )}
+
+        <View style={s.sectionRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.sectionTitleFlat}>Latest workout exercises</Text>
+            <Text style={s.sectionSub}>Recently published from your exercise library.</Text>
+          </View>
+          <Pressable onPress={goWorkout} hitSlop={8}>
+            <Text style={s.viewAll}>View all ›</Text>
+          </Pressable>
+        </View>
+        {latestLoading ? <Text style={s.message}>Loading latest workouts...</Text> : null}
+        {latestError ? (
+          <View style={s.latestError}>
+            <Text style={s.message}>{latestError}</Text>
+            <Pressable onPress={loadLatestExercises} accessibilityRole="button">
+              <Text style={s.viewAll}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {!latestLoading && !latestError && latestExercises.length === 0 ? (
+          <Text style={s.message}>New workout exercises will appear here when published.</Text>
+        ) : null}
+        {!latestLoading && !latestError && latestExercises.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
+            {latestExercises.map(exercise => (
+              <Pressable
+                key={exercise._id}
+                onPress={() => navigation.navigate(WORKOUT_ROUTES.LIBRARY_EXERCISE, { exerciseId: exercise._id })}
+                style={s.latestCard}
+                accessibilityRole="button"
+                accessibilityLabel={`View details for ${exercise.title}`}
+              >
+                {exercise.imageUrl ? (
+                  <Image source={{ uri: resolveApiMediaUrl(exercise.imageUrl) }} style={s.cardImage} resizeMode="cover" />
+                ) : (
+                  <View style={[s.cardImage, s.cardPlaceholder]}>
+                    <Ionicons name="barbell-outline" size={22} color={theme.colors.primary} />
+                  </View>
+                )}
+                <View style={s.latestCardBody}>
+                  <Text style={s.latestMeta}>{exercise.level} · {exercise.durationMinutes} min</Text>
+                  <Text numberOfLines={2} style={s.cardTitle}>{exercise.title}</Text>
+                  <Text numberOfLines={1} style={s.cardMeta}>{exercise.bodyPart} · {exercise.category}</Text>
+                  <Text style={s.latestDetails}>View details →</Text>
+                </View>
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -369,8 +459,8 @@ const createStyles = (theme: any) =>
 
     /* What's next */
     sectionTitle: { color: theme.colors.text, fontSize: 16, marginTop: 22, marginBottom: 10, fontFamily: theme.typography.fontFamilyBold },
-    tileRow: { flexDirection: "row", gap: 12 },
-    tile: { flex: 1, borderRadius: 18, padding: 14, minHeight: 118 },
+    tileRow: { gap: 12, paddingRight: 18 },
+    tile: { width: responsiveWidth(42), borderRadius: 18, padding: 14, minHeight: 142 },
     tileIcon: {
       width: 34,
       height: 34,
@@ -382,6 +472,7 @@ const createStyles = (theme: any) =>
     },
     tileTitle: { color: DARK_TEXT, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
     tileSub: { color: "rgba(27,31,26,0.7)", fontSize: 11, lineHeight: 15, marginTop: 3, fontFamily: theme.typography.fontFamily },
+    tileAction: { color: DARK_TEXT, fontSize: 11, marginTop: "auto", paddingTop: 12, fontFamily: theme.typography.fontFamilyBold },
     scanCard: {
       flexDirection: "row",
       alignItems: "center",
@@ -428,6 +519,18 @@ const createStyles = (theme: any) =>
     },
     badgeText: { color: "#FFFFFF", fontSize: 10, fontFamily: theme.typography.fontFamilyMedium },
     cardBody: { padding: 12 },
+    latestCard: {
+      width: responsiveWidth(56),
+      borderRadius: 18,
+      overflow: "hidden",
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    latestCardBody: { padding: 12 },
+    latestMeta: { color: theme.colors.primaryDark, fontSize: 10, marginBottom: 6, fontFamily: theme.typography.fontFamilyMedium },
+    latestDetails: { color: theme.colors.primaryDark, fontSize: 11, marginTop: 10, fontFamily: theme.typography.fontFamilyBold },
+    latestError: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
     cardTitle: { color: theme.colors.text, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
     cardDesc: { color: theme.colors.textSecondary, fontSize: 11, lineHeight: 15, marginTop: 3, fontFamily: theme.typography.fontFamily },
     cardMeta: { color: theme.colors.muted, fontSize: 11, marginTop: 4, fontFamily: theme.typography.fontFamily },

@@ -1,21 +1,17 @@
 import React from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   responsiveFontSize,
   responsiveWidth,
 } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import BottomTabBar from "../../components/BottomTabBar";
 import { useTheme } from "../../theme/ThemeProvider";
 import { useUser } from "../../data/UserProvider";
-import { exercises } from "../../data/exercises";
+import { useSession } from "../../data/SessionProvider";
 import { ROUTES } from "../../navigation/routes";
 
-const goal = {
-  title: "Build Muscle",
-  progress: 0.6,
-};
+const DEFAULT_WEEKLY_GOAL = 5;
 
 type SettingsRow = {
   label: string;
@@ -33,11 +29,16 @@ export default function ProfileScreen() {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const navigation = useNavigation<any>();
-  const { name, email, history } = useUser();
+  const { name, email } = useUser();
+  const { history, goals, loading, error } = useSession();
+  const weeklyGoal = goals?.weeklySessions ?? DEFAULT_WEEKLY_GOAL;
+  const thisWeekCount = history.filter(item => Date.now() - new Date(item.startedAt).getTime() < 7 * 24 * 60 * 60 * 1000).length;
+  const goal = { title: "Weekly sessions", progress: Math.min(thisWeekCount / weeklyGoal, 1) };
+  const totalMinutes = Math.floor(history.reduce((total, item) => total + item.seconds, 0) / 60);
   const stats = [
-    { label: "Exercises", value: `${history.length}` },
-    { label: "Sessions", value: `${Math.ceil(history.length / 3)}` },
-    { label: "Progress", value: `${Math.min(history.length * 10, 100)}%` },
+    { label: "Saved sessions", value: `${history.length}` },
+    { label: "This week", value: `${thisWeekCount}` },
+    { label: "Minutes", value: `${totalMinutes}` },
   ];
 
   return (
@@ -102,11 +103,11 @@ export default function ProfileScreen() {
           </View>
 
           <Text style={styles.milestoneCopy}>
-            You&apos;re 3 workouts away from your next milestone!
+            {thisWeekCount} of {weeklyGoal} saved sessions completed this week.
           </Text>
 
           <View style={styles.milestoneTrack}>
-            <View style={styles.milestoneFill} />
+            <View style={[styles.milestoneFill, { width: `${goal.progress * 100}%` }]} />
           </View>
         </View>
 
@@ -135,20 +136,20 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>
           Workout history
         </Text>
-        {history.length === 0 ? (
+        {loading ? <Text style={styles.emptyText}>Loading account workout history…</Text> : null}
+        {error ? <Text style={styles.emptyText}>{error}</Text> : null}
+        {!loading && history.length === 0 ? (
           <Text style={styles.emptyText}>
-            Completed exercises will appear here.
+            Workouts saved to your account will appear here.
           </Text>
         ) : (
-          history.slice().reverse().map(item => {
-            const exercise = exercises.find(value => value.id === item.exerciseId);
-            if (!exercise) return null;
+          history.slice(0, 8).map(item => {
             return (
-              <View key={item.exerciseId} style={styles.historyRow}>
+              <View key={item.id} style={styles.historyRow}>
                 <Ionicons name="checkmark-circle" size={20} color={theme.colors.success} />
                 <View style={styles.historyCopy}>
-                  <Text style={styles.historyName}>{exercise.name}</Text>
-                  <Text style={styles.historyDetail}>{exercise.muscle} • Completed</Text>
+                  <Text style={styles.historyName}>{item.title}</Text>
+                  <Text style={styles.historyDetail}>{new Date(item.startedAt).toLocaleDateString()} · {Math.floor(item.seconds / 60)} min</Text>
                 </View>
               </View>
             );
@@ -248,7 +249,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   milestoneTitle: { marginLeft: 10, fontSize: responsiveFontSize(1.65), fontWeight: "700", color: theme.colors.text },
   milestoneCopy: { marginTop: 8, fontSize: responsiveFontSize(1.4), color: theme.colors.textSecondary },
   milestoneTrack: { height: 6, marginTop: 12, borderRadius: 3, backgroundColor: theme.colors.border, overflow: "hidden" },
-  milestoneFill: { width: "70%", height: "100%", borderRadius: 3, backgroundColor: theme.colors.primary },
+  milestoneFill: { height: "100%", borderRadius: 3, backgroundColor: theme.colors.primary },
   sectionTitle: { marginTop: 26, marginBottom: 12, fontSize: responsiveFontSize(2.1), fontWeight: "800", color: theme.colors.text },
   dashboardLinks: { flexDirection: "row", gap: 10 },
   dashboardLink: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },

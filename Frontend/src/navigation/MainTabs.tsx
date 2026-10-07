@@ -62,7 +62,7 @@ export default function MainTabs({ route }: { route?: { params?: { tab?: MainTab
       case "analysis":
         return <AnalysisScreen />;
       case "workout":
-        return <ExploreWorkouts showBottomTabBar={false} />;
+        return <ExploreWorkouts showBottomTabBar={false} onBack={() => setActiveTab("home")} />;
       case "profile":
         return <ProfileScreen />;
       case "home":
@@ -80,7 +80,7 @@ export default function MainTabs({ route }: { route?: { params?: { tab?: MainTab
       <BottomTabBar
         activeTab={activeTab}
         variant={activeTab === "workout" ? "workout" : "main"}
-        workoutActiveTab="welcome"
+        workoutActiveTab="explore"
         onTabPress={setActiveTab}
       />
     </View>

@@ -35,7 +35,11 @@ export default function CalendarPage() {
     setLoading(true);
     setError("");
     try {
-      const result = await apiRequest<{ items: PlannedWorkout[] }>("/app/schedule", {}, token);
+      const result = await apiRequest<{ items: PlannedWorkout[] }>(
+        `/app/schedule?timezoneOffsetMinutes=${new Date().getTimezoneOffset()}`,
+        {},
+        token,
+      );
       setPlans(result.items);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load your calendar.");
@@ -87,6 +91,7 @@ export default function CalendarPage() {
           date: selectedDate,
           time,
           durationMinutes: exercise.durationMinutes,
+          timezoneOffsetMinutes: new Date().getTimezoneOffset(),
         }),
       }, token);
       setNotice(`${exercise.title} scheduled for ${new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.`);

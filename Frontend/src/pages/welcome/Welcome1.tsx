@@ -24,7 +24,7 @@ const WorkoutRoutineScreen = () => {
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.logo}>Velocity Health</Text>
+          <Text style={styles.logo}>WorkOut</Text>
           <TouchableOpacity onPress={() => navigation.navigate(ROUTES.LOGIN)}>
             <Text style={styles.skip}>Skip</Text>
           </TouchableOpacity>

@@ -64,7 +64,6 @@ export default function WorkoutSchedule() {
       <OnboardingHeader
         title="Workout Schedule"
         onBack={() => navigation.goBack()}
-        onMenu={() => navigation.navigate(WORKOUT_ROUTES.INSTRUCTORS)}
       />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
@@ -119,7 +118,7 @@ export default function WorkoutSchedule() {
         </View>
 
         {error ? (
-          <Pressable onPress={() => void refresh()} style={styles.item} accessibilityRole="button">
+          <Pressable onPress={() => refresh()} style={styles.item} accessibilityRole="button">
             <Text style={styles.itemTitle}>{error}</Text>
             <Text style={styles.itemMeta}>Tap to retry schedule sync</Text>
           </Pressable>
@@ -128,7 +127,7 @@ export default function WorkoutSchedule() {
 
         <View style={styles.rowBetween}>
           <Text style={styles.heading}>Weekly schedule</Text>
-          <Text style={styles.count}>{week.length} class{week.length === 1 ? "" : "es"}</Text>
+          <Text style={styles.count}>{week.length} workout{week.length === 1 ? "" : "s"}</Text>
         </View>
 
         {week.length === 0 ? (
@@ -155,7 +154,7 @@ export default function WorkoutSchedule() {
                 <Text style={styles.itemMeta}>{dateLabel(item.date, item.time)}</Text>
               </View>
               <Pressable
-                onPress={() => void remove(item.id)}
+                onPress={() => remove(item.id)}
                 hitSlop={10}
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${item.title || classSession?.title || "workout"}`}
@@ -178,8 +177,8 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.background, paddingHorizontal: 18 },
     scroll: { paddingBottom: 16 },
-    card: { backgroundColor: "#E3EDE0", borderRadius: 18, padding: 14, marginTop: 6 },
-    cardTitle: { color: DARK_TEXT, fontSize: 20, lineHeight: 24, maxWidth: 260, fontFamily: theme.typography.fontFamilyBold },
+    card: { backgroundColor: "#FFF0D9", borderRadius: 18, padding: 14, marginTop: 6 },
+    cardTitle: { color: "#8A4B08", fontSize: 20, lineHeight: 24, maxWidth: 260, fontFamily: theme.typography.fontFamilyBold },
     monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12, marginBottom: 8 },
     month: { color: DARK_TEXT, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
     weekRow: { flexDirection: "row" },

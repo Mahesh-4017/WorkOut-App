@@ -47,6 +47,7 @@ import AddFood from "../pages/meal/add-food/Add";
 import NotificationsScreen from "../pages/notifications/Notifications";
 import WorkoutHub from "../pages/workout/home/Home";
 import WorkoutWelcome from "../pages/workout/welcome/Welcome";
+import YogaPage from "../pages/yoga/Yoga";
 import ExploreWorkouts from "../pages/workout/Explore/Explore";
 import WorkoutCollections from "../pages/workout/collection/Collection";
 import WorkoutSearch from "../pages/workout/search/Search";
@@ -146,6 +147,11 @@ const RootStack = createNativeStackNavigator({
 
         [ROUTES.RUNNING_HOME]: {
             screen: RunningTabs,
+            options: { headerShown: false },
+        },
+
+        [ROUTES.YOGA]: {
+            screen: YogaPage,
             options: { headerShown: false },
         },
 

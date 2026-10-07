@@ -218,7 +218,7 @@ export default function Splash() {
               { opacity: titleOpacity, transform: [{ translateY: titleY }] },
             ]}
           >
-            Velocity Health
+            WorkOut
           </Animated.Text>
 
           <Animated.Text

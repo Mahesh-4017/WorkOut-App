@@ -1,5 +1,5 @@
 import React from "react";
-import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -36,7 +36,7 @@ const TrackProgressScreen = () => {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logo}>Velocity Health</Text>
+          <Text style={styles.logo}>WorkOut</Text>
         </View>
 
         {/* Hero panel */}

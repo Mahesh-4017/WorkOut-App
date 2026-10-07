@@ -2,12 +2,14 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { createPlannedWorkout, deletePlannedWorkout, getPlannedWorkouts, PlannedWorkout } from "../api/schedule";
 import { useAuth } from "../context/AuthContext";
 import { CLASSES } from "./classSchedule";
+import { PublicExercise } from "../api/exercises";
 
 type ScheduleContextValue = {
   scheduled: PlannedWorkout[];
   loading: boolean;
   error: string | null;
   add: (classId: string, date: string, time: string) => Promise<void>;
+  addExercise: (exercise: PublicExercise, date: string, time: string, durationMinutes: number) => Promise<boolean>;
   remove: (id: string) => Promise<void>;
   find: (classId: string, date: string) => PlannedWorkout | undefined;
   dates: Set<string>;
@@ -40,7 +42,21 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    void refresh();
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+    const refreshAtMidnight = () => {
+      refresh();
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      timeout = setTimeout(refreshAtMidnight, nextMidnight.getTime() - now.getTime());
+    };
+    const now = new Date();
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    timeout = setTimeout(refreshAtMidnight, nextMidnight.getTime() - now.getTime());
+    return () => clearTimeout(timeout);
   }, [refresh]);
 
   const add = useCallback(async (classId: string, date: string, time: string) => {
@@ -70,6 +86,35 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  const addExercise = useCallback(async (
+    exercise: PublicExercise,
+    date: string,
+    time: string,
+    durationMinutes: number,
+  ): Promise<boolean> => {
+    if (!user) {
+      setError("Sign in to sync your workout schedule with your account.");
+      return false;
+    }
+    setError(null);
+    try {
+      const plan = await createPlannedWorkout({
+        exerciseId: exercise._id,
+        title: exercise.title,
+        bodyPart: exercise.bodyPart,
+        category: exercise.category,
+        date,
+        time,
+        durationMinutes,
+      });
+      setScheduled(current => [...current, plan].sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)));
+      return true;
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save this workout.");
+      return false;
+    }
+  }, [user]);
+
   const remove = useCallback(async (id: string) => {
     setError(null);
     try {
@@ -85,11 +130,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     loading,
     error,
     add,
+    addExercise,
     remove,
     find: (classId, date) => scheduled.find(item => item.classId === classId && item.date === date),
     dates: new Set(scheduled.map(item => item.date)),
     refresh,
-  }), [scheduled, loading, error, add, remove, refresh]);
+  }), [scheduled, loading, error, add, addExercise, remove, refresh]);
 
   return <ScheduleContext.Provider value={value}>{children}</ScheduleContext.Provider>;
 }

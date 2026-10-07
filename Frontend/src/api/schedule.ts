@@ -12,11 +12,14 @@ export type PlannedWorkout = {
   durationMinutes: number;
 };
 
+type PlannedWorkoutInput = Omit<PlannedWorkout, "id">;
 type ScheduleResponse<T> = { data: T };
 
-export async function getPlannedWorkouts() {
+export async function getPlannedWorkouts(timezoneOffsetMinutes = new Date().getTimezoneOffset()) {
   try {
-    const response = await apiClient.get<ScheduleResponse<{ items: PlannedWorkout[] }>>("/app/schedule");
+    const response = await apiClient.get<ScheduleResponse<{ items: PlannedWorkout[] }>>(
+      `/app/schedule?timezoneOffsetMinutes=${timezoneOffsetMinutes}`,
+    );
     return response.data.data.items;
   } catch (error) {
     throw new Error(apiErrorMessage(error));
@@ -24,10 +27,13 @@ export async function getPlannedWorkouts() {
 }
 
 export async function createPlannedWorkout(
-  plan: Omit<PlannedWorkout, "id">,
+  plan: PlannedWorkoutInput,
 ) {
   try {
-    const response = await apiClient.post<ScheduleResponse<{ item: PlannedWorkout }>>("/app/schedule", plan);
+    const response = await apiClient.post<ScheduleResponse<{ item: PlannedWorkout }>>("/app/schedule", {
+      ...plan,
+      timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+    });
     return response.data.data.item;
   } catch (error) {
     throw new Error(apiErrorMessage(error));

@@ -13,8 +13,11 @@ export type ApiCard = {
   isFeatured: boolean;
 };
 
-export async function getPublicCards(page = 1, limit = 12) {
-  const response = await apiClient.get<{ data: { items: ApiCard[]; pagination: { page: number; pages: number; total: number } } }>(`/public/cards?page=${page}&limit=${limit}`);
+export async function getPublicCards(page = 1, limit = 12, category?: string, gender?: string) {
+  const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (category) query.set("category", category);
+  if (gender) query.set("gender", gender);
+  const response = await apiClient.get<{ data: { items: ApiCard[]; pagination: { page: number; pages: number; total: number } } }>(`/public/cards?${query.toString()}`);
   return response.data.data;
 }
 

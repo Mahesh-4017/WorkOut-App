@@ -2,21 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { apiRequest, FeaturedCard, mediaUrl, PlannedWorkout, ProgressData } from "./api";
+import { apiRequest, Exercise, FeaturedCard, mediaUrl, PlannedWorkout, ProgressData } from "./api";
 import { useWebsiteAuth } from "./website-auth";
 
-function HomeImage({ src, alt }: { src?: string; alt: string }) {
+function HomeImage({ src, alt, className = "featured-image" }: { src?: string; alt: string; className?: string }) {
   const [failed, setFailed] = useState(false);
   const url = mediaUrl(src);
   return url && !failed
-    ? <img className="featured-image" src={url} alt={alt} loading="lazy" onError={() => setFailed(true)} />
-    : <div className="featured-image image-placeholder" aria-hidden="true">✳</div>;
+    ? <img className={className} src={url} alt={alt} loading="lazy" onError={() => setFailed(true)} />
+    : <div className={`${className} image-placeholder`} aria-hidden="true">✳</div>;
 }
 
 export default function HomeDashboard() {
   const { user, token, ready } = useWebsiteAuth();
   const [cards, setCards] = useState<FeaturedCard[]>([]);
   const [cardsError, setCardsError] = useState("");
+  const [latestExercises, setLatestExercises] = useState<Exercise[]>([]);
+  const [latestError, setLatestError] = useState("");
+  const [latestLoading, setLatestLoading] = useState(true);
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [progressToken, setProgressToken] = useState<string | null>(null);
   const [planned, setPlanned] = useState<PlannedWorkout[]>([]);
@@ -35,10 +38,28 @@ export default function HomeDashboard() {
     }
   }, []);
 
+  const loadLatestExercises = useCallback(async () => {
+    setLatestError("");
+    setLatestLoading(true);
+    try {
+      const result = await apiRequest<{ items: Exercise[] }>("/public/exercises?sort=latest&limit=6");
+      setLatestExercises(result.items);
+    } catch (error) {
+      setLatestError(error instanceof Error ? error.message : "Unable to load the latest exercises.");
+    } finally {
+      setLatestLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => { void loadCards(); });
     return () => window.cancelAnimationFrame(frame);
   }, [loadCards]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => { void loadLatestExercises(); });
+    return () => window.cancelAnimationFrame(frame);
+  }, [loadLatestExercises]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setNow(new Date()));
@@ -55,7 +76,7 @@ export default function HomeDashboard() {
         setProgressToken(token);
       })
       .catch(error => active && setAccountMessage({ token, message: error instanceof Error ? error.message : "Unable to load your progress." }));
-    apiRequest<{ items: PlannedWorkout[] }>("/app/schedule", {}, token)
+    apiRequest<{ items: PlannedWorkout[] }>(`/app/schedule?timezoneOffsetMinutes=${new Date().getTimezoneOffset()}`, {}, token)
       .then(data => {
         if (!active) return;
         setPlanned(data.items);
@@ -115,6 +136,30 @@ export default function HomeDashboard() {
         </div>
       </section>
 
+      <section className="next-section" aria-labelledby="next-heading">
+        <div className="section-heading"><div><span className="eyebrow">PICK YOUR NEXT STEP</span><h2 id="next-heading">What&apos;s next for you?</h2></div><p>Choose the kind of movement that fits your day.</p></div>
+        <div className="next-grid">
+          <Link className="next-card next-card-workout" href="/workouts">
+            <span className="next-icon" aria-hidden="true">↗</span>
+            <strong>Explore workouts</strong>
+            <span>Find a published exercise for your focus.</span>
+            <span className="next-action">Browse workouts →</span>
+          </Link>
+          <Link className="next-card next-card-yoga" href="/yoga">
+            <span className="next-icon" aria-hidden="true">✳</span>
+            <strong>Yoga &amp; mobility</strong>
+            <span>Open guided Yoga sessions from the library.</span>
+            <span className="next-action">Explore Yoga →</span>
+          </Link>
+          <Link className="next-card next-card-plan" href="/calendar">
+            <span className="next-icon" aria-hidden="true">▦</span>
+            <strong>Plan your week</strong>
+            <span>Choose a date and build your own schedule.</span>
+            <span className="next-action">Open calendar →</span>
+          </Link>
+        </div>
+      </section>
+
       <section className="featured-section">
         <div className="section-heading"><div><span className="eyebrow">FROM YOUR LIBRARY</span><h2>A little stronger today.</h2></div><Link className="text-link" href="/workouts">All exercises →</Link></div>
         {cardsError && <div className="notice notice-error" role="alert"><span>{cardsError}</span><button className="text-button" onClick={() => void loadCards()}>Try again</button></div>}
@@ -123,6 +168,27 @@ export default function HomeDashboard() {
           {cards.map(card => <article className="featured-card" key={card._id}><HomeImage src={card.thumbnailUrl} alt={card.title} /><div className="featured-copy"><span className="eyebrow">{card.category || "WORKOUT"}</span><h3>{card.title}</h3><p>{card.description || "A guided session from your workout library."}</p><a className="text-link" href={card.videoUrl} target="_blank" rel="noopener noreferrer">Watch session ↗</a></div></article>)}
         </div>
       </section>
+
+      <section className="latest-section" aria-labelledby="latest-heading">
+        <div className="section-heading"><div><span className="eyebrow">JUST ADDED TO YOUR LIBRARY</span><h2 id="latest-heading">Latest workout exercises.</h2></div><Link className="text-link" href="/workouts">Explore all exercises →</Link></div>
+        {latestError && <div className="notice notice-error" role="alert"><span>{latestError}</span><button className="text-button" onClick={() => { void loadLatestExercises(); }}>Try again</button></div>}
+        {latestLoading && <p className="notice" role="status">Loading the latest published exercises…</p>}
+        {!latestLoading && !latestError && latestExercises.length === 0 && <p className="notice">New exercises will appear here when they are published.</p>}
+        <div className="exercise-grid">
+          {latestExercises.map(exercise => (
+            <Link className="exercise-card" key={exercise._id} href={`/workouts?exerciseId=${encodeURIComponent(exercise._id)}`}>
+              <HomeImage src={exercise.imageUrl} alt={exercise.title} className="exercise-image" />
+              <span className="exercise-copy">
+                <span className="exercise-meta"><span>{exercise.level}</span><span>{exercise.durationMinutes} min</span></span>
+                <strong>{exercise.title}</strong>
+                <span className="exercise-category">{exercise.bodyPart} · {exercise.category}</span>
+              </span>
+              <span className="exercise-arrow" aria-hidden="true">↗</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <section className="download-section"><div><span className="eyebrow">MOVE WITH YOU</span><h2>Take your workout library anywhere.</h2><p>Download the latest Android app and keep going from your phone.</p></div><a className="button button-primary" href="https://github.com/Mahesh-4017/WorkOut-App/releases/latest/download/WorkOut-App.apk">Download latest APK ↓</a></section>
     </main>
   );

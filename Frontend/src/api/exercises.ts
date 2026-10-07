@@ -47,6 +47,7 @@ export function getPublicExercises(params: {
   search?: string;
   page?: number;
   limit?: number;
+  sort?: "latest";
 }) {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {

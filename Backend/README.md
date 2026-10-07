@@ -61,6 +61,8 @@ curl -X PATCH -b cookies.txt -H 'Content-Type: application/json' -d '{"items":[{
 curl http://localhost:5000/api/public/cards
 curl 'http://localhost:5000/api/public/cards?featured=true&category=Mobility'
 curl http://localhost:5000/api/public/cards/CARD_ID
+curl 'http://localhost:5000/api/public/exercises?sort=latest&limit=6'
+curl http://localhost:5000/api/public/exercises/EXERCISE_ID
 curl http://localhost:5000/api/public/settings
 
 # Settings and password

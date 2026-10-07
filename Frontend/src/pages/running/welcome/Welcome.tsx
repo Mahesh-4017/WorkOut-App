@@ -7,10 +7,9 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { useTheme } from "../../../theme/ThemeProvider";
 import { ROUTES } from "../../../navigation/routes";
-import { getHighScore, hasSeenWelcome, markWelcomeSeen } from "../../../utils/Highscore";
+import { useSession } from "../../../data/SessionProvider";
 
-const DEMO_STEPS = 8432; // shown on the very first launch
-const DAILY_GOAL = 10000; // ring is "full" at this many steps
+const DEFAULT_DAILY_GOAL = 10000;
 
 const SIZE = 240;
 const STROKE = 14;
@@ -21,31 +20,23 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 export default function Welcome() {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
+  const { stepEntries, goals, loading } = useSession();
   const s = createStyles(theme);
 
-  const [ready, setReady] = useState(false);
-  const [firstTime, setFirstTime] = useState(true);
-  const [value, setValue] = useState(0); // number the ring represents
-  const [shown, setShown] = useState(0); // animated count-up number
+  const [shown, setShown] = useState(0);
   const ring = useRef(new Animated.Value(0)).current;
-
-  // First launch -> demo number. Later launches -> saved high score.
-  useEffect(() => {
-    (async () => {
-      const seen = await hasSeenWelcome();
-      const best = await getHighScore();
-      setFirstTime(!seen);
-      setValue(seen ? best : DEMO_STEPS);
-      setReady(true);
-    })();
-  }, []);
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const value = stepEntries
+    .filter(entry => entry.recordedAt.slice(0, 10) === todayKey)
+    .reduce((total, entry) => total + entry.steps, 0);
+  const dailyGoal = goals?.dailySteps ?? DEFAULT_DAILY_GOAL;
 
   // Animate ring + count-up once the value is known
   useEffect(() => {
-    if (!ready) return;
-    const ratio = Math.min(value / Math.max(DAILY_GOAL, value, 1), 1);
+    if (loading) return;
+    const ratio = Math.min(value / Math.max(dailyGoal, 1), 1);
     const id = ring.addListener(({ value: v }) =>
-      setShown(ratio > 0 ? Math.round((v / ratio) * value) : 0),
+      setShown(Math.round(v * dailyGoal)),
     );
     Animated.timing(ring, {
       toValue: ratio,
@@ -54,28 +45,13 @@ export default function Welcome() {
       useNativeDriver: false,
     }).start();
     return () => ring.removeListener(id);
-  }, [ready, value, ring]);
+  }, [loading, value, dailyGoal, ring]);
 
-  const onStart = async () => {
-    await markWelcomeSeen();
+  const onStart = () => {
     navigation.replace(ROUTES.RUNNING_HOME);
   };
 
-  if (!ready) return <View style={s.screen} />;
-
-  const hasRecord = value > 0;
   const dashOffset = ring.interpolate({ inputRange: [0, 1], outputRange: [CIRCUMFERENCE, 0] });
-
-  const title = firstTime
-    ? "Track your running, steps, calories."
-    : hasRecord
-    ? "Ready to beat your best?"
-    : "Take your first steps today.";
-  const subtitle = firstTime
-    ? "Every move counts. Every goal matters."
-    : hasRecord
-    ? `Your record is ${value.toLocaleString()} steps. Every move counts.`
-    : "Every move counts. Every goal matters.";
 
   return (
     <SafeAreaView style={s.screen}>
@@ -86,8 +62,8 @@ export default function Welcome() {
 
         {/* floating chip */}
         <View style={s.chip}>
-          <Ionicons name={firstTime ? "footsteps-outline" : "trophy-outline"} size={14} color={theme.colors.primaryDark} />
-          <Text style={s.chipText}>{firstTime ? `${DEMO_STEPS.toLocaleString()} steps` : "Personal best"}</Text>
+          <Ionicons name="footsteps-outline" size={14} color={theme.colors.primaryDark} />
+          <Text style={s.chipText}>{value ? `${value.toLocaleString()} steps today` : "No steps logged today"}</Text>
         </View>
 
         {/* ring */}
@@ -109,21 +85,25 @@ export default function Welcome() {
           <View style={s.ringCenter}>
             <Ionicons name="walk" size={38} color={theme.colors.text} />
             <Text style={s.steps}>{shown.toLocaleString()}</Text>
-            <Text style={s.stepsLabel}>{firstTime ? "STEPS" : "BEST STEPS"}</Text>
+            <Text style={s.stepsLabel}>STEPS TODAY</Text>
           </View>
         </View>
       </View>
 
       <View style={s.bottom}>
         <View style={s.tag}>
-          <Text style={s.tagText}>VELOCITY MOVE</Text>
+          <Text style={s.tagText}>MOVE AT YOUR PACE</Text>
         </View>
-        <Text style={s.title}>{title}</Text>
-        <Text style={s.subtitle}>{subtitle}</Text>
+        <Text style={s.title}>{value ? "Keep your movement going." : "Start moving at your pace."}</Text>
+        <Text style={s.subtitle}>
+          {loading
+            ? "Loading your saved activity."
+            : `${value.toLocaleString()} steps recorded today. Step totals include saved entries only.`}
+        </Text>
 
         <Pressable onPress={onStart} style={s.button} accessibilityRole="button">
           <Ionicons name="arrow-forward" size={18} color={theme.colors.onPrimary} />
-          <Text style={s.buttonText}>Start moving</Text>
+          <Text style={s.buttonText}>Open movement dashboard</Text>
         </Pressable>
       </View>
     </SafeAreaView>

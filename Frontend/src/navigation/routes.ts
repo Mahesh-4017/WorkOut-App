@@ -8,6 +8,7 @@ export const ROUTES = {
     HOME: "Home",
     RUNNING: "Running",
     RUNNING_HOME: "RunningHome",
+    YOGA: "Yoga",
     ANALYSIS: "Analysis",
     DETAILS: "Details",
     WORKOUT: "Workout",

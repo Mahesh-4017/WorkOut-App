@@ -14,8 +14,10 @@ import { ScreenHeader } from "../../../components/MovementUI";
 
 export default function ExploreWorkouts({
   showBottomTabBar = true,
+  onBack,
 }: {
   showBottomTabBar?: boolean;
+  onBack?: () => void;
 }) {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
@@ -63,6 +65,10 @@ export default function ExploreWorkouts({
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title="Explore Workouts"
+          onBack={onBack ?? (() => {
+            if (navigation.canGoBack()) navigation.goBack();
+            else navigation.navigate(ROUTES.HOME, { tab: "home" });
+          })}
           onBell={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
           onProfile={() => navigation.navigate(ROUTES.PROFILE)}
         />

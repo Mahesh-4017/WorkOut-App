@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { apiRequest, BodyPart, Exercise, mediaUrl } from "./api";
 
@@ -110,7 +110,7 @@ export default function WorkoutsBrowser({ collections = false }: { collections?:
     window.setTimeout(() => document.getElementById("exercise-results")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   };
 
-  const showExercise = async (id: string) => {
+  const showExercise = useCallback(async (id: string) => {
     setDetail(null);
     setDetailError("");
     setDetailLoading(true);
@@ -121,9 +121,25 @@ export default function WorkoutsBrowser({ collections = false }: { collections?:
     } finally {
       setDetailLoading(false);
     }
-  };
+  }, []);
 
-  const closeExercise = () => { setDetail(null); setDetailError(""); setDetailLoading(false); };
+  useEffect(() => {
+    const exerciseId = new URLSearchParams(window.location.search).get("exerciseId");
+    if (!exerciseId) return;
+    const frame = window.requestAnimationFrame(() => { void showExercise(exerciseId); });
+    return () => window.cancelAnimationFrame(frame);
+  }, [showExercise]);
+
+  const closeExercise = () => {
+    setDetail(null);
+    setDetailError("");
+    setDetailLoading(false);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("exerciseId")) {
+      url.searchParams.delete("exerciseId");
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+  };
 
   return (
     <main className={collections ? "collections-page" : ""}>

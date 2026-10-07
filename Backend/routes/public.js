@@ -12,6 +12,7 @@ const exerciseQuery = [
   query('bodyPart').optional().isString().trim().isLength({ max: 80 }),
   query('category').optional().isString().trim().isLength({ max: 80 }),
   query('search').optional().isString().trim().isLength({ max: 100 }),
+  query('sort').optional().isIn(['latest']),
   query('level').optional().isIn(['Beginner', 'Intermediate', 'Advanced'])
 ];
 router.get('/cards', publicCards);
