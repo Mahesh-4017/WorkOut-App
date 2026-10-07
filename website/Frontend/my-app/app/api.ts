@@ -59,7 +59,11 @@ export function mediaUrl(value?: string) {
   if (!value?.trim()) return undefined;
   try {
     const url = new URL(value, new URL(API_BASE_URL).origin);
-    return ["http:", "https:"].includes(url.protocol) ? url.href : undefined;
+    if (!["http:", "https:"].includes(url.protocol)) return undefined;
+    const imageMatch = url.origin === new URL(API_BASE_URL).origin
+      ? url.pathname.match(/^\/api\/media\/images\/([a-f\d]{24})$/i)
+      : null;
+    return imageMatch ? `/media/${imageMatch[1]}` : url.href;
   } catch {
     return undefined;
   }

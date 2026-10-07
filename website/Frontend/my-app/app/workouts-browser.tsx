@@ -37,6 +37,7 @@ export default function WorkoutsBrowser({ collections = false }: { collections?:
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedBodyPart, setSelectedBodyPart] = useState<BodyPart | null>(null);
+  const [collectionSearch, setCollectionSearch] = useState("");
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -93,6 +94,14 @@ export default function WorkoutsBrowser({ collections = false }: { collections?:
   }, [detail, detailLoading, detailError]);
 
   const count = useMemo(() => bodyParts.reduce((sum, part) => sum + part.count, 0), [bodyParts]);
+  const visibleBodyParts = useMemo(() => {
+    const query = collectionSearch.trim().toLocaleLowerCase();
+    if (!query) return bodyParts;
+    return bodyParts.filter(part =>
+      part.name.toLocaleLowerCase().includes(query)
+      || part.categories.some(item => item.name.toLocaleLowerCase().includes(query)),
+    );
+  }, [bodyParts, collectionSearch]);
 
   const chooseBodyPart = (part: BodyPart, selectedCategory = "") => {
     setSelectedBodyPart(part);
@@ -117,33 +126,59 @@ export default function WorkoutsBrowser({ collections = false }: { collections?:
   const closeExercise = () => { setDetail(null); setDetailError(""); setDetailLoading(false); };
 
   return (
-    <main>
+    <main className={collections ? "collections-page" : ""}>
       <section className="page-intro">
         <Link className="back-link" href="/">← Home</Link>
-        <span className="eyebrow">WORKOUT LIBRARY</span>
-        <h1>{collections ? <>Find your next<br /><em>favorite routine.</em></> : <>What do you want<br /><em>to train today?</em></>}</h1>
-        <p>{collections ? "Browse your collections by focus area and jump into a category." : "Choose a body part to find focused exercises, coaching details, and videos."}</p>
+        <span className="eyebrow">{collections ? "BUILT FROM YOUR WORKOUT LIBRARY" : "WORKOUT LIBRARY"}</span>
+        <h1>{collections ? <>A collection for<br /><em>every kind of strong.</em></> : <>What do you want<br /><em>to train today?</em></>}</h1>
+        <p>{collections ? "Explore workouts by body part, find the right focus, and open a collection to see its published exercises." : "Choose a body part to find focused exercises, coaching details, and videos."}</p>
       </section>
       <section className="browse-section" id="body-parts">
         <div className="section-heading">
-          <div><span className="eyebrow">{collections ? "YOUR WORKOUT COLLECTIONS" : "START WITH A FOCUS AREA"}</span><h2>{collections ? "Browse collections" : "Choose a body part"}</h2></div>
-          <span className="library-count">{loading ? "Loading…" : `${bodyParts.length} areas · ${count} exercises`}</span>
+          <div><span className="eyebrow">{collections ? "CHOOSE YOUR NEXT FOCUS" : "START WITH A FOCUS AREA"}</span><h2>{collections ? "Explore collections" : "Choose a body part"}</h2></div>
+          <span className="library-count">{loading ? "Loading…" : `${bodyParts.length} collections · ${count} exercises`}</span>
         </div>
         {error && <div className="notice notice-error" role="alert"><span>{error}</span><button className="text-button" onClick={() => window.location.reload()}>Try again</button></div>}
-        {!loading && !error && bodyParts.length === 0 && <p className="notice">Published workout categories will appear here.</p>}
-        <div className="body-part-grid">
-          {bodyParts.map(part => (
-            <article className="body-part-card" key={part.name}>
-              <button className="body-part-main" type="button" onClick={() => chooseBodyPart(part)} aria-label={`Browse ${part.name}, ${part.count} exercises`}>
-                <span className="body-part-copy"><span className="eyebrow">{String(part.count).padStart(2, "0")} EXERCISES</span><strong>{part.name}</strong><span>Browse {part.name.toLowerCase()} workouts</span><span className="explore-link">Explore <span aria-hidden="true">→</span></span></span>
-                <ContentImage src={part.imageUrl} alt={`${part.name} workout`} className="body-part-image" />
-              </button>
-              <div className="category-chips">
-                {part.categories.map(item => <button className="category-chip" key={item.name} type="button" onClick={() => chooseBodyPart(part, item.name)}>{item.name}<span>{item.count}</span></button>)}
-              </div>
-            </article>
-          ))}
-        </div>
+        {collections && <label className="search-field collection-search"><span aria-hidden="true">⌕</span><input type="search" value={collectionSearch} onChange={event => setCollectionSearch(event.target.value)} placeholder="Search body parts or categories" aria-label="Search collections" />{collectionSearch && <button className="clear-search" type="button" aria-label="Clear search" onClick={() => setCollectionSearch("")}>×</button>}</label>}
+        {!loading && !error && bodyParts.length === 0 && <p className="notice">Published workout collections will appear here when they are added to the library.</p>}
+        {collections ? (
+          <>
+            {!loading && !error && bodyParts.length > 0 && visibleBodyParts.length === 0 && <p className="notice">No collections match “{collectionSearch}”. Try another focus area or category.</p>}
+            <div className="collection-grid">
+              {visibleBodyParts.map((part, index) => (
+                <article className="collection-card" key={part.name}>
+                  <button className="collection-main" type="button" onClick={() => chooseBodyPart(part)} aria-label={`Explore ${part.name}, ${part.count} exercises`}>
+                    <span className="collection-copy">
+                      <span className="collection-index">{String(index + 1).padStart(2, "0")} / {String(visibleBodyParts.length).padStart(2, "0")}</span>
+                      <strong>{part.name}</strong>
+                      <span className="collection-count">{part.count} published exercise{part.count === 1 ? "" : "s"}</span>
+                      <span className="explore-link">Explore collection <span aria-hidden="true">→</span></span>
+                    </span>
+                    <ContentImage src={part.imageUrl} alt={`${part.name} workout collection`} className="collection-image" />
+                  </button>
+                  <div className="collection-categories">
+                    <span className="eyebrow">FOCUS</span>
+                    {part.categories.map(item => <button className="category-chip" key={item.name} type="button" onClick={() => chooseBodyPart(part, item.name)}>{item.name}<span>{item.count}</span></button>)}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="body-part-grid">
+            {bodyParts.map(part => (
+              <article className="body-part-card" key={part.name}>
+                <button className="body-part-main" type="button" onClick={() => chooseBodyPart(part)} aria-label={`Browse ${part.name}, ${part.count} exercises`}>
+                  <span className="body-part-copy"><span className="eyebrow">{String(part.count).padStart(2, "0")} EXERCISES</span><strong>{part.name}</strong><span>Browse {part.name.toLowerCase()} workouts</span><span className="explore-link">Explore <span aria-hidden="true">→</span></span></span>
+                  <ContentImage src={part.imageUrl} alt={`${part.name} workout`} className="body-part-image" />
+                </button>
+                <div className="category-chips">
+                  {part.categories.map(item => <button className="category-chip" key={item.name} type="button" onClick={() => chooseBodyPart(part, item.name)}>{item.name}<span>{item.count}</span></button>)}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       {selectedBodyPart && (
