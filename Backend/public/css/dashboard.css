@@ -10,6 +10,18 @@
   background: linear-gradient(120deg, #244e57, #397079);
   box-shadow: var(--shadow);
 }
+.sidebar { height: 100vh; min-height: 100vh; position: sticky; top: 0; gap: 20px; }
+.sidebar-card-section { display: flex; flex: 1; flex-direction: column; min-height: 0; padding: 0 4px; }
+.sidebar-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 9px 10px; border-bottom: 1px solid rgba(255,255,255,.16); }
+.sidebar-card-heading h2 { margin: 0; color: #f6f2e9; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.sidebar-card-heading > span { display: grid; min-width: 24px; height: 24px; place-items: center; padding: 0 6px; border-radius: 12px; color: #f6f2e9; background: rgba(255,255,255,.12); font-size: 11px; }
+.sidebar-card-list { display: grid; align-content: start; gap: 4px; min-height: 0; overflow-y: auto; padding: 8px 2px 4px; scrollbar-color: #67898a transparent; scrollbar-width: thin; }
+.sidebar-card-link { display: grid; gap: 3px; min-width: 0; padding: 9px 10px; border-radius: 9px; color: #c8d8d3; }
+.sidebar-card-link:hover, .sidebar-card-link.active { color: #fff; background: #396a70; }
+.sidebar-card-title { overflow: hidden; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-card-meta { overflow: hidden; color: #abc1bd; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-card-state { padding: 10px; color: #abc1bd; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.sidebar-card-state.error { color: #ffd1c8; }
 .dashboard-welcome .eyebrow { color: #b9d4cd; }
 .dashboard-welcome h2 {
   margin: 10px 0 8px;

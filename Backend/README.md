@@ -52,6 +52,7 @@ curl -b cookies.txt http://localhost:5000/api/dashboard/stats
 curl -b cookies.txt -H 'Content-Type: application/json' -d '{"title":"Mobility flow","description":"A short flow","videoUrl":"https://www.youtube.com/watch?v=example","status":"published","tags":["mobility"],"isFeatured":true}' http://localhost:5000/api/cards
 curl -b cookies.txt 'http://localhost:5000/api/cards?page=1&limit=10&search=mobility&status=published&sort=-createdAt'
 curl -b cookies.txt http://localhost:5000/api/cards/CARD_ID
+curl -b cookies.txt http://localhost:5000/api/dashboard/users/USER_ID
 curl -X PUT -b cookies.txt -H 'Content-Type: application/json' -d '{"title":"Updated title","videoUrl":"https://vimeo.com/123456"}' http://localhost:5000/api/cards/CARD_ID
 curl -X DELETE -b cookies.txt http://localhost:5000/api/cards/CARD_ID
 curl -X PATCH -b cookies.txt -H 'Content-Type: application/json' -d '{"items":[{"id":"CARD_ID","order":1}]}' http://localhost:5000/api/cards/reorder
@@ -68,6 +69,10 @@ curl -X PATCH -b cookies.txt -H 'Content-Type: application/json' -d '{"currentPa
 curl -X POST -b cookies.txt http://localhost:5000/api/auth/logout
 ```
 
+The admin dashboard links to individual video-card and member detail pages.
+`GET /api/dashboard/users/:id` returns the selected member's profile and
+activity fields to authenticated admins; password hashes are never included.
+
 ## Mobile app user API
 
 The React Native app uses a separate bearer-token auth flow. It does not share the single admin account.
@@ -80,6 +85,43 @@ curl -X PUT -H "Authorization: Bearer APP_TOKEN" -H 'Content-Type: application/j
 ```
 
 For the React Native Android emulator, the client uses `http://10.0.2.2:5001/api`. iOS Simulator uses `http://localhost:5001/api`; a physical device must use the computer's LAN IP.
+
+## Mobile app fitness progress data
+
+Fitness progress is stored per authenticated app user in MongoDB. The React
+Native app reads the progress bundle from `GET /api/app/progress`; use the
+bearer token returned by app registration or login for every request.
+
+```bash
+# Add a completed workout session
+curl -X POST -H "Authorization: Bearer APP_USER_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"workoutId":"w1","title":"Strength session","startedAt":"2026-10-07T09:00:00.000Z","seconds":1800,"calories":210,"distanceKm":0,"movesDone":3,"movesTotal":3,"setsDone":9}' \
+  http://localhost:5001/api/app/progress/sessions
+
+# Save or update account goals (send only fields being changed)
+curl -X PUT -H "Authorization: Bearer APP_USER_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"weeklySessions":4,"targetWeightKg":68,"dailySteps":8000,"dailyCalories":400}' \
+  http://localhost:5001/api/app/progress/goals
+
+# Add measurements; steps upsert the current UTC day
+curl -X POST -H "Authorization: Bearer APP_USER_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"weightKg":72.4}' http://localhost:5001/api/app/progress/weight
+curl -X POST -H "Authorization: Bearer APP_USER_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"steps":8432}' http://localhost:5001/api/app/progress/steps
+
+# Read sessions, goals, weights, and step records for the signed-in user
+curl -H "Authorization: Bearer APP_USER_TOKEN" http://localhost:5001/api/app/progress
+```
+
+Workout feedback is saved with
+`PATCH /api/app/progress/sessions/SESSION_ID/feedback` using optional `rating`
+(1–5), `effort` (1–5), `feel` (string array), and `note` fields. App progress
+records are isolated by the verified user token; clients cannot choose another
+user's record owner.
+
+## Meal photo nutrition
+
+The mobile app posts meal photos to `POST /api/nutrition/analyze` as multipart form data with the `image` field. Set `ANTHROPIC_API_KEY` in the backend environment; optionally set `ANTHROPIC_MODEL` to override the default model. Keep the key on the server and never add it to the React Native app. The route accepts JPEG, PNG, and WebP images up to 8 MB.
 
 ## Deployment
 
