@@ -36,19 +36,10 @@ jobs:
         working-directory: Frontend
         run: npm ci
 
-      - name: Prepare Android signing and version
+      - name: Set Android version
         env:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
-          keytool -genkeypair -v \
-            -keystore Frontend/android/app/debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
           echo "ANDROID_VERSION_CODE=$((RUN_NUMBER + 1))" >> "$GITHUB_ENV"
           echo "ANDROID_VERSION_NAME=1.0.${RUN_NUMBER}" >> "$GITHUB_ENV"
 
@@ -70,6 +61,6 @@ jobs:
           gh release create "android-${RUN_NUMBER}" release/WorkOut-App.apk \
             --repo "${GITHUB_REPOSITORY}" \
             --title "WorkOut Android build ${RUN_NUMBER}" \
-            --notes "Android APK built from commit ${COMMIT_SHA}. This build uses a CI debug signing key; uninstall an older APK before installing this build." \
+            --notes "Android APK built from commit ${COMMIT_SHA}, signed with the project's Android debug key. This is a test build and is not suitable for Play Store publishing." \
             --target "${COMMIT_SHA}" \
             --latest

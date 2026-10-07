@@ -25,5 +25,5 @@ with the signed-in app account.
 The download buttons use the GitHub latest-release URL for
 `Mahesh-4017/WorkOut-App`. The repository's Android APK workflow creates that
 release when it runs on `main`; until its first successful run, the download
-URL has no APK asset. Automated CI APKs use a temporary debug signing key, so
-remove a previously installed CI build before installing a newer one.
+URL has no APK asset. Automated CI APKs use the Android debug key configured
+in the app project and are not suitable for Play Store publishing.

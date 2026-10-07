@@ -110,8 +110,8 @@ release asset. The `Build and publish Android APK` GitHub Actions workflow
 builds a release APK when Android app files change on `main` (or when manually
 started) and publishes it as `WorkOut-App.apk`. A new published release is
 required before the latest-download URL has an APK to serve. Automated builds
-use a CI debug signing key, so uninstall an earlier app build before installing
-a newly downloaded APK.
+use the Android debug key configured in the app project and are test builds,
+not suitable for Play Store publishing.
 
 ## Mobile app user API
 
