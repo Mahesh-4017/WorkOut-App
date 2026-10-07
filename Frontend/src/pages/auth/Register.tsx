@@ -4,8 +4,8 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import {
@@ -21,26 +21,36 @@ import { useAuth } from "../../context/AuthContext";
 import { apiErrorMessage } from "../../api/client";
 import { clearOnboarding, getOnboarding } from "../../utils/onboarding";
 import { ROUTES } from "../../navigation/routes";
+import {
+  AuthButton,
+  AuthField,
+  AuthHeader,
+  AuthSafeArea,
+} from "./AuthComponents";
 
 export default function RegisterScreen() {
   const { theme } = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const { setUser } = useUser();
   const { register } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const nameValid = name.trim().length > 1;
   const emailValid = /\S+@\S+\.\S+/.test(email);
-  const passwordValid = password.length >= 6;
-  const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
+  // Matches the hint: 8+ characters, a number and a symbol
+  const passwordValid =
+    password.length >= 8 && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
+  const passwordsMatch =
+    password === confirmPassword && confirmPassword.length > 0;
 
   const canSubmit =
     nameValid &&
@@ -56,10 +66,27 @@ export default function RegisterScreen() {
     setErrorMessage("");
     try {
       const onboarding = await getOnboarding();
-      const user = await register({ name: name.trim(), email: email.trim(), password, ...onboarding });
+      const user = await register({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim() || undefined,
+        password,
+        ...onboarding,
+      });
       await clearOnboarding();
       setUser(user.name, user.email);
-      navigation.reset({ index: 0, routes: [{ name: ROUTES.HOME }] });
+      navigation.reset({
+        index: 0,
+        routes: [{
+          name: ROUTES.VERIFY_OTP,
+          params: {
+            purpose: "verifyEmail",
+            target: user.email,
+            phone: user.phone,
+            continueToGender: true,
+          },
+        }],
+      });
     } catch (error) {
       setErrorMessage(apiErrorMessage(error));
     } finally {
@@ -68,339 +95,181 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: responsiveWidth(6),
-          paddingTop: responsiveWidth(14),
-          paddingBottom: 32,
-        }}
+    <AuthSafeArea>
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* Back */}
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={10}
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 19,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: theme.colors.card,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-          }}
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scroll}
         >
-          <Ionicons name="arrow-back" size={18} color={theme.colors.text} />
-        </Pressable>
-        {errorMessage ? (
-          <Text style={{ marginTop: 12, color: "#E5484D", textAlign: "center" }}>
-            {errorMessage}
+          <AuthHeader
+            title="Create account"
+            onBack={() => navigation.goBack()}
+          />
+
+          <Text style={styles.title}>Make room for you.</Text>
+          <Text style={styles.subtitle}>
+            Start your journey with a free account.
           </Text>
-        ) : null}
 
-        <Text
-          style={{
-            marginTop: 22,
-            fontSize: responsiveFontSize(3.2),
-            fontWeight: "900",
-            color: theme.colors.text,
-          }}
-        >
-          Create account
-        </Text>
-        <Text
-          style={{
-            marginTop: 6,
-            fontSize: responsiveFontSize(1.6),
-            color: theme.colors.text,
-            opacity: 0.55,
-          }}
-        >
-          Start your journey to a stronger you.
-        </Text>
-
-        {/* Name */}
-        <View style={{ marginTop: 30 }}>
-          <Text style={styles(theme).label}>Full name</Text>
-          <View style={styles(theme).inputRow}>
-            <Ionicons
-              name="person-outline"
-              size={18}
-              color={theme.colors.icon}
-            />
-            <TextInput
+          <View style={styles.fields}>
+            <AuthField
+              label="Name"
               value={name}
               onChangeText={setName}
-              placeholder="Alex Carter"
-              placeholderTextColor={theme.colors.icon}
+              placeholder="Alex Morgan"
               autoCapitalize="words"
-              style={styles(theme).input}
             />
-          </View>
-        </View>
-
-        {/* Email */}
-        <View style={{ marginTop: 18 }}>
-          <Text style={styles(theme).label}>Email</Text>
-          <View style={styles(theme).inputRow}>
-            <Ionicons name="mail-outline" size={18} color={theme.colors.icon} />
-            <TextInput
+            <AuthField
+              label="Email"
               value={email}
               onChangeText={setEmail}
               placeholder="you@example.com"
-              placeholderTextColor={theme.colors.icon}
-              autoCapitalize="none"
-              autoCorrect={false}
               keyboardType="email-address"
-              style={styles(theme).input}
             />
-          </View>
-        </View>
-
-        {/* Password */}
-        <View style={{ marginTop: 18 }}>
-          <Text style={styles(theme).label}>Password</Text>
-          <View style={styles(theme).inputRow}>
-            <Ionicons
-              name="lock-closed-outline"
-              size={18}
-              color={theme.colors.icon}
+            <AuthField
+              label="Phone number (optional)"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="+1 555 123 4567"
+              keyboardType="phone-pad"
             />
-            <TextInput
+            <AuthField
+              label="Password"
               value={password}
               onChangeText={setPassword}
-              placeholder="At least 6 characters"
-              placeholderTextColor={theme.colors.icon}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry={!showPassword}
-              style={styles(theme).input}
+              placeholder="••••••••"
+              secureToggle
             />
-            <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={18}
-                color={theme.colors.icon}
-              />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Confirm password */}
-        <View style={{ marginTop: 18 }}>
-          <Text style={styles(theme).label}>Confirm password</Text>
-          <View
-            style={[
-              styles(theme).inputRow,
-              confirmPassword.length > 0 && !passwordsMatch
-                ? { borderColor: "#E5484D" }
-                : null,
-            ]}
-          >
-            <Ionicons
-              name="lock-closed-outline"
-              size={18}
-              color={theme.colors.icon}
-            />
-            <TextInput
+            <AuthField
+              label="Confirm password"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              placeholder="Re-enter your password"
-              placeholderTextColor={theme.colors.icon}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry={!showPassword}
-              style={styles(theme).input}
+              placeholder="••••••••"
+              secureToggle
+              error={confirmPassword.length > 0 && !passwordsMatch}
             />
           </View>
-          {confirmPassword.length > 0 && !passwordsMatch && (
-            <Text
-              style={{
-                marginTop: 6,
-                fontSize: responsiveFontSize(1.25),
-                color: "#E5484D",
-              }}
+
+          <Text style={styles.hint}>
+            Use at least 8 characters, a number and a symbol.
+          </Text>
+
+          {/* Terms */}
+          <Pressable
+            onPress={() => setAgreedToTerms((v) => !v)}
+            style={styles.terms}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                agreedToTerms && styles.checkboxChecked,
+              ]}
             >
-              Passwords don&apos;t match
-            </Text>
-          )}
-        </View>
-
-        {/* Terms checkbox */}
-        <Pressable
-          onPress={() => setAgreedToTerms((v) => !v)}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginTop: 20,
-          }}
-        >
-          <View
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: 6,
-              alignItems: "center",
-              justifyContent: "center",
-              borderWidth: 1.5,
-              borderColor: agreedToTerms
-                ? theme.colors.primary
-                : theme.colors.border,
-              backgroundColor: agreedToTerms
-                ? theme.colors.primary
-                : "transparent",
-            }}
-          >
-            {agreedToTerms && (
-              <Ionicons name="checkmark" size={13} color={theme.colors.onPrimary} />
-            )}
-          </View>
-          <Text
-            style={{
-              marginLeft: 10,
-              flex: 1,
-              fontSize: responsiveFontSize(1.4),
-              color: theme.colors.text,
-              opacity: 0.7,
-            }}
-          >
-            I agree to the Terms of Service and Privacy Policy
-          </Text>
-        </Pressable>
-
-        {/* Register button */}
-        <Pressable
-          onPress={handleRegister}
-          disabled={!canSubmit}
-          style={{
-            marginTop: 26,
-            height: 54,
-            borderRadius: 27,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: theme.colors.primary,
-            opacity: canSubmit ? 1 : 0.5,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: responsiveFontSize(1.75),
-              fontWeight: "700",
-              color: theme.colors.onPrimary,
-            }}
-          >
-            {submitting ? "Creating account…" : "Create Account"}
-          </Text>
-        </Pressable>
-
-        {/* Divider */}
-        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 28 }}>
-          <View style={{ flex: 1, height: 1, backgroundColor: theme.colors.border }} />
-          <Text
-            style={{
-              marginHorizontal: 12,
-              fontSize: responsiveFontSize(1.3),
-              color: theme.colors.text,
-              opacity: 0.45,
-            }}
-          >
-            or continue with
-          </Text>
-          <View style={{ flex: 1, height: 1, backgroundColor: theme.colors.border }} />
-        </View>
-
-        {/* Social buttons */}
-        <View style={{ flexDirection: "row", marginTop: 20, gap: 12 }}>
-          <Pressable style={styles(theme).socialButton}>
-            <Ionicons name="logo-google" size={18} color={theme.colors.text} />
-            <Text style={styles(theme).socialLabel}>Google</Text>
-          </Pressable>
-
-          <Pressable style={styles(theme).socialButton}>
-            <Ionicons name="logo-apple" size={19} color={theme.colors.text} />
-            <Text style={styles(theme).socialLabel}>Apple</Text>
-          </Pressable>
-        </View>
-
-        {/* Login link */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "center",
-            marginTop: 32,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: responsiveFontSize(1.5),
-              color: theme.colors.text,
-              opacity: 0.6,
-            }}
-          >
-            Already have an account?{" "}
-          </Text>
-          <Pressable onPress={() => navigation.navigate("Login")}>
-            <Text
-              style={{
-                fontSize: responsiveFontSize(1.5),
-                fontWeight: "700",
-                color: theme.colors.icon,
-              }}
-            >
-              Log In
+              {agreedToTerms ? (
+                <Ionicons
+                  name="checkmark"
+                  size={13}
+                  color={theme.colors.onPrimary}
+                />
+              ) : null}
+            </View>
+            <Text style={styles.termsText}>
+              I agree to the Terms &amp; privacy policy.
             </Text>
           </Pressable>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          <Text style={styles.control}>
+            You control your data and can delete your account anytime.
+          </Text>
+
+          {errorMessage ? (
+            <Text style={styles.error}>{errorMessage}</Text>
+          ) : null}
+
+          <View style={styles.spacer} />
+
+          {/* Bottom */}
+          <AuthButton
+            title={submitting ? "Creating account…" : "Create account"}
+            onPress={handleRegister}
+            disabled={!canSubmit}
+          />
+
+          <Pressable
+            onPress={() => navigation.navigate(ROUTES.LOGIN)}
+            style={styles.bottomLink}
+          >
+            <Text style={styles.bottomText}>Already have an account? Login</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </AuthSafeArea>
   );
 }
 
-const styles = (theme: any) => ({
-  label: {
-    fontSize: responsiveFontSize(1.4),
-    fontWeight: "700" as const,
-    color: theme.colors.text,
-    opacity: 0.7,
-    marginBottom: 8,
-  },
-  inputRow: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    height: 52,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  input: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: responsiveFontSize(1.6),
-    color: theme.colors.text,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: "row" as const,
-    height: 48,
-    borderRadius: 14,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  socialLabel: {
-    marginLeft: 8,
-    fontSize: responsiveFontSize(1.5),
-    fontWeight: "600" as const,
-    color: theme.colors.text,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    keyboard: { flex: 1 },
+    spacer: { flex: 1, minHeight: 24 },
+    scroll: {
+      flexGrow: 1,
+      paddingHorizontal: responsiveWidth(5),
+      paddingBottom: 16,
+    },
+    title: {
+      marginTop: 14,
+      fontSize: responsiveFontSize(3.2),
+      fontWeight: "800",
+      letterSpacing: -0.4,
+      color: theme.colors.text,
+    },
+    subtitle: {
+      marginTop: 6,
+      fontSize: responsiveFontSize(1.5),
+      color: theme.colors.textSecondary,
+    },
+    fields: { marginTop: 18, gap: 12 },
+    hint: {
+      marginTop: 12,
+      fontSize: responsiveFontSize(1.2),
+      color: theme.colors.textSecondary,
+    },
+    terms: { flexDirection: "row", alignItems: "center", marginTop: 14 },
+    checkbox: {
+      width: 18,
+      height: 18,
+      borderRadius: 4,
+      borderWidth: 1.5,
+      borderColor: theme.colors.primaryDark ?? theme.colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    checkboxChecked: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    termsText: {
+      marginLeft: 10,
+      fontSize: responsiveFontSize(1.4),
+      color: theme.colors.text,
+    },
+    control: {
+      marginTop: 10,
+      fontSize: responsiveFontSize(1.2),
+      color: theme.colors.textSecondary,
+    },
+    error: {
+      marginTop: 12,
+      textAlign: "center",
+      color: theme.colors.danger,
+    },
+    bottomLink: { alignItems: "center", paddingTop: 16, paddingBottom: 4 },
+    bottomText: {
+      fontSize: responsiveFontSize(1.4),
+      color: theme.colors.textSecondary,
+    },
+  });

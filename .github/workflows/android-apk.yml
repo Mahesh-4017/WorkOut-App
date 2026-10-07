@@ -1,0 +1,75 @@
+name: Build and publish Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Frontend/**"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Android release APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install frontend dependencies
+        working-directory: Frontend
+        run: npm ci
+
+      - name: Prepare Android signing and version
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          keytool -genkeypair -v \
+            -keystore Frontend/android/app/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          echo "ANDROID_VERSION_CODE=$((RUN_NUMBER + 1))" >> "$GITHUB_ENV"
+          echo "ANDROID_VERSION_NAME=1.0.${RUN_NUMBER}" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        working-directory: Frontend/android
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Stage APK
+        run: |
+          mkdir -p release
+          cp Frontend/android/app/build/outputs/apk/release/app-release.apk release/WorkOut-App.apk
+
+      - name: Publish latest APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_NUMBER: ${{ github.run_number }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          gh release create "android-${RUN_NUMBER}" release/WorkOut-App.apk \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "WorkOut Android build ${RUN_NUMBER}" \
+            --notes "Android APK built from commit ${COMMIT_SHA}. This build uses a CI debug signing key; uninstall an older APK before installing this build." \
+            --target "${COMMIT_SHA}" \
+            --latest

@@ -16,8 +16,9 @@ import {
 } from "react-native-responsive-dimensions";
 
 import { useTheme } from "../../theme/ThemeProvider";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { ROUTES } from "../../navigation/routes";
+import { useNavigation } from "@react-navigation/native";
+import { WORKOUT_ROUTES } from "../../navigation/workoutRoutes";
+import { useSchedule } from "../../data/ScheduleProvider";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 /* =========================================================
@@ -49,64 +50,15 @@ type Workout = {
   exercises: number;
   duration: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
+  exerciseId?: string;
 };
 
 const dateAtOffset = (days: number) => {
   const date = new Date();
   date.setHours(12, 0, 0, 0);
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
-
-/* =========================================================
-   Workout Data
-========================================================= */
-
-const workouts: Workout[] = [
-  {
-    id: "upper-body-push",
-    date: dateAtOffset(0),
-    label: "Today",
-    name: "Upper Body Push",
-    muscles: "Chest • Shoulders • Triceps",
-    exercises: 4,
-    duration: "45 min",
-    icon: "barbell-outline",
-  },
-
-  {
-    id: "lower-body",
-    date: dateAtOffset(1),
-    label: "Tomorrow",
-    name: "Lower Body",
-    muscles: "Quads • Hamstrings • Glutes",
-    exercises: 5,
-    duration: "50 min",
-    icon: "fitness-outline",
-  },
-
-  {
-    id: "pull-day",
-    date: dateAtOffset(2),
-    label: "Friday",
-    name: "Pull Day",
-    muscles: "Back • Biceps • Rear Delts",
-    exercises: 4,
-    duration: "45 min",
-    icon: "body-outline",
-  },
-
-  {
-    id: "full-body",
-    date: dateAtOffset(4),
-    label: "Sunday",
-    name: "Full Body",
-    muscles: "Full Body • Core",
-    exercises: 6,
-    duration: "55 min",
-    icon: "flame-outline",
-  },
-];
 
 /* =========================================================
    Calendar Screen
@@ -115,6 +67,7 @@ const workouts: Workout[] = [
 export default function CalendarScreen({ selectedDate: initialDate }: { selectedDate?: string } = {}) {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
+  const { scheduled, loading, error, refresh } = useSchedule();
 
   const styles = createStyles(theme);
 
@@ -132,11 +85,22 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
      Selected Workout
   ========================================================= */
 
-  const selectedWorkout = useMemo(() => {
-    return workouts.find(
-      (workout) => workout.date === selectedDate
-    );
-  }, [selectedDate]);
+  const workouts = useMemo(() => scheduled.map(plan => ({
+    id: plan.id,
+    date: plan.date,
+    label: new Date(`${plan.date}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }),
+    name: plan.title,
+    muscles: [plan.bodyPart, plan.category].filter(Boolean).join(" • ") || "Workout",
+    exercises: 1,
+    duration: `${plan.durationMinutes} min`,
+    icon: "barbell-outline" as const,
+    exerciseId: plan.exerciseId,
+  })), [scheduled]);
+
+  const selectedWorkouts = useMemo(
+    () => workouts.filter(workout => workout.date === selectedDate),
+    [selectedDate, workouts],
+  );
 
   /* =========================================================
      Calendar Marked Dates
@@ -181,6 +145,7 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
     return marks;
   }, [
     selectedDate,
+    workouts,
     theme.colors,
   ]);
 
@@ -303,9 +268,7 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
               Workouts
             </Text>
 
-            <Pressable
-              hitSlop={10}
-            >
+            <Pressable hitSlop={10} onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE)}>
               <Text style={styles.viewAll}>
                 View All
               </Text>
@@ -316,22 +279,24 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
               Selected Workout
           ================================================= */}
 
-          {selectedWorkout ? (
+          {loading ? <Text style={styles.workoutMuscles}>Loading your synced schedule…</Text> : null}
+          {error ? (
+            <Pressable onPress={() => void refresh()} style={styles.workoutCard}>
+              <Text style={styles.workoutMuscles}>{error} · Tap to retry</Text>
+            </Pressable>
+          ) : null}
+          {!loading && selectedWorkouts.length === 0 ? <EmptyWorkoutCard styles={styles} /> : null}
+          {selectedWorkouts.map(workout => (
             <WorkoutCard
-              workout={selectedWorkout}
-              selected={true}
+              key={workout.id}
+              workout={workout}
+              selected
               styles={styles}
-              onPress={() => {
-                navigation.navigate(ROUTES.WORKOUT, {
-                  workoutId: selectedWorkout.id,
-                });
-              }}
+              onPress={() => workout.exerciseId
+                ? navigation.navigate(WORKOUT_ROUTES.LIBRARY_EXERCISE, { exerciseId: workout.exerciseId })
+                : navigation.navigate(WORKOUT_ROUTES.SCHEDULE)}
             />
-          ) : (
-            <EmptyWorkoutCard
-              styles={styles}
-            />
-          )}
+          ))}
 
           {/* =================================================
               Upcoming
@@ -342,11 +307,8 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
           </Text>
 
           {workouts
-            .filter(
-              (workout) =>
-                workout.date !==
-                selectedDate
-            )
+            .filter(workout => workout.date >= selectedDate)
+            .filter(workout => workout.date !== selectedDate)
             .map((workout) => (
               <WorkoutCard
                 key={workout.id}
@@ -354,18 +316,12 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
                 selected={false}
                 styles={styles}
                 onPress={() => {
-                  setSelectedDate(
-                    workout.date
-                  );
+                  setSelectedDate(workout.date);
                 }}
               />
             ))}
 
-          <View
-            style={{
-              height: rh(30),
-            }}
-          />
+          <View style={styles.bottomSpacer} />
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -523,6 +479,10 @@ const createStyles = (theme: any) =>
 
       paddingBottom:
         rh(78),
+    },
+
+    bottomSpacer: {
+      height: rh(30),
     },
 
     /*

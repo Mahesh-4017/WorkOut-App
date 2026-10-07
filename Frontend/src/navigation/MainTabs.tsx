@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import AppHeader from "../components/AppHeader";
 import BottomTabBar from "../components/BottomTabBar";
@@ -7,12 +7,17 @@ import HomeScreen from "../pages/home/Home";
 import AnalysisScreen from "../pages/analysis/Analysis";
 import CalendarScreen from "../pages/Calendar/WorkoutCalendar";
 import ProfileScreen from "../pages/profile/Profile";
+import ExploreWorkouts from "../pages/workout/Explore/Explore";
 import { useTheme } from "../theme/ThemeProvider";
 
-export type MainTabName = "home" | "calendar" | "analysis" | "profile";
+export type MainTabName = "home" | "workout" | "calendar" | "analysis" | "profile";
 
 export default function MainTabs({ route }: { route?: { params?: { tab?: MainTabName; selectedDate?: string } } }) {
   const { theme } = useTheme();
+  const styles = StyleSheet.create({
+    screen: { flex: 1, backgroundColor: theme.colors.background },
+    content: { flex: 1 },
+  });
   const initialTab = route?.params?.tab ?? "home";
   const [activeTab, setActiveTab] = useState<MainTabName>(initialTab);
 
@@ -42,6 +47,8 @@ export default function MainTabs({ route }: { route?: { params?: { tab?: MainTab
         );
       case "profile":
         return null;
+      case "workout":
+        return null;
       case "home":
       default:
         return null;
@@ -54,6 +61,8 @@ export default function MainTabs({ route }: { route?: { params?: { tab?: MainTab
         return <CalendarScreen selectedDate={route?.params?.selectedDate} />;
       case "analysis":
         return <AnalysisScreen />;
+      case "workout":
+        return <ExploreWorkouts showBottomTabBar={false} />;
       case "profile":
         return <ProfileScreen />;
       case "home":
@@ -63,12 +72,17 @@ export default function MainTabs({ route }: { route?: { params?: { tab?: MainTab
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <View style={styles.screen}>
       {renderHeader()}
-      <View style={{ flex: 1 }}>
+      <View style={styles.content}>
         {renderScreen()}
       </View>
-      <BottomTabBar activeTab={activeTab} onTabPress={setActiveTab} />
+      <BottomTabBar
+        activeTab={activeTab}
+        variant={activeTab === "workout" ? "workout" : "main"}
+        workoutActiveTab="welcome"
+        onTabPress={setActiveTab}
+      />
     </View>
   );
 }

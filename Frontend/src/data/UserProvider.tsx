@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export type WorkoutHistoryItem = {
@@ -21,6 +21,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [name, setName] = useState("Martin");
   const [email, setEmail] = useState("");
   const [history, setHistory] = useState<WorkoutHistoryItem[]>([]);
+  const setUser = useCallback((nextName: string, nextEmail: string) => {
+    setName(nextName.trim());
+    setEmail(nextEmail.trim());
+  }, []);
 
   useEffect(() => {
     AsyncStorage.getItem(HISTORY_KEY).then(value => {
@@ -32,10 +36,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     () => ({
       name,
       email,
-      setUser: (nextName: string, nextEmail: string) => {
-        setName(nextName.trim());
-        setEmail(nextEmail.trim());
-      },
+      setUser,
       history,
       addHistory: (exerciseId: string) => {
         setHistory(current => {
@@ -51,7 +52,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         });
       },
     }),
-    [email, history, name]
+    [email, history, name, setUser]
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

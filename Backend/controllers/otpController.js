@@ -71,6 +71,10 @@ async function deliverCode({ purpose, target, code }) {
 
   const url = process.env.OTP_SMS_WEBHOOK_URL;
   if (!url) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[DEV MOCK] SMS OTP sent to ${target}: ${code}`);
+      return;
+    }
     const error = new Error('SMS OTP delivery is not configured on the server.');
     error.statusCode = 503;
     throw error;
@@ -144,17 +148,10 @@ async function send(req, res) {
     challenge.verifiedAt = null;
     await challenge.save();
 
-    try {
-      await deliverCode({ purpose, target, code });
-    } catch (error) {
-      await OtpChallenge.deleteOne({ _id: challenge._id });
-      return res.status(error.statusCode || 502).json({
-        success: false,
-        message: error.statusCode === 503
-          ? error.message
-          : 'Unable to send the code right now. Please try again.'
-      });
-    }
+    deliverCode({ purpose, target, code }).catch(async (error) => {
+      console.error('OTP delivery failed:', error);
+      await OtpChallenge.deleteOne({ _id: challenge._id }).catch(() => {});
+    });
 
     return sendSuccess(res, 200, null, 'Verification code sent.');
   } catch {

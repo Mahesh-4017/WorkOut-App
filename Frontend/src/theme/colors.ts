@@ -12,6 +12,10 @@ export const lightColors = {
   primary: "#71854A",
   primaryDark: "#4E6133",
   onPrimary: "#FBFAF3",
+  accent: "#596C92",
+  panel: "#DCE5F0",
+  panelWarm: "#F0E8D8",
+  statsBackground: "#DDE6D2",
 
   // Borders
   border: "#D2D9C5",
@@ -46,6 +50,10 @@ export const darkColors = {
   primary: "#9CAF68",
   primaryDark: "#C5D69A",
   onPrimary: "#1B281D",
+  accent: "#A9BCE0",
+  panel: "#344556",
+  panelWarm: "#4A4235",
+  statsBackground: "#344336",
 
   // Borders
   border: "#435443",

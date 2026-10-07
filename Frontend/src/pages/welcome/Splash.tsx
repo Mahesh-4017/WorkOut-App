@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
@@ -12,6 +12,9 @@ export default function Splash() {
   const { restore } = useAuth();
   const { setUser } = useUser();
   const { theme } = useTheme();
+  const styles = StyleSheet.create({
+    screen: { flex: 1, backgroundColor: theme.colors.background, justifyContent: "center", alignItems: "center" },
+  });
   useEffect(() => {
     (async () => {
       const token = await AsyncStorage.getItem("token");
@@ -22,5 +25,5 @@ export default function Splash() {
       navigation.reset({ index: 0, routes: [{ name: next }] });
     })();
   }, [navigation, restore]);
-  return <View style={{ flex: 1, backgroundColor: theme.colors.background, justifyContent: "center", alignItems: "center" }}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
+  return <View style={styles.screen}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
 }

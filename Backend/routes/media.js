@@ -81,6 +81,7 @@ router.get('/images/:id', async (req, res, next) => {
       'Content-Type': file.contentType,
       'Content-Length': String(file.length),
       'Cache-Control': 'public, max-age=3600',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
       'X-Content-Type-Options': 'nosniff'
     });
     const download = bucket.openDownloadStream(file._id);

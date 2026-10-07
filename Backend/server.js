@@ -21,6 +21,7 @@ const nutritionRoutes = require('./routes/nutrition');
 const appProgressRoutes = require('./routes/appProgress');
 const mediaRoutes = require('./routes/media');
 const exerciseRoutes = require('./routes/exercises');
+const appScheduleRoutes = require('./routes/appSchedule');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -70,6 +71,8 @@ app.use('/api/app/profile', appProfileRoutes);
 app.use('/api/v1/app/profile', appProfileRoutes);
 app.use('/api/app/progress', appProgressRoutes);
 app.use('/api/v1/app/progress', appProgressRoutes);
+app.use('/api/app/schedule', appScheduleRoutes);
+app.use('/api/v1/app/schedule', appScheduleRoutes);
 app.use('/api/nutrition', nutritionRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/exercises', exerciseRoutes);

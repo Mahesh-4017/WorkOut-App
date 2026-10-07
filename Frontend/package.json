@@ -3,14 +3,17 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
+    "android": "react-native run-android --active-arch-only",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest"
   },
   "dependencies": {
+    "@invertase/react-native-apple-authentication": "^2.5.1",
     "@react-native-async-storage/async-storage": "^3.1.1",
+    "@react-native-community/geolocation": "^3.4.0",
+    "@react-native-google-signin/google-signin": "^16.1.5",
     "@react-native-vector-icons/ionicons": "^13.1.4",
     "@react-navigation/native": "^7.4.1",
     "@react-navigation/native-stack": "^7.19.2",
@@ -18,10 +21,16 @@
     "react": "19.2.3",
     "react-native": "0.87.1",
     "react-native-calendars": "^1.1314.0",
+    "react-native-get-random-values": "^2.0.0",
+    "react-native-image-picker": "^8.2.1",
+    "react-native-permissions": "^5.6.2",
     "react-native-responsive-dimensions": "^3.1.1",
     "react-native-safe-area-context": "^5.10.0",
     "react-native-screens": "^4.28.0",
-    "react-native-svg": "^15.15.5"
+    "react-native-svg": "^15.15.5",
+    "react-native-video": "^6.19.3",
+    "react-native-vision-camera": "^4.7.3",
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

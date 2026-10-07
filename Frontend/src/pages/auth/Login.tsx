@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import {
@@ -13,38 +14,56 @@ import {
   responsiveWidth,
 } from "react-native-responsive-dimensions";
 import { useNavigation } from "@react-navigation/native";
-import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { useTheme } from "../../theme/ThemeProvider";
-import RegisterScreen from "./Register";
 import { ROUTES } from "../../navigation/routes";
 import { apiErrorMessage } from "../../api/client";
+import { AppUser } from "../../api/auth";
 import { useAuth } from "../../context/AuthContext";
 import { useUser } from "../../data/UserProvider";
+import { getPostAuthRoute } from "../../utils/onboarding";
+import {
+  AuthButton,
+  AuthField,
+  AuthHeader,
+  AuthSafeArea,
+  SocialButton,
+} from "./AuthComponents";
+
+type Mode = "email" | "phone";
 
 export default function LoginScreen() {
   const { theme } = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation<any>();
-  const { login } = useAuth();
+  const { login, loginWithGoogle, loginWithApple } = useAuth();
   const { setUser } = useUser();
 
-  const [email, setEmail] = useState("");
+  const [mode, setMode] = useState<Mode>("email");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const emailValid = /\S+@\S+\.\S+/.test(email);
-  const canSubmit = emailValid && password.length >= 6 && !submitting;
+  const identifierValid =
+    mode === "email"
+      ? /\S+@\S+\.\S+/.test(identifier)
+      : /^\+?[0-9\s-]{7,15}$/.test(identifier);
+  const canSubmit = identifierValid && password.length >= 6 && !submitting;
 
-  const handleLogin = async () => {
-    if (!canSubmit) return;
+  const goHome = async (user: AppUser) => {
+    setUser(user.name, user.email);
+    const nextRoute = await getPostAuthRoute(user);
+    navigation.reset({ index: 0, routes: [{ name: nextRoute }] });
+  };
+
+  const run = async (action: () => Promise<any>) => {
     setSubmitting(true);
     setErrorMessage("");
     try {
-      const user = await login(email.trim(), password);
-      setUser(user.name, user.email);
-      navigation.reset({ index: 0, routes: [{ name: ROUTES.HOME }] });
+      const user = await action();
+      if (!user) return;
+      await goHome(user);
     } catch (error) {
       setErrorMessage(apiErrorMessage(error));
     } finally {
@@ -52,311 +71,221 @@ export default function LoginScreen() {
     }
   };
 
+  const handleLogin = () => {
+    if (!canSubmit) return;
+    run(() => login(identifier.trim(), password));
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: responsiveWidth(6),
-          paddingTop: responsiveWidth(18),
-          paddingBottom: 32,
-        }}
+    <AuthSafeArea>
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* Brand */}
-        <View
-          style={{
-            width: 52,
-            height: 52,
-            borderRadius: 16,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: theme.colors.primary,
-          }}
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scroll}
         >
-          <Ionicons name="fitness" size={26} color={theme.colors.onPrimary} />
-        </View>
+          <AuthHeader title="Login" onBack={() => navigation.goBack()} />
 
-        <Text
-          style={{
-            marginTop: 24,
-            fontSize: responsiveFontSize(3.2),
-            fontWeight: "900",
-            color: theme.colors.text,
-          }}
-        >
-          Welcome back
-        </Text>
-        <Text
-          style={{
-            marginTop: 6,
-            fontSize: responsiveFontSize(1.6),
-            color: theme.colors.text,
-            opacity: 0.55,
-          }}
-        >
-          Log in to keep your streak going.
-        </Text>
-
-        {/* Email */}
-        <View style={{ marginTop: 34 }}>
-          <Text
-            style={{
-              fontSize: responsiveFontSize(1.4),
-              fontWeight: "700",
-              color: theme.colors.text,
-              opacity: 0.7,
-              marginBottom: 8,
-            }}
-          >
-            Email
-          </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              height: 52,
-              paddingHorizontal: 16,
-              borderRadius: 16,
-              backgroundColor: theme.colors.card,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-            }}
-          >
-            <Ionicons name="mail-outline" size={18} color={theme.colors.icon} />
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              placeholderTextColor={theme.colors.icon}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              style={{
-                flex: 1,
-                marginLeft: 10,
-                fontSize: responsiveFontSize(1.6),
-                color: theme.colors.text,
-              }}
-            />
+          {/* Brand */}
+          <View style={styles.brand}>
+            <View style={styles.logoBox}>
+<Image source={require("../../assets/logo.png")} style={styles.logo} />
+            </View>
           </View>
-        </View>
 
-        {/* Password */}
-        <View style={{ marginTop: 18 }}>
-          <Text
-            style={{
-              fontSize: responsiveFontSize(1.4),
-              fontWeight: "700",
-              color: theme.colors.text,
-              opacity: 0.7,
-              marginBottom: 8,
-            }}
-          >
-            Password
-          </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              height: 52,
-              paddingHorizontal: 16,
-              borderRadius: 16,
-              backgroundColor: theme.colors.card,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-            }}
-          >
-            <Ionicons
-              name="lock-closed-outline"
-              size={18}
-              color={theme.colors.icon}
+          <Text style={styles.title}>Welcome back.</Text>
+          <Text style={styles.subtitle}>Your next little win starts here.</Text>
+
+          {/* Email / Phone tabs */}
+          <View style={styles.tabs}>
+            {(["email", "phone"] as Mode[]).map((m) => (
+              <Pressable
+                key={m}
+                onPress={() => {
+                  setMode(m);
+                  setIdentifier("");
+                }}
+                style={styles.tab}
+              >
+                <Text
+                  style={[styles.tabText, mode === m && styles.tabTextActive]}
+                >
+                  {m === "email" ? "Email" : "Phone"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.fields}>
+            <AuthField
+              label={mode === "email" ? "Email / phone" : "Phone number"}
+              value={identifier}
+              onChangeText={setIdentifier}
+              placeholder={mode === "email" ? "you@example.com" : "+91 98765 43210"}
+              keyboardType={mode === "email" ? "email-address" : "phone-pad"}
             />
-            <TextInput
+            <AuthField
+              label="Password"
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
-              placeholderTextColor={theme.colors.icon}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry={!showPassword}
-              style={{
-                flex: 1,
-                marginLeft: 10,
-                fontSize: responsiveFontSize(1.6),
-                color: theme.colors.text,
-              }}
+              secureToggle
             />
-            <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={18}
-                color={theme.colors.icon}
-              />
-            </Pressable>
           </View>
-        </View>
-
-        {/* Forgot password */}
-        <Pressable
-          onPress={() => navigation.navigate(ROUTES.FORGET)}
-          style={{ alignSelf: "flex-end", marginTop: 12 }}
-        >
-          <Text
-            style={{
-              fontSize: responsiveFontSize(1.4),
-              fontWeight: "700",
-              color: theme.colors.icon,
-            }}
-          >
-            Forgot password?
-          </Text>
-        </Pressable>
-
-        {/* Login button */}
-        <Pressable
-          onPress={handleLogin}
-          disabled={!canSubmit}
-          style={{
-            marginTop: 28,
-            height: 54,
-            borderRadius: 27,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: theme.colors.primary,
-            opacity: canSubmit ? 1 : 0.5,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: responsiveFontSize(1.75),
-              fontWeight: "700",
-              color: theme.colors.onPrimary,
-            }}
-          >
-            {submitting ? "Logging in…" : "Log In"}
-          </Text>
-        </Pressable>
-        {errorMessage ? (
-          <Text style={{ marginTop: 12, color: theme.colors.danger, textAlign: "center" }}>
-            {errorMessage}
-          </Text>
-        ) : null}
-
-        {/* Divider */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginTop: 30,
-          }}
-        >
-          <View
-            style={{ flex: 1, height: 1, backgroundColor: theme.colors.border }}
-          />
-          <Text
-            style={{
-              marginHorizontal: 12,
-              fontSize: responsiveFontSize(1.3),
-              color: theme.colors.text,
-              opacity: 0.45,
-            }}
-          >
-            or continue with
-          </Text>
-          <View
-            style={{ flex: 1, height: 1, backgroundColor: theme.colors.border }}
-          />
-        </View>
-
-        {/* Social buttons */}
-        <View style={{ flexDirection: "row", marginTop: 20, gap: 12 }}>
-          <Pressable
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              height: 48,
-              borderRadius: 14,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: theme.colors.card,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-            }}
-          >
-            <Ionicons name="logo-google" size={18} color={theme.colors.text} />
-            <Text
-              style={{
-                marginLeft: 8,
-                fontSize: responsiveFontSize(1.5),
-                fontWeight: "600",
-                color: theme.colors.text,
-              }}
-            >
-              Google
-            </Text>
-          </Pressable>
 
           <Pressable
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              height: 48,
-              borderRadius: 14,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: theme.colors.card,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-            }}
+            onPress={() => navigation.navigate(ROUTES.FORGET)}
+            style={styles.forgot}
           >
-            <Ionicons name="logo-apple" size={19} color={theme.colors.text} />
-            <Text
-              style={{
-                marginLeft: 8,
-                fontSize: responsiveFontSize(1.5),
-                fontWeight: "600",
-                color: theme.colors.text,
-              }}
-            >
-              Apple
-            </Text>
+            <Text style={styles.forgotText}>Forgot password?</Text>
           </Pressable>
-        </View>
 
-        {/* Sign up */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "center",
-            marginTop: 32,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: responsiveFontSize(1.5),
-              color: theme.colors.text,
-              opacity: 0.6,
-            }}
-          >
-            Don&apos;t have an account?{" "}
+          <View style={styles.buttonWrap}>
+            <AuthButton
+              title={submitting ? "Logging in…" : "Login"}
+              onPress={handleLogin}
+              disabled={!canSubmit}
+            />
+          </View>
+
+          {errorMessage ? (
+            <Text style={styles.error}>{errorMessage}</Text>
+          ) : null}
+
+          <Text style={styles.orText}>or continue with</Text>
+
+          <View style={styles.socials}>
+            <SocialButton
+              icon="logo-google"
+              title="Continue with Google"
+              onPress={() => run(loginWithGoogle)}
+              disabled={submitting}
+            />
+            <SocialButton
+              icon="logo-apple"
+              title="Continue with Apple"
+              onPress={() => run(loginWithApple)}
+              disabled={submitting}
+            />
+          </View>
+
+          <Text style={styles.privacy}>
+            Your account. Your health. Always private.
           </Text>
-          <Pressable onPress={() =>  navigation.navigate(ROUTES.REGISTER)}>
-            <Text
-              style={{
-                fontSize: responsiveFontSize(1.5),
-                fontWeight: "700",
-                color: theme.colors.icon,
-              }}
-            >
-              Sign Up
-            </Text>
+
+          <View style={styles.spacer} />
+
+          {/* Bottom link */}
+          <Pressable
+            onPress={() => navigation.navigate(ROUTES.REGISTER)}
+            style={styles.bottomLink}
+          >
+            <Text style={styles.bottomText}>New here? Create account</Text>
           </Pressable>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </AuthSafeArea>
   );
 }
+
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    keyboard: { flex: 1 },
+    spacer: { flex: 1 },
+    scroll: {
+      flexGrow: 1,
+      paddingHorizontal: responsiveWidth(5),
+      paddingBottom: 16,
+    },
+    brand: { alignItems: "center", marginTop: 8 },
+    logoBox: {
+      width: 64,
+      height: 64,
+      borderRadius: 20,
+      backgroundColor: theme.colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    logo: {
+      width: 64,
+      height: 64,
+      resizeMode: "contain",
+    },
+    logoLetter: {
+      fontSize: 38,
+      fontWeight: "900",
+      color: theme.colors.onPrimary,
+      marginTop: -2,
+    },
+    brandName: {
+      marginTop: 10,
+      fontSize: responsiveFontSize(1.8),
+      fontWeight: "800",
+      color: theme.colors.text,
+    },
+    title: {
+      marginTop: 20,
+      fontSize: responsiveFontSize(3.2),
+      fontWeight: "800",
+      letterSpacing: -0.4,
+      color: theme.colors.text,
+    },
+    subtitle: {
+      marginTop: 6,
+      fontSize: responsiveFontSize(1.5),
+      color: theme.colors.textSecondary,
+    },
+    tabs: {
+      flexDirection: "row",
+      marginTop: 18,
+      borderRadius: 12,
+      backgroundColor: theme.colors.statsBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      overflow: "hidden",
+    },
+    tab: { flex: 1, alignItems: "center", paddingVertical: 11 },
+    tabText: {
+      fontSize: responsiveFontSize(1.4),
+      color: theme.colors.textSecondary,
+    },
+    tabTextActive: {
+      color: theme.colors.text,
+      fontWeight: "800",
+      textDecorationLine: "underline",
+    },
+    fields: { marginTop: 14, gap: 12 },
+    forgot: { alignSelf: "flex-start", marginTop: 12 },
+    forgotText: {
+      fontSize: responsiveFontSize(1.4),
+      fontWeight: "700",
+      color: theme.colors.accent,
+    },
+    buttonWrap: { marginTop: 18 },
+    error: {
+      marginTop: 12,
+      textAlign: "center",
+      color: theme.colors.danger,
+    },
+    orText: {
+      marginTop: 16,
+      textAlign: "center",
+      fontSize: responsiveFontSize(1.3),
+      color: theme.colors.textSecondary,
+    },
+    socials: { marginTop: 14, gap: 12 },
+    privacy: {
+      marginTop: 16,
+      textAlign: "center",
+      fontSize: responsiveFontSize(1.3),
+      color: theme.colors.textSecondary,
+    },
+    bottomLink: { alignItems: "center", paddingTop: 24, paddingBottom: 4 },
+    bottomText: {
+      fontSize: responsiveFontSize(1.4),
+      color: theme.colors.textSecondary,
+    },
+  });

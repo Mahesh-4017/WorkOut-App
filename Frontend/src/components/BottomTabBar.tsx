@@ -1,228 +1,152 @@
 import React, { useEffect, useRef } from "react";
-import {
-    View,
-    Text,
-    Pressable,
-    StyleSheet,
-    Animated,
-    Easing,
-} from "react-native";
-
+import { View, Text, Pressable, StyleSheet, Animated } from "react-native";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../theme/ThemeProvider";
 import { ROUTES } from "../navigation/routes";
+import { WORKOUT_ROUTES } from "../navigation/workoutRoutes";
 
-type TabName = "home" | "calendar" | "analysis" | "profile";
+// Internal names kept compatible with existing screens
+// (activeTab="calendar" | "analysis" | "profile" still work).
+type TabName = "home" | "workout" | "calendar" | "analysis" | "profile";
+type WorkoutTabName = "welcome" | "hub" | "explore" | "favorites";
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
+
+type TabItem = {
+    name: TabName;
+    label: string;
+    route: string;
+    icon: IoniconName;
+    activeIcon: IoniconName;
+};
 
 type BottomTabBarProps = {
     activeTab: TabName;
     onTabPress?: (tab: TabName) => void;
+    variant?: "main" | "workout";
+    workoutActiveTab?: WorkoutTabName;
 };
 
-const BottomTabBar = ({ activeTab, onTabPress }: BottomTabBarProps) => {
-    const navigation = useNavigation<any>();
+const TABS: TabItem[] = [
+    { name: "home", label: "Home", route: ROUTES.HOME, icon: "home-outline", activeIcon: "home" },
+    { name: "workout", label: "Exercises", route: WORKOUT_ROUTES.WELCOME, icon: "barbell-outline", activeIcon: "barbell" },
+    { name: "calendar", label: "Activity", route: ROUTES.WORKOUTCALENDAR, icon: "pulse-outline", activeIcon: "pulse" },
+    { name: "analysis", label: "Progress", route: ROUTES.ANALYSIS, icon: "stats-chart-outline", activeIcon: "stats-chart" },
+    { name: "profile", label: "More", route: ROUTES.PROFILE, icon: "ellipsis-horizontal-circle-outline", activeIcon: "ellipsis-horizontal-circle" },
+];
 
+const WORKOUT_TABS: (TabItem & { workoutName: WorkoutTabName })[] = [
+    { name: "workout", workoutName: "welcome", label: "Welcome", route: WORKOUT_ROUTES.WELCOME, icon: "sparkles-outline", activeIcon: "sparkles" },
+    { name: "workout", workoutName: "hub", label: "Workout", route: WORKOUT_ROUTES.HUB, icon: "barbell-outline", activeIcon: "barbell" },
+    { name: "workout", workoutName: "explore", label: "Explore", route: WORKOUT_ROUTES.EXPLORE, icon: "search-outline", activeIcon: "search" },
+    { name: "workout", workoutName: "favorites", label: "Saved", route: WORKOUT_ROUTES.FAVORITES, icon: "heart-outline", activeIcon: "heart" },
+];
+
+const BottomTabBar = ({
+    activeTab,
+    onTabPress,
+    variant = "main",
+    workoutActiveTab,
+}: BottomTabBarProps) => {
+    const navigation = useNavigation<any>();
+    const insets = useSafeAreaInsets();
     const { theme } = useTheme();
     const styles = createStyles(theme);
-
-    const tabs: Array<{
-        name: TabName;
-        label: string;
-        route: string;
-        icon: IoniconName;
-        activeIcon: IoniconName;
-    }> = [
-        {
-            name: "home" as TabName,
-            label: "Home",
-            route: ROUTES.HOME,
-            icon: "home-outline",
-            activeIcon: "home",
-        },
-        {
-            name: "calendar" as TabName,
-            label: "Calendar",
-            route: ROUTES.WORKOUTCALENDAR,
-            icon: "calendar-outline",
-            activeIcon: "calendar",
-        },
-        {
-            name: "analysis" as TabName,
-            label: "Analysis",
-            route: ROUTES.ANALYSIS,
-            icon: "stats-chart-outline",
-            activeIcon: "stats-chart",
-        },
-        {
-            name: "profile" as TabName,
-            label: "Profile",
-            route: ROUTES.PROFILE,
-            icon: "person-outline",
-            activeIcon: "person",
-        },
-    ];
+    const tabs = variant === "workout" ? WORKOUT_TABS : TABS;
 
     return (
-        <View style={styles.bottomNav}>
-            {tabs.map((tab) => (
-                <AnimatedTab
-                    key={tab.name}
+        <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+            {tabs.map(tab => {
+                const selected = variant === "workout"
+                    ? "workoutName" in tab && tab.workoutName === workoutActiveTab
+                    : tab.name === activeTab;
+                return (
+                <TabButton
+                    key={tab.route}
                     tab={tab}
-                    active={activeTab === tab.name}
+                    active={selected}
                     styles={styles}
                     theme={theme}
                     onPress={() => {
+                        if (variant === "workout") {
+                            if (!selected) navigation.navigate(tab.route);
+                            return;
+                        }
                         if (onTabPress) {
                             onTabPress(tab.name);
                             return;
                         }
-                        navigation.navigate(tab.route);
+                        if (activeTab !== tab.name) navigation.navigate(tab.route);
                     }}
                 />
-            ))}
+                );
+            })}
         </View>
     );
 };
 
-function AnimatedTab({
+function TabButton({
     tab,
     active,
     styles,
     theme,
     onPress,
 }: {
-    tab: {
-        name: TabName;
-        label: string;
-        route: string;
-        icon: IoniconName;
-        activeIcon: IoniconName;
-    };
+    tab: TabItem;
     active: boolean;
     styles: any;
     theme: any;
     onPress: () => void;
 }) {
-    // Single driver (0 = inactive, 1 = active) — every visual property
-    // (pill width/opacity, icon color, label reveal, lift) derives from
-    // this one value so everything animates in lockstep, no drift.
+    // 0 = inactive, 1 = active. The pill and the press feedback both
+    // run on native-driver transforms/opacity only.
     const progress = useRef(new Animated.Value(active ? 1 : 0)).current;
-
-    // Separate driver just for the press-down "tap" feedback.
     const pressScale = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
         Animated.spring(progress, {
             toValue: active ? 1 : 0,
-            useNativeDriver: false, // color/width interpolation needs JS driver
+            useNativeDriver: true,
             tension: 180,
             friction: 14,
         }).start();
     }, [active, progress]);
 
-    const handlePressIn = () => {
-        Animated.spring(pressScale, {
-            toValue: 0.9,
-            useNativeDriver: false,
-            speed: 40,
-            bounciness: 6,
-        }).start();
-    };
+    const pressTo = (toValue: number) =>
+        Animated.spring(pressScale, { toValue, useNativeDriver: true, speed: 30, bounciness: 6 }).start();
 
-    const handlePressOut = () => {
-        Animated.spring(pressScale, {
-            toValue: 1,
-            useNativeDriver: false,
-            speed: 14,
-            bounciness: 9,
-        }).start();
-    };
-
-    const lift = progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, -3],
-    });
-
-    const iconScale = progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [1, 1.06],
-    });
-
-    const iconColor = progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [theme.colors.icon, theme.colors.onPrimary],
-    });
-
-    const pillOpacity = progress.interpolate({
-        inputRange: [0, 0.4, 1],
-        outputRange: [0, 0.6, 1],
-    });
-
-    const pillScaleX = progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.4, 1],
-    });
-
-    const labelColor = progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [theme.colors.icon, theme.colors.onPrimary],
-    });
-
-    const labelWeight = active ? "700" : "500";
+    const pillScaleX = progress.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
 
     return (
         <Pressable
-            style={styles.navItem}
+            style={styles.item}
             onPress={onPress}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            hitSlop={8}
+            onPressIn={() => pressTo(0.92)}
+            onPressOut={() => pressTo(1)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={tab.label}
         >
-            <Animated.View
-                style={[
-                    styles.navContent,
-                    {
-                        transform: [
-                            { translateY: lift },
-                            { scale: pressScale },
-                        ],
-                    },
-                ]}
-            >
-                {/* Pill background — scales in from the icon's center,
-                    fades in, rather than snapping on. */}
-                <Animated.View
-                    pointerEvents="none"
-                    style={[
-                        styles.pill,
-                        {
-                            opacity: pillOpacity,
-                            transform: [{ scaleX: pillScaleX }],
-                            backgroundColor: theme.colors.primary,
-                        },
-                    ]}
-                />
-
-                {/* ICON */}
-                <Animated.View
-                    style={[
-                        styles.iconContainer,
-                        { transform: [{ scale: iconScale }] },
-                    ]}
-                >
+            <Animated.View style={[styles.itemInner, { transform: [{ scale: pressScale }] }]}>
+                <View style={styles.iconWrap}>
+                    <Animated.View
+                        pointerEvents="none"
+                        style={[styles.pill, { opacity: progress, transform: [{ scaleX: pillScaleX }] }]}
+                    />
                     <Ionicons
                         name={active ? tab.activeIcon : tab.icon}
-                        size={22}
+                        size={21}
                         color={active ? theme.colors.onPrimary : theme.colors.icon}
                     />
-                </Animated.View>
-
-                {active && (
-                    <Text style={styles.navLabel}>{tab.label}</Text>
-                )}
+                </View>
+                <Text
+                    numberOfLines={1}
+                    style={[styles.label, active && styles.labelActive]}
+                >
+                    {tab.label}
+                </Text>
             </Animated.View>
         </Pressable>
     );
@@ -230,38 +154,30 @@ function AnimatedTab({
 
 const createStyles = (theme: any) =>
     StyleSheet.create({
-        bottomNav: {
+        bar: {
             position: "absolute",
-            left: 18,
-            right: 18,
-            bottom: 10,
-            height: 62,
-            borderRadius: 31,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            flexDirection: "row",
+            paddingTop: 8,
+            paddingHorizontal: 6,
             backgroundColor: theme.colors.surface,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-around",
-            elevation: 10,
-            shadowColor: theme.colors.black,
-            shadowOffset: { width: 0, height: 5 },
-            shadowOpacity: 0.14,
-            shadowRadius: 12,
+            borderTopWidth: 1,
+            borderTopColor: theme.colors.border,
+            elevation: 12,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -3 },
+            shadowOpacity: 0.08,
+            shadowRadius: 10,
         },
 
-        navItem: {
-            flex: 1,
-            height: 62,
-            alignItems: "center",
-            justifyContent: "center",
-        },
+        item: { flex: 1, alignItems: "center" },
+        itemInner: { alignItems: "center", minWidth: 56 },
 
-        navContent: {
-            height: 42,
-            paddingHorizontal: 12,
-            borderRadius: 21,
-            flexDirection: "row",
+        iconWrap: {
+            width: 56,
+            height: 30,
             alignItems: "center",
             justifyContent: "center",
         },
@@ -272,28 +188,20 @@ const createStyles = (theme: any) =>
             right: 0,
             top: 0,
             bottom: 0,
-            borderRadius: 21,
+            borderRadius: 15,
+            backgroundColor: theme.colors.primary,
         },
 
-        iconContainer: {
-            width: 38,
-            height: 38,
-            borderRadius: 19,
-            alignItems: "center",
-            justifyContent: "center",
-        },
-
-        labelContainer: {
-            overflow: "hidden",
-            justifyContent: "center",
-        },
-
-        navLabel: {
+        label: {
+            marginTop: 3,
+            fontSize: 10,
             fontFamily: theme.typography.fontFamilyMedium,
-            color: theme.colors.onPrimary,
-            fontSize: theme.typography.sizes.xs,
-            fontWeight: theme.typography.weights.bold,
-            marginLeft: 5,
+            color: theme.colors.icon,
+        },
+
+        labelActive: {
+            color: theme.colors.text,
+            fontFamily: theme.typography.fontFamilyBold,
         },
     });
 

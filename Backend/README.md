@@ -98,6 +98,21 @@ PUT  /api/exercises/:id                      (admin update)
 DELETE /api/exercises/:id                    (admin delete)
 ```
 
+The Next.js website in `website/Frontend/my-app` uses these published
+exercise endpoints to browse body parts, filter by category, search exercises,
+and view exercise instructions and videos. Featured sessions load from the
+public cards API.
+
+## Android APK downloads
+
+The public website's Android download buttons link to the latest GitHub
+release asset. The `Build and publish Android APK` GitHub Actions workflow
+builds a release APK when Android app files change on `main` (or when manually
+started) and publishes it as `WorkOut-App.apk`. A new published release is
+required before the latest-download URL has an APK to serve. Automated builds
+use a CI debug signing key, so uninstall an earlier app build before installing
+a newly downloaded APK.
+
 ## Mobile app user API
 
 The React Native app uses a separate bearer-token auth flow. It does not share the single admin account.

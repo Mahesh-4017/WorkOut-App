@@ -1,5 +1,5 @@
 import React from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   responsiveFontSize,
   responsiveWidth,
@@ -31,6 +31,7 @@ const settingsRows: SettingsRow[] = [
 
 export default function ProfileScreen() {
   const { theme } = useTheme();
+  const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const { name, email, history } = useUser();
   const stats = [
@@ -40,56 +41,30 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <View style={styles.screen}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: responsiveWidth(5),
-          paddingTop: 24,
-          paddingBottom: 78,
-        }}
+        contentContainerStyle={styles.content}
       >
         {/* Header */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View style={{ width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.primary }}>
-              <Text style={{ fontSize: responsiveFontSize(2.3), fontWeight: "900", color: theme.colors.onPrimary }}>
+        <View style={styles.profileHeader}>
+          <View style={styles.profileGroup}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
                 {name.charAt(0).toUpperCase()}
               </Text>
             </View>
-            <View style={{ marginLeft: 12 }}>
-              <Text
-                style={{
-                  fontSize: responsiveFontSize(2.1),
-                  fontWeight: "800",
-                  color: theme.colors.text,
-                }}
-              >
+            <View style={styles.profileCopy}>
+              <Text style={styles.profileName}>
                 {name}
               </Text>
-              <Text
-                style={{
-                  marginTop: 2,
-                  fontSize: responsiveFontSize(1.4),
-                  color: theme.colors.text,
-                  opacity: 0.55,
-                }}
-              >
+              <Text style={styles.profileEmail}>
                 {email || "Fitness member"}
               </Text>
             </View>
           </View>
 
-          <Pressable
-            onPress={() => navigation.navigate("Settings")}
-            hitSlop={10}
-          >
+          <Pressable onPress={() => navigation.navigate("Settings")} hitSlop={10} style={styles.settingsButton}>
             <Ionicons
               name="settings-outline"
               size={22}
@@ -99,44 +74,16 @@ export default function ProfileScreen() {
         </View>
 
         {/* Stats */}
-        <View
-          style={{
-            flexDirection: "row",
-            marginTop: 22,
-            padding: 16,
-            borderRadius: 20,
-            backgroundColor: theme.colors.card,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-          }}
-        >
+        <View style={styles.statsCard}>
           {stats.map((stat, index) => (
             <View
               key={stat.label}
-              style={{
-                flex: 1,
-                alignItems: "center",
-                borderLeftWidth: index === 0 ? 0 : 1,
-                borderLeftColor: theme.colors.border,
-              }}
+              style={[styles.statItem, index > 0 && styles.statDivider]}
             >
-              <Text
-                style={{
-                  fontSize: responsiveFontSize(1.9),
-                  fontWeight: "800",
-                  color: theme.colors.text,
-                }}
-              >
+              <Text style={styles.statValue}>
                 {stat.value}
               </Text>
-              <Text
-                style={{
-                  marginTop: 3,
-                  fontSize: responsiveFontSize(1.25),
-                  color: theme.colors.text,
-                  opacity: 0.55,
-                }}
-              >
+              <Text style={styles.statLabel}>
                 {stat.label}
               </Text>
             </View>
@@ -144,76 +91,29 @@ export default function ProfileScreen() {
         </View>
 
         {/* Keep Going milestone card */}
-        <View
-          style={{
-            marginTop: 18,
-            padding: 16,
-            borderRadius: 20,
-            backgroundColor: theme.colors.card,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 17,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: theme.colors.background,
-              }}
-            >
+        <View style={styles.milestoneCard}>
+          <View style={styles.milestoneHeader}>
+            <View style={styles.milestoneIcon}>
               <Ionicons name="trophy-outline" size={17} color={theme.colors.icon} />
             </View>
-            <Text
-              style={{
-                marginLeft: 10,
-                fontSize: responsiveFontSize(1.65),
-                fontWeight: "700",
-                color: theme.colors.text,
-              }}
-            >
+            <Text style={styles.milestoneTitle}>
               Keep Going!
             </Text>
           </View>
 
-          <Text
-            style={{
-              marginTop: 8,
-              fontSize: responsiveFontSize(1.4),
-              color: theme.colors.text,
-              opacity: 0.6,
-            }}
-          >
+          <Text style={styles.milestoneCopy}>
             You&apos;re 3 workouts away from your next milestone!
           </Text>
 
-          <View
-            style={{
-              height: 6,
-              marginTop: 12,
-              borderRadius: 3,
-              backgroundColor: theme.colors.border,
-              overflow: "hidden",
-            }}
-          >
-            <View
-              style={{
-                width: "70%",
-                height: "100%",
-                borderRadius: 3,
-                backgroundColor: theme.colors.primary,
-              }}
-            />
+          <View style={styles.milestoneTrack}>
+            <View style={styles.milestoneFill} />
           </View>
         </View>
 
-        <Text style={{ marginTop: 26, marginBottom: 12, fontSize: responsiveFontSize(2.1), fontWeight: "800", color: theme.colors.text }}>
+        <Text style={styles.sectionTitle}>
           Your dashboard
         </Text>
-        <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={styles.dashboardLinks}>
           {[
             { label: "Dashboard", icon: "grid-outline" as const, route: ROUTES.DASHBOARD },
             { label: "Calendar", icon: "calendar-outline" as const, route: ROUTES.WORKOUTCALENDAR },
@@ -222,21 +122,21 @@ export default function ProfileScreen() {
             <Pressable
               key={item.label}
               onPress={() => navigation.navigate(item.route)}
-              style={{ flex: 1, padding: 12, borderRadius: 16, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }}
+              style={styles.dashboardLink}
             >
               <Ionicons name={item.icon} size={20} color={theme.colors.icon} />
-              <Text style={{ marginTop: 8, fontSize: responsiveFontSize(1.35), fontWeight: "700", color: theme.colors.text }}>
+              <Text style={styles.dashboardLinkText}>
                 {item.label}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={{ marginTop: 26, marginBottom: 12, fontSize: responsiveFontSize(2.1), fontWeight: "800", color: theme.colors.text }}>
+        <Text style={styles.sectionTitle}>
           Workout history
         </Text>
         {history.length === 0 ? (
-          <Text style={{ color: theme.colors.textSecondary }}>
+          <Text style={styles.emptyText}>
             Completed exercises will appear here.
           </Text>
         ) : (
@@ -244,11 +144,11 @@ export default function ProfileScreen() {
             const exercise = exercises.find(value => value.id === item.exerciseId);
             if (!exercise) return null;
             return (
-              <View key={item.exerciseId} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+              <View key={item.exerciseId} style={styles.historyRow}>
                 <Ionicons name="checkmark-circle" size={20} color={theme.colors.success} />
-                <View style={{ marginLeft: 10 }}>
-                  <Text style={{ fontWeight: "700", color: theme.colors.text }}>{exercise.name}</Text>
-                  <Text style={{ marginTop: 2, fontSize: responsiveFontSize(1.25), color: theme.colors.textSecondary }}>{exercise.muscle} • Completed</Text>
+                <View style={styles.historyCopy}>
+                  <Text style={styles.historyName}>{exercise.name}</Text>
+                  <Text style={styles.historyDetail}>{exercise.muscle} • Completed</Text>
                 </View>
               </View>
             );
@@ -256,33 +156,13 @@ export default function ProfileScreen() {
         )}
 
         {/* Goals */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: 26,
-            marginBottom: 12,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: responsiveFontSize(2.1),
-              fontWeight: "800",
-              color: theme.colors.text,
-            }}
-          >
+        <View style={styles.goalsHeader}>
+          <Text style={styles.sectionTitle}>
             Goals
           </Text>
 
           <Pressable onPress={() => navigation.navigate("EditGoals")}>
-            <Text
-              style={{
-                fontSize: responsiveFontSize(1.4),
-                fontWeight: "700",
-                color: theme.colors.icon,
-              }}
-            >
+            <Text style={styles.editText}>
               Edit
             </Text>
           </Pressable>
@@ -290,47 +170,17 @@ export default function ProfileScreen() {
 
         <Pressable
           onPress={() => navigation.navigate("GoalDetail", { goal })}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            padding: 14,
-            borderRadius: 18,
-            backgroundColor: theme.colors.card,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-          }}
+          style={styles.goalCard}
         >
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: theme.colors.background,
-            }}
-          >
+          <View style={styles.goalIcon}>
             <Ionicons name="barbell-outline" size={19} color={theme.colors.icon} />
           </View>
 
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text
-              style={{
-                fontSize: responsiveFontSize(1.65),
-                fontWeight: "700",
-                color: theme.colors.text,
-              }}
-            >
+          <View style={styles.goalCopy}>
+            <Text style={styles.goalName}>
               {goal.title}
             </Text>
-            <Text
-              style={{
-                marginTop: 2,
-                fontSize: responsiveFontSize(1.3),
-                color: theme.colors.text,
-                opacity: 0.55,
-              }}
-            >
+            <Text style={styles.goalProgress}>
               Progress: {Math.round(goal.progress * 100)}%
             </Text>
           </View>
@@ -339,7 +189,7 @@ export default function ProfileScreen() {
         </Pressable>
 
         {/* Settings list */}
-        <View style={{ marginTop: 26, gap: 4 }}>
+        <View style={styles.settingsList}>
           {settingsRows.map((row) => (
             <Pressable
               key={row.label}
@@ -350,28 +200,14 @@ export default function ProfileScreen() {
                 }
                 navigation.navigate(row.label === "Help & Support" ? ROUTES.HELP_SUPPORT : ROUTES.SETTINGS);
               }}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                paddingVertical: 14,
-                paddingHorizontal: 14,
-                borderRadius: 16,
-              }}
+              style={styles.settingsRow}
             >
               <Ionicons
                 name={row.icon}
                 size={19}
-                color={row.destructive ? "#E5484D" : theme.colors.icon}
+                color={row.destructive ? theme.colors.danger : theme.colors.icon}
               />
-              <Text
-                style={{
-                  flex: 1,
-                  marginLeft: 12,
-                  fontSize: responsiveFontSize(1.65),
-                  fontWeight: "600",
-                  color: row.destructive ? "#E5484D" : theme.colors.text,
-                }}
-              >
+              <Text style={[styles.settingsLabel, row.destructive && styles.destructiveLabel]}>
                 {row.label}
               </Text>
               {!row.destructive && (
@@ -389,3 +225,48 @@ export default function ProfileScreen() {
     </View>
   );
 }
+
+const createStyles = (theme: any) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: theme.colors.background },
+  content: { paddingHorizontal: responsiveWidth(5), paddingTop: 24, paddingBottom: 78 },
+  profileHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  profileGroup: { flexDirection: "row", alignItems: "center" },
+  avatar: { width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.primary },
+  avatarText: { fontSize: responsiveFontSize(2.3), fontWeight: "900", color: theme.colors.onPrimary },
+  profileCopy: { marginLeft: 12 },
+  profileName: { fontSize: responsiveFontSize(2.1), fontWeight: "800", color: theme.colors.text },
+  profileEmail: { marginTop: 2, fontSize: responsiveFontSize(1.4), color: theme.colors.textSecondary },
+  settingsButton: { padding: 8 },
+  statsCard: { flexDirection: "row", marginTop: 22, padding: 16, borderRadius: 16, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+  statItem: { flex: 1, alignItems: "center" },
+  statDivider: { borderLeftWidth: 1, borderLeftColor: theme.colors.border },
+  statValue: { fontSize: responsiveFontSize(1.9), fontWeight: "800", color: theme.colors.text },
+  statLabel: { marginTop: 3, fontSize: responsiveFontSize(1.25), color: theme.colors.textSecondary },
+  milestoneCard: { marginTop: 18, padding: 16, borderRadius: 16, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+  milestoneHeader: { flexDirection: "row", alignItems: "center" },
+  milestoneIcon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background },
+  milestoneTitle: { marginLeft: 10, fontSize: responsiveFontSize(1.65), fontWeight: "700", color: theme.colors.text },
+  milestoneCopy: { marginTop: 8, fontSize: responsiveFontSize(1.4), color: theme.colors.textSecondary },
+  milestoneTrack: { height: 6, marginTop: 12, borderRadius: 3, backgroundColor: theme.colors.border, overflow: "hidden" },
+  milestoneFill: { width: "70%", height: "100%", borderRadius: 3, backgroundColor: theme.colors.primary },
+  sectionTitle: { marginTop: 26, marginBottom: 12, fontSize: responsiveFontSize(2.1), fontWeight: "800", color: theme.colors.text },
+  dashboardLinks: { flexDirection: "row", gap: 10 },
+  dashboardLink: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+  dashboardLinkText: { marginTop: 8, fontSize: responsiveFontSize(1.35), fontWeight: "700", color: theme.colors.text },
+  emptyText: { color: theme.colors.textSecondary },
+  historyRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  historyCopy: { marginLeft: 10 },
+  historyName: { fontWeight: "700", color: theme.colors.text },
+  historyDetail: { marginTop: 2, fontSize: responsiveFontSize(1.25), color: theme.colors.textSecondary },
+  goalsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 26, marginBottom: 12 },
+  editText: { fontSize: responsiveFontSize(1.4), fontWeight: "700", color: theme.colors.icon },
+  goalCard: { flexDirection: "row", alignItems: "center", padding: 14, borderRadius: 14, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+  goalIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background },
+  goalCopy: { flex: 1, marginLeft: 12 },
+  goalName: { fontSize: responsiveFontSize(1.65), fontWeight: "700", color: theme.colors.text },
+  goalProgress: { marginTop: 2, fontSize: responsiveFontSize(1.3), color: theme.colors.textSecondary },
+  settingsList: { marginTop: 26, gap: 4 },
+  settingsRow: { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 14, borderRadius: 12 },
+  settingsLabel: { flex: 1, marginLeft: 12, fontSize: responsiveFontSize(1.65), fontWeight: "600", color: theme.colors.text },
+  destructiveLabel: { color: theme.colors.danger },
+});

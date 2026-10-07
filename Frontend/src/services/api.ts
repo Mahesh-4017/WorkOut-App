@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { API_BASE_URL } from "../api/config";
 
 export type PublicCard = {
   _id: string;
@@ -17,11 +17,6 @@ type ApiResponse<T> = {
   message: string;
   data: T;
 };
-
-// Android emulators reach the host machine through 10.0.2.2.
-const API_BASE_URL = Platform.OS === "android"
-  ? "http://10.0.2.2:5001/api"
-  : "http://localhost:5001/api";
 
 export async function fetchFeaturedCards(): Promise<PublicCard[]> {
   const response = await fetch(`${API_BASE_URL}/public/cards?featured=true&limit=6`);

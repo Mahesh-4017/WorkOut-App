@@ -1,828 +1,446 @@
+import React from "react";
 import {
-    View,
-    Text,
-    Image,
-    ScrollView,
-    TouchableOpacity,
-    StyleSheet,
-    Linking,
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import Ionicons from "@react-native-vector-icons/ionicons";
+import { responsiveWidth } from "react-native-responsive-dimensions";
+
 import { useTheme } from "../../theme/ThemeProvider";
-import BottomTabBar from "../../components/BottomTabBar";
 import { ROUTES } from "../../navigation/routes";
-import {
-  responsiveWidth,
-  responsiveHeight,
-  responsiveFontSize,
-} from 'react-native-responsive-dimensions';
-import React from "react";
+import { WORKOUT_ROUTES } from "../../navigation/workoutRoutes";
 import { useUser } from "../../data/UserProvider";
 import { useAuth } from "../../context/AuthContext";
-import { getFeaturedCards, ApiCard } from "../../api/cards";
+import { getAllPublicCards, ApiCard } from "../../api/cards";
+import { resolveApiMediaUrl } from "../../api/client";
+import { FOOD_ROUTES } from "../../navigation/foodRoutes";
 
-// Responsive helpers based on a 375 x 812 reference phone.
-// They keep your current design proportions while adapting to other screens.
-const BASE_WIDTH = 375;
-const BASE_HEIGHT = 812;
-
-const rw = (value: number) =>
-    responsiveWidth((value / BASE_WIDTH) * 100);
-
-const rh = (value: number) =>
-    responsiveHeight((value / BASE_HEIGHT) * 100);
-
-const rf = (value: number) =>
-    responsiveFontSize((value / BASE_HEIGHT) * 100);
-
+const WEEKLY_GOAL = 5; // workouts per week
+const DARK_TEXT = "#1B1F1A"; // text on the pastel tiles
 
 export default function Home() {
-    const navigation = useNavigation<any>();
-    const { theme, isDark, toggleTheme } = useTheme();
-    const { name, history } = useUser();
-    const { user } = useAuth();
-    const styles = createStyles(theme);
-    const [today] = React.useState(() => new Date());
-    const [featuredCards, setFeaturedCards] = React.useState<ApiCard[]>([]);
-    const [cardsLoading, setCardsLoading] = React.useState(true);
+  const navigation = useNavigation<any>();
+  const { theme, isDark, toggleTheme } = useTheme();
+  const { name, history } = useUser();
+  const { user } = useAuth();
+  const s = createStyles(theme);
 
-    React.useEffect(() => {
-        let mounted = true;
-        getFeaturedCards(user?.gender)
-            .then(cards => {
-                if (mounted) setFeaturedCards(cards);
-            })
-            .catch(() => {
-                if (mounted) setFeaturedCards([]);
-            })
-            .finally(() => {
-                if (mounted) setCardsLoading(false);
-            });
-        return () => {
-            mounted = false;
-        };
-    }, [user?.gender]);
+  const [today] = React.useState(() => new Date());
+  const [cardsState, setCardsState] = React.useState<{ items: ApiCard[]; error: string | null }>({
+    items: [],
+    error: null,
+  });
+  const [loading, setLoading] = React.useState(true);
+  const { items: cards, error: cardsError } = cardsState;
 
-    const dates = React.useMemo(() => Array.from({ length: 14 }, (_, index) => {
-        const date = new Date(today);
-        date.setDate(today.getDate() + index);
-        return {
-            day: date.toLocaleDateString(undefined, { weekday: "short" }),
-            date: String(date.getDate()).padStart(2, "0"),
-            dateString: date.toISOString().slice(0, 10),
-            active: index === 0,
-        };
-    }), [today]);
-    const todayLabel = today.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-    const monthLabel = today.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-    const completion = Math.min(history.length / 5, 1);
+  React.useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setCardsState(current => ({ ...current, error: null }));
+    getAllPublicCards(user?.gender)
+      .then(items => mounted && setCardsState({ items, error: null }))
+      .catch(error => {
+        if (!mounted) return;
+        setCardsState({
+          items: [],
+          error: error instanceof Error ? error.message : "Unable to load exercise videos.",
+        });
+      })
+      .finally(() => mounted && setLoading(false));
+    return () => {
+      mounted = false;
+    };
+  }, [user?.gender]);
 
-    return (
-        <View style={styles.container}>
-            <SafeAreaView style={styles.safeArea}>
-                <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.scrollContent}
-                >
-                    {/* Header */}
-                    <View style={styles.header}>
-                        {/* User */}
-                        <View style={styles.userSection}>
-                            <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
-                                <View style={styles.onlineDot} />
-                            </View>
+  // ---- derived values ----
+  const hour = today.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const firstName = (name || "").trim().split(" ")[0] || "there";
+  const initials = (name || "?")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(w => w.charAt(0).toUpperCase())
+    .join("");
 
-                            <View style={styles.userInfo}>
-                                <Text style={styles.welcomeText}>
-                                    Welcome back 👋
-                                </Text>
+  const done = Math.min(history.length, WEEKLY_GOAL);
+  const progress = done / WEEKLY_GOAL;
+  // Monday -> Sunday of the current week
+  const week = React.useMemo(() => {
+    const offset = (today.getDay() + 6) % 7;
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - offset + i);
+      return {
+        letter: d.toLocaleDateString(undefined, { weekday: "narrow" }),
+        date: d.getDate(),
+        dateString: d.toISOString().slice(0, 10),
+        isToday: i === offset,
+      };
+    });
+  }, [today]);
 
-                                <Text style={styles.hello}>
-                                    {name}
-                                </Text>
+  const goWorkout = () => navigation.navigate(WORKOUT_ROUTES.EXPLORE);
+  const goRunning = () => navigation.navigate(ROUTES.RUNNING);
+  const goCalendar = (selectedDate?: string) => navigation.navigate(ROUTES.WORKOUTCALENDAR, { selectedDate });
+  const goWorkoutSchedule = () => navigation.navigate(WORKOUT_ROUTES.SCHEDULE);
+  const goFood = () => navigation.navigate(FOOD_ROUTES.WELCOME);
 
-                                <Text style={styles.today}>
-                                    {todayLabel}
-                                </Text>
-                            </View>
-                        </View>
-
-                        {/* Header actions */}
-                        <View style={styles.headerActions}>
-                            {/* Theme toggle */}
-                            <TouchableOpacity
-                                activeOpacity={0.7}
-                                style={styles.themeButton}
-                                onPress={toggleTheme}
-                            >
-                                <Text style={styles.themeIcon}>
-                                    {isDark ? "☀" : "☾"}
-                                </Text>
-                            </TouchableOpacity>
-
-                            {/* Notification */}
-                            <TouchableOpacity
-                                activeOpacity={0.7}
-                                style={styles.notification}
-                                onPress={() =>
-                                    navigation.navigate(ROUTES.LOGIN)
-                                }
-                            >
-                                <Text style={styles.notificationIcon}>
-                                    ♧
-                                </Text>
-
-                                <View style={styles.notificationBadge}>
-                                    <Text style={styles.notificationBadgeText}>
-                                        3
-                                    </Text>
-                                </View>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* Daily Challenge */}
-                    <View style={styles.challenge}>
-                        <View style={styles.challengeText}>
-                            <Text style={styles.challengeLabel}>DAILY CHALLENGE</Text>
-                            <Text style={styles.challengeTitle}>Complete your workout</Text>
-                            <Text style={styles.challengeSubtitle}>Before 09:00 AM</Text>
-
-                            <View style={styles.challengeBottom}>
-                                <View style={styles.challengePeople}>
-                                    <View style={styles.miniAvatar}>
-                                        <Text>👨🏻</Text>
-                                    </View>
-                                    <View style={styles.miniAvatar}>
-                                        <Text>👩🏻</Text>
-                                    </View>
-                                    <View style={styles.miniAvatar}>
-                                        <Text>👨🏽</Text>
-                                    </View>
-                                    <View style={styles.morePeople}>
-                                        <Text style={styles.moreText}>+8</Text>
-                                    </View>
-                                </View>
-
-                                <Text style={styles.challengeJoined}>Joined today</Text>
-                            </View>
-                        </View>
-
-                        <Image
-                            source={require("../../assets/challenge.png")}
-                            style={styles.challengeImage}
-                            resizeMode="contain"
-                        />
-                    </View>
-
-                    {/* Date selector */}
-                    <View style={styles.datePickerContainer}>
-                        <View style={styles.datePickerHeader}>
-                            <Text style={styles.datePickerTitle}>Choose a day</Text>
-                            <Text style={styles.datePickerMonth}>{monthLabel}</Text>
-                        </View>
-
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={styles.dateScroll}
-                            decelerationRate="fast"
-                        >
-                            {dates.map((item) => (
-                                <TouchableOpacity
-                                    key={item.date}
-                                    activeOpacity={0.75}
-                                    onPress={() =>
-                                        navigation.navigate(ROUTES.WORKOUTCALENDAR, {
-                                            selectedDate: item.dateString,
-                                        })
-                                    }
-                                    style={[
-                                        styles.dateItem,
-                                        item.active && styles.dateItemActive,
-                                    ]}
-                                >
-                                    <Text style={[styles.dateDay, item.active && styles.dateTextActive]}>
-                                        {item.day}
-                                    </Text>
-                                    <Text style={[styles.dateNumber, item.active && styles.dateTextActive]}>
-                                        {item.date}
-                                    </Text>
-                                    {item.active && <View style={styles.dateActiveDot} />}
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-
-                    {/* Start Workout CTA */}
-                    <TouchableOpacity
-                        activeOpacity={0.88}
-                        style={styles.startWorkoutCard}
-                        onPress={() => navigation.navigate(ROUTES.WORKOUT)}
-                    >
-                        <View style={styles.startWorkoutContent}>
-                            <View>
-                                <Text style={styles.startWorkoutLabel}>READY TO TRAIN?</Text>
-                                <Text style={styles.startWorkoutTitle}>Start Your Workout</Text>
-                                <Text style={styles.startWorkoutSubtitle}>Let's crush your goals today</Text>
-                            </View>
-
-                            <View style={styles.startWorkoutArrow}>
-                                <Text style={styles.startWorkoutArrowText}>→</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.startWorkoutBottom}>
-                            <View style={styles.workoutProgress}>
-                                <View style={[styles.workoutProgressFill, { width: `${completion * 100}%` }]} />
-                            </View>
-
-                            <Text style={styles.workoutProgressText}>{Math.round(completion * 100)}% completed</Text>
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* Published sessions from the Express API */}
-                    <View style={styles.featuredHeader}>
-                        <View>
-                            <Text style={styles.programTitle}>Featured sessions</Text>
-                            <Text style={styles.programSubtitle}>Fresh content from your library</Text>
-                        </View>
-                    </View>
-                    {cardsLoading ? (
-                        <Text style={styles.apiMessage}>Loading sessions...</Text>
-                    ) : featuredCards.length === 0 ? (
-                        <Text style={styles.apiMessage}>No featured sessions yet.</Text>
-                    ) : (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
-                            {featuredCards.map(card => (
-                                <TouchableOpacity
-                                    key={card._id}
-                                    activeOpacity={0.85}
-                                    style={styles.featuredCard}
-                                    onPress={() => Linking.openURL(card.videoUrl)}
-                                >
-                                    {card.thumbnailUrl ? (
-                                        <Image source={{ uri: card.thumbnailUrl }} style={styles.featuredImage} />
-                                    ) : (
-                                        <View style={[styles.featuredImage, styles.featuredPlaceholder]}>
-                                            <Text style={styles.featuredPlay}>▶</Text>
-                                        </View>
-                                    )}
-                                    <Text numberOfLines={1} style={styles.featuredTitle}>{card.title}</Text>
-                                    <Text numberOfLines={2} style={styles.featuredDescription}>{card.description}</Text>
-                                    <Text numberOfLines={1} style={styles.featuredCategory}>{card.category} · {card.audience === "all" ? "Everyone" : card.audience}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    )}
-
-                </ScrollView>
-
-            </SafeAreaView>
+  return (
+    <SafeAreaView style={s.screen} edges={["top"]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+        {/* App bar */}
+        <View style={s.appBar}>
+          <Text style={s.appTitle}>Velocity Health</Text>
+          <View style={s.appActions}>
+            <Pressable onPress={toggleTheme} style={s.iconButton} accessibilityLabel="Toggle theme">
+              <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={18} color={theme.colors.text} />
+            </Pressable>
+            <Pressable
+              onPress={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
+              style={s.iconButton}
+              accessibilityLabel="Notifications"
+              accessibilityRole="button"
+            >
+              <Ionicons name="notifications-outline" size={18} color={theme.colors.text} />
+            </Pressable>
+          </View>
         </View>
-    );
+
+        {/* Greeting */}
+        <View style={s.greetRow}>
+          <View style={s.avatar}>
+            <Text style={s.avatarText}>{initials}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.greetTitle}>
+              {greeting}, {firstName}
+            </Text>
+            <Text style={s.greetSub}>A little movement. A better day.</Text>
+          </View>
+        </View>
+
+        {/* Hero: today's workout */}
+        {/* <Pressable onPress={startFeatured} style={s.hero} accessibilityRole="button" accessibilityLabel="Start today's workout">
+          <Image source={require("../../assets/challenge.png")} style={s.heroImage} resizeMode="cover" />
+          <View style={s.heroShade} />
+          <View style={s.heroTopRow}>
+            <View style={s.heroChip}>
+              <Text style={s.heroChipText}>Today's workout</Text>
+            </View>
+            {featured ? (
+              <View style={s.heroChip}>
+                <Ionicons name="time-outline" size={12} color="#FFFFFF" />
+                <Text style={s.heroChipText}>{featured.duration}</Text>
+              </View>
+            ) : null}
+          </View>
+          <View style={s.heroBottom}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text numberOfLines={2} style={s.heroTitle}>
+                {featured?.name ?? "Pick a workout"}
+              </Text>
+              <Text numberOfLines={1} style={s.heroSub}>
+                {featured ? `${featured.sets} sets × ${featured.reps} reps · ${featured.difficulty}` : "Browse the full library"}
+              </Text>
+            </View>
+            <View style={s.heroPlay}>
+              <Ionicons name="play" size={22} color={theme.colors.onPrimary} />
+            </View>
+          </View>
+        </Pressable> */}
+
+        {/* Week progress */}
+        <View style={s.weekCard}>
+          <View style={s.weekHeader}>
+            <Text style={s.weekTitle}>This week</Text>
+            <Text style={s.weekCount}>
+              {done} of {WEEKLY_GOAL} workouts
+            </Text>
+          </View>
+          <View style={s.weekRow}>
+            {week.map(d => (
+              <Pressable key={d.dateString} onPress={() => goCalendar(d.dateString)} style={s.dayCol} accessibilityLabel={`Open ${d.dateString} in calendar`}>
+                <Text style={s.dayLetter}>{d.letter}</Text>
+                <View style={[s.dayCircle, d.isToday && s.dayCircleActive]}>
+                  <Text style={[s.dayNum, d.isToday && s.dayNumActive]}>{d.date}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+          <View style={s.track}>
+            <View style={[s.trackFill, { width: `${progress * 100}%` }]} />
+          </View>
+        </View>
+
+        {/* What's next */}
+        <Text style={s.sectionTitle}>What's next for you?</Text>
+        <View style={s.tileRow}>
+          <Pressable onPress={goWorkout} style={[s.tile, { backgroundColor: "#E8E3F7" }]}>
+            <View style={s.tileIcon}>
+              <Ionicons name="barbell-outline" size={18} color={DARK_TEXT} />
+            </View>
+            <Text style={s.tileTitle}>Explore Workouts</Text>
+            <Text style={s.tileSub}>Find your fit in 27 sessions</Text>
+          </Pressable>
+          <Pressable onPress={goWorkoutSchedule} style={[s.tile, { backgroundColor: "#F8F0CF" }]}>
+            <View style={s.tileIcon}>
+              <Ionicons name="calendar-outline" size={18} color={DARK_TEXT} />
+            </View>
+            <Text style={s.tileTitle}>Workout Schedule</Text>
+            <Text style={s.tileSub}>Plan and manage upcoming classes</Text>
+          </Pressable>
+        </View>
+
+        <Text style={s.sectionTitle}>Running</Text>
+        <Pressable
+          onPress={goRunning}
+          style={s.scanCard}
+          accessibilityRole="button"
+          accessibilityLabel="Explore running workouts"
+        >
+          <View style={s.scanIcon}>
+            <Ionicons name="walk-outline" size={20} color={DARK_TEXT} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.tileTitle}>Ready for a run?</Text>
+            <Text style={s.tileSub}>Explore workouts and find your pace.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={DARK_TEXT} />
+        </Pressable>
+
+        <Pressable onPress={goFood} style={s.scanCard}>
+          <View style={s.scanIcon}>
+            <Ionicons name="camera-outline" size={20} color={DARK_TEXT} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.tileTitle}>Food & nutrition</Text>
+            <Text style={s.tileSub}>Log meals, scan food, and track hydration.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={DARK_TEXT} />
+        </Pressable>
+
+        {/* Featured sessions */}
+        <View style={s.sectionRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.sectionTitleFlat}>A little stronger today</Text>
+            <Text style={s.sectionSub}>Exercise videos from your studio library.</Text>
+          </View>
+          <Pressable onPress={goWorkout} hitSlop={8}>
+            <Text style={s.viewAll}>View all ›</Text>
+          </Pressable>
+        </View>
+
+        {loading ? (
+          <Text style={s.message}>Loading exercise videos...</Text>
+        ) : cardsError ? (
+          <Text style={s.message}>{cardsError}</Text>
+        ) : cards.length === 0 ? (
+          <Text style={s.message}>No exercise videos have been published yet.</Text>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cardRow}>
+            {cards.map(card => (
+              <View key={card._id} style={s.card}>
+                <View>
+                  {card.thumbnailUrl ? (
+                    <Image source={{ uri: resolveApiMediaUrl(card.thumbnailUrl) }} style={s.cardImage} />
+                  ) : (
+                    <View style={[s.cardImage, s.cardPlaceholder]}>
+                      <Ionicons name="play" size={22} color={theme.colors.primary} />
+                    </View>
+                  )}
+                  <View style={s.badge}>
+                    <Text style={s.badgeText}>{card.category}</Text>
+                  </View>
+                </View>
+                <View style={s.cardBody}>
+                  <Text numberOfLines={1} style={s.cardTitle}>
+                    {card.title}
+                  </Text>
+                  <Text numberOfLines={2} style={s.cardDesc}>
+                    {card.description}
+                  </Text>
+                  <Text numberOfLines={1} style={s.cardMeta}>
+                    {card.audience === "all" ? "Everyone" : card.audience}
+                  </Text>
+                  <Pressable onPress={() => Linking.openURL(card.videoUrl)} style={s.cardButton} accessibilityRole="button">
+                    <Ionicons name="play" size={12} color={theme.colors.primaryDark} />
+                    <Text style={s.cardButtonText}>Start exercise</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
 const createStyles = (theme: any) =>
-    StyleSheet.create({
-        container: {
-            flex: 1,
-            backgroundColor: theme.colors.background,
-            paddingTop: 25,
-        },
-
-        safeArea: {
-            flex: 1,
-        },
-
-        scrollContent: {
-            paddingHorizontal: 18,
-            paddingBottom: 118,
-        },
-
-        /* Header */
-
-        header: {
-            minHeight: 72,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 12,
-        },
-
-        userSection: {
-            flexDirection: "row",
-            alignItems: "center",
-            flex: 1,
-        },
-
-        avatar: {
-            width: responsiveWidth(10),
-            height: responsiveHeight(4),
-            borderRadius: 25,
-            backgroundColor: theme.colors.primary,
-            alignItems: "center",
-            justifyContent: "center",
-            marginRight: 11,
-            elevation: 3,
-        },
-
-        avatarText: {
-            color: theme.colors.onPrimary,
-             fontSize: responsiveFontSize(3),
-            fontWeight: "800",
-        },
-
-        onlineDot: {
-            position: "absolute",
-            width: rw(11),
-            height: rh(11),
-            borderRadius: 6,
-            right: 0,
-            bottom: 1,
-            backgroundColor: theme.colors.success,
-            borderWidth: 2,
-            borderColor: theme.colors.background,
-        },
-
-        userInfo: {
-            justifyContent: "center",
-        },
-
-        welcomeText: {
-            color: theme.colors.muted,
-            fontSize: rf(11),
-            fontWeight: "500",
-            marginBottom: 1,
-        },
-
-        hello: {
-            color: theme.colors.text,
-            fontSize: rf(16),
-            fontWeight: "800",
-            letterSpacing: 0.2,
-        },
-
-        today: {
-            color: theme.colors.muted,
-            fontSize: rf(10),
-            marginTop: 3,
-        },
-
-        headerActions: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-        },
-
-        themeButton: {
-            width: rw(40),
-            height: rh(40),
-            borderRadius: 25,
-            backgroundColor: theme.colors.card,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            alignItems: "center",
-            justifyContent: "center",
-        },
-
-        themeIcon: {
-            color: theme.colors.primary,
-            fontSize: rf(15),
-            fontWeight: "700",
-        },
-
-        notification: {
-            width: rw(40),
-            height: rh(40),
-            borderRadius: 25,
-            backgroundColor: theme.colors.card,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            alignItems: "center",
-            justifyContent: "center",
-            position: "relative",
-        },
-
-        notificationIcon: {
-            color: theme.colors.text,
-            fontSize: rf(19),
-        },
-
-        notificationBadge: {
-            position: "absolute",
-            top: -6,
-            right: -5,
-            minWidth: rw(18),
-            height: rh(18),
-            paddingHorizontal: 3,
-            borderRadius: 8,
-            backgroundColor: theme.colors.primary,
-            alignItems: "center",
-            justifyContent: "center",
-            borderWidth: 2,
-            borderColor: theme.colors.background,
-        },
-
-        notificationBadgeText: {
-            color: theme.colors.onPrimary,
-            fontSize: rf(10),
-            fontWeight: "800",
-        },
-
-        /* Challenge */
-
-        challenge: { height: rh(120), borderRadius: 22, backgroundColor: theme.colors.primary, overflow: "visible", flexDirection: "row", marginBottom: 24, position: "relative", marginTop: 0 }, challengeText: { flex: 1, paddingLeft: 17, paddingTop: 15, paddingBottom: 9, zIndex: 2, }, challengeLabel: { color: theme.colors.primaryDark, fontSize: rf(9), fontWeight: "800", letterSpacing: 1, marginBottom: 5, }, challengeTitle: { color: theme.colors.onPrimary, fontSize: rf(18), lineHeight: 19, fontWeight: "800", maxWidth: 155, }, challengeSubtitle: { color: theme.colors.primaryDark, fontSize: rf(10), fontWeight: "600", marginTop: 5, }, challengeBottom: { flexDirection: "row", alignItems: "center", marginTop: 8, }, challengePeople: { flexDirection: "row", alignItems: "center", }, miniAvatar: { width: rw(25), height: rh(25), borderRadius: 15, backgroundColor: theme.colors.white, alignItems: "center", justifyContent: "center", marginRight: -8, borderWidth: 1, borderColor: theme.colors.primary, overflow: "hidden", }, morePeople: { width: rw(20), height: rh(20), borderRadius: 15, backgroundColor: theme.colors.onPrimary, alignItems: "center", justifyContent: "center", marginLeft: 1, }, moreText: { color: theme.colors.primary, fontSize: rf(8), fontWeight: "800", }, challengeJoined: { color: theme.colors.primaryDark, fontSize: rf(10), fontWeight: "600", marginLeft: 4, }, challengeImage: { width: rw(125), height: rh(140), position: "absolute", right: -7, bottom: 0 },
-/* =========================
-   Start Workout
-========================= */
-
-startWorkoutCard: {
-    height: rh(125),
-    borderRadius: rw(20),
-    backgroundColor: theme.colors.icon,
-    paddingHorizontal: rw(18),
-    paddingVertical: rh(16),
-    marginBottom: rh(25),
-    overflow: "hidden",
-},
-
-startWorkoutContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flex: 1,
-},
-
-startWorkoutLabel: {
-    color: theme.colors.primaryDark,
-    fontSize: rf(8),
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    marginBottom: rh(4),
-},
-
-startWorkoutTitle: {
-    color: theme.colors.onPrimary,
-    fontSize: rf(18),
-    fontWeight: "800",
-},
-
-startWorkoutSubtitle: {
-    color: theme.colors.primaryDark,
-    fontSize: rf(9),
-    fontWeight: "600",
-    marginTop: rh(4),
-},
-
-startWorkoutArrow: {
-    width: rw(48),
-    height: rh(48),
-    borderRadius: rw(24),
-    backgroundColor: theme.colors.onPrimary,
-    alignItems: "center",
-    justifyContent: "center",
-},
-
-startWorkoutArrowText: {
-    color: theme.colors.primary,
-    fontSize: rf(20),
-    fontWeight: "800",
-},
-
-startWorkoutBottom: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: rw(8),
-},
-
-workoutProgress: {
-    flex: 1,
-    height: rh(5),
-    borderRadius: rh(3),
-    backgroundColor: "rgba(255,255,255,0.35)",
-    overflow: "hidden",
-},
-
-workoutProgressFill: {
-    width: "0%",
-    height: "100%",
-    borderRadius: rh(3),
-    backgroundColor: theme.colors.onPrimary,
-},
-
-workoutProgressText: {
-    color: theme.colors.onPrimary,
-    fontSize: rf(7),
-    fontWeight: "700",
-},
-/* =========================
-   Date Picker
-========================= */
-
-datePickerContainer: {
-    marginBottom: 25,
-},
-
-datePickerHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-},
-
-datePickerTitle: {
-    color: theme.colors.text,
-    fontSize: rf(14),
-    fontWeight: "800",
-},
-
-datePickerMonth: {
-    color: theme.colors.muted,
-    fontSize: rf(9),
-    fontWeight: "600",
-},
-
-dateScroll: {
-    paddingRight: 18,
-},
-
-dateItem: {
-    width: rw(48),
-    height: rh(58),
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-},
-
-dateItemActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-    transform: [{ scale: 1.03 }],
-},
-
-dateDay: {
-    color: theme.colors.muted,
-    fontSize: rf(8),
-    fontWeight: "600",
-    marginBottom: 5,
-},
-
-dateNumber: {
-    color: theme.colors.text,
-    fontSize: rf(15),
-    fontWeight: "800",
-},
-
-dateTextActive: {
-    color: theme.colors.onPrimary,
-},
-
-dateActiveDot: {
-    width: rw(4),
-    height: rh(4),
-    borderRadius: 2,
-    backgroundColor: theme.colors.onPrimary,
-    marginTop: 4,
-},
-        /* Section */
-
-        programHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12, }, programTitle: { color: theme.colors.text, fontSize: rf(15), fontWeight: "800", letterSpacing: -0.2, }, programSubtitle: { color: theme.colors.muted, fontSize: rf(10), marginTop: 3, }, seeAllButton: { height: rh(30), paddingHorizontal: 10, borderRadius: 15, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border, flexDirection: "row", alignItems: "center", justifyContent: "center", }, seeAll: { color: theme.colors.text, fontSize: rf(7), fontWeight: "700", }, seeAllArrow: { color: theme.colors.primary, fontSize: rf(11), fontWeight: "800", marginLeft: 5, },
-
-        
-categoryRow: {
-    paddingBottom: 14,
-    paddingRight: 18,
-},
-
-category: {
-    minWidth: rw(58),
-    height: rh(30),
-    paddingHorizontal: 13,
-    borderRadius: 18,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-},
-
-categoryActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-    flexDirection: "row",
-},
-
-categoryText: {
-    color: theme.colors.textSecondary,
-    fontSize: rf(9),
-    fontWeight: "600",
-},
-
-categoryTextActive: {
-    color: theme.colors.onPrimary,
-    fontWeight: "800",
-},
-
-categoryDot: {
-    width: rw(4),
-    height: rh(4),
-    borderRadius: 2,
-    backgroundColor: theme.colors.onPrimary,
-    marginLeft: 6,
-},
-
-        /* Workout cards */
-workoutCard: {
-    width: "48%",
-    marginBottom: 18,
-},
-
-workoutImageContainer: {
-    height: rh(125),
-    borderRadius: 16,
-    overflow: "hidden",
-    backgroundColor: theme.colors.card,
-    position: "relative",
-},
-
-workoutImage: {
-    width: "100%",
-    height: "100%",
-},
-
-imageOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: theme.colors.overlay,
-    opacity: 0.28,
-},
-
-workoutInfo: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    right: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-},
-
-infoBadge: {
-    minHeight: 21,
-    paddingHorizontal: 7,
-    borderRadius: 10,
-    backgroundColor: "rgba(0, 0, 0, 0.48)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-},
-
-infoIcon: {
-    color: theme.colors.white,
-    fontSize: rf(8),
-    marginRight: 3,
-},
-
-infoText: {
-    color: theme.colors.white,
-    fontSize: rf(6.5),
-    fontWeight: "700",
-},
-
-playButton: {
-    position: "absolute",
-    left: "50%",
-    top: "50%",
-    width: rw(38),
-    height: rh(38),
-    marginLeft: -19,
-    marginTop: -19,
-    borderRadius: 19,
-    backgroundColor: theme.colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 3,
-},
-
-playIcon: {
-    color: theme.colors.onPrimary,
-    fontSize: rf(11),
-    marginLeft: 2,
-},
-
-workoutDetails: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 8,
-},
-
-workoutText: {
-    flex: 1,
-    paddingRight: 5,
-},
-
-workoutTitle: {
-    color: theme.colors.text,
-    fontSize: rf(10),
-    fontWeight: "800",
-},
-
-workoutSubtitle: {
-    color: theme.colors.muted,
-    fontSize: rf(7),
-    marginTop: 3,
-},
-
-cardArrow: {
-    width: rw(25),
-    height: rh(25),
-    borderRadius: 13,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-},
-
-cardArrowText: {
-    color: theme.colors.primary,
-    fontSize: rf(11),
-    fontWeight: "800",
-},
-workoutGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginTop: 2,
-},
-
-featuredHeader: {
-    marginTop: 24,
-    marginBottom: 12,
-},
-
-apiMessage: {
-    color: theme.colors.textSecondary,
-    fontSize: rf(9),
-    marginBottom: 6,
-},
-
-featuredRow: {
-    paddingBottom: 4,
-},
-
-featuredCard: {
-    width: rw(178),
-    marginRight: 12,
-},
-
-featuredImage: {
-    width: "100%",
-    height: rh(90),
-    borderRadius: 14,
-    backgroundColor: theme.colors.card,
-},
-
-featuredPlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-},
-
-featuredPlay: {
-    color: theme.colors.primary,
-    fontSize: rf(16),
-},
-
-featuredTitle: {
-    color: theme.colors.text,
-    fontSize: rf(9),
-    fontWeight: "800",
-    marginTop: 7,
-},
-
-featuredCategory: {
-    color: theme.colors.muted,
-    fontSize: rf(7),
-    marginTop: 2,
-},
-
-featuredDescription: {
-    color: theme.colors.textSecondary,
-    fontSize: rf(7.5),
-    lineHeight: rf(10),
-    marginTop: 4,
-},
-        
-    });
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: theme.colors.background },
+    scroll: { paddingHorizontal: 18, paddingBottom: 120 },
+
+    appBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10 },
+    appTitle: { color: theme.colors.text, fontSize: 16, fontFamily: theme.typography.fontFamilyBold },
+    appActions: { flexDirection: "row", gap: 8 },
+    iconButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+
+    greetRow: { flexDirection: "row", alignItems: "center", marginTop: 6, marginBottom: 16 },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: theme.colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+    },
+    avatarText: { color: theme.colors.onPrimary, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
+    greetTitle: { color: theme.colors.text, fontSize: 16, fontFamily: theme.typography.fontFamilyBold },
+    greetSub: { color: theme.colors.muted, fontSize: 12, marginTop: 2, fontFamily: theme.typography.fontFamily },
+
+    /* Hero */
+    hero: { height: 200, borderRadius: 24, overflow: "hidden", backgroundColor: theme.colors.card, justifyContent: "space-between", padding: 14 },
+    heroImage: { ...StyleSheet.absoluteFill, width: "40%", height: "100%" },
+    heroShade: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.42)" },
+    heroTopRow: { flexDirection: "row", gap: 8 },
+    heroChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 12,
+      backgroundColor: "rgba(0,0,0,0.5)",
+    },
+    heroChipText: { color: "#FFFFFF", fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
+    heroBottom: { flexDirection: "row", alignItems: "flex-end" },
+    heroTitle: { color: "#FFFFFF", fontSize: 24, lineHeight: 29, fontFamily: theme.typography.fontFamilyBold },
+    heroSub: { color: "rgba(255,255,255,0.8)", fontSize: 12, marginTop: 4, fontFamily: theme.typography.fontFamily },
+    heroPlay: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: theme.colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingLeft: 3,
+    },
+
+    /* Week */
+    weekCard: {
+      marginTop: 12,
+      padding: 14,
+      borderRadius: 18,
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    weekHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    weekTitle: { color: theme.colors.text, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
+    weekCount: { color: theme.colors.muted, fontSize: 12, fontFamily: theme.typography.fontFamily },
+    weekRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 12 },
+    dayCol: { alignItems: "center", gap: 6 },
+    dayLetter: { color: theme.colors.muted, fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
+    dayCircle: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+    dayCircleActive: { backgroundColor: theme.colors.primary },
+    dayNum: { color: theme.colors.text, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
+    dayNumActive: { color: theme.colors.onPrimary },
+    track: { height: 5, borderRadius: 3, backgroundColor: theme.colors.border, marginTop: 12, overflow: "hidden" },
+    trackFill: { height: "100%", borderRadius: 3, backgroundColor: theme.colors.primary },
+
+    /* What's next */
+    sectionTitle: { color: theme.colors.text, fontSize: 16, marginTop: 22, marginBottom: 10, fontFamily: theme.typography.fontFamilyBold },
+    tileRow: { flexDirection: "row", gap: 12 },
+    tile: { flex: 1, borderRadius: 18, padding: 14, minHeight: 118 },
+    tileIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: "rgba(255,255,255,0.7)",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 12,
+    },
+    tileTitle: { color: DARK_TEXT, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
+    tileSub: { color: "rgba(27,31,26,0.7)", fontSize: 11, lineHeight: 15, marginTop: 3, fontFamily: theme.typography.fontFamily },
+    scanCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      backgroundColor: "#E1F0E6",
+      borderRadius: 18,
+      padding: 14,
+      marginTop: 12,
+    },
+    scanIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: "rgba(255,255,255,0.7)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    /* Featured */
+    sectionRow: { flexDirection: "row", alignItems: "flex-end", marginTop: 26, marginBottom: 12 },
+    sectionTitleFlat: { color: theme.colors.text, fontSize: 16, fontFamily: theme.typography.fontFamilyBold },
+    sectionSub: { color: theme.colors.muted, fontSize: 12, marginTop: 2, fontFamily: theme.typography.fontFamily },
+    viewAll: { color: theme.colors.primaryDark, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
+    message: { color: theme.colors.textSecondary, fontSize: 12, fontFamily: theme.typography.fontFamily },
+    cardRow: { gap: 12, paddingRight: 18 },
+    card: {
+      width: responsiveWidth(46),
+      borderRadius: 18,
+      overflow: "hidden",
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    cardImage: { width: "100%", height: 112, backgroundColor: theme.colors.border },
+    cardPlaceholder: { alignItems: "center", justifyContent: "center" },
+    badge: {
+      position: "absolute",
+      top: 8,
+      left: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 10,
+      backgroundColor: "rgba(0,0,0,0.55)",
+    },
+    badgeText: { color: "#FFFFFF", fontSize: 10, fontFamily: theme.typography.fontFamilyMedium },
+    cardBody: { padding: 12 },
+    cardTitle: { color: theme.colors.text, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
+    cardDesc: { color: theme.colors.textSecondary, fontSize: 11, lineHeight: 15, marginTop: 3, fontFamily: theme.typography.fontFamily },
+    cardMeta: { color: theme.colors.muted, fontSize: 11, marginTop: 4, fontFamily: theme.typography.fontFamily },
+    cardButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      height: 34,
+      borderRadius: 17,
+      borderWidth: 1.5,
+      borderColor: theme.colors.primary,
+      marginTop: 10,
+    },
+    cardButtonText: { color: theme.colors.text, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
+  });

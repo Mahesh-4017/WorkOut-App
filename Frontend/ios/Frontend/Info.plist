@@ -34,7 +34,11 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>Location access supports location-based fitness features.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access lets you photograph meals for nutrition estimates.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a meal photo from your library for nutrition estimates.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
