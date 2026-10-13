@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { apiRequest, AppUser } from "./api";
+import { AppFeatures } from "./app-features";
 import { WebsiteMotion, WebsiteSplash } from "./website-motion";
 
 const TOKEN_KEY = "workout-app-token";
@@ -150,6 +151,7 @@ export function WebsiteShell({ children }: { children: React.ReactNode }) {
           </nav>
         </header>
         {children}
+        <AppFeatures />
         <footer className="site-footer">
           <div className="footer-brand">
             <span className="footer-kicker"><span /> MOVE WITH INTENTION</span>

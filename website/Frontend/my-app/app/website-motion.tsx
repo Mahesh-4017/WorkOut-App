@@ -53,6 +53,8 @@ export function WebsiteMotion({ children }: { children: React.ReactNode }) {
         ".calendar-schedule-panel",
         ".profile-panel",
         ".auth-card",
+        ".app-feature-item",
+        ".app-features-visual",
       ].join(",");
 
       const startContentMotion = () => {
