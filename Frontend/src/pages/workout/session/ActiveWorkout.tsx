@@ -10,7 +10,7 @@ import { useTheme } from "../../../theme/ThemeProvider";
 import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
 import { fmtClock, useElapsed, useSession } from "../../../data/SessionProvider";
 import { PrimaryButton } from "../../../components/OnboardingUI";
-import { ScreenHeader, ACCENT } from "../../../components/MovementUI";
+import { ScreenHeader } from "../../../components/MovementUI";
 import { DARK_TEXT } from "../../../components/WorkoutUI";
 
 const WIDTH = 300;
@@ -155,7 +155,7 @@ export default function ActiveWorkout() {
               strokeLinejoin="round"
             />
             <Circle cx={start.x} cy={start.y} r={6} fill={DARK_TEXT} />
-            <Circle cx={end.x} cy={end.y} r={9} fill={ACCENT.purple} stroke="#fff" strokeWidth={3} />
+            <Circle cx={end.x} cy={end.y} r={9} fill={theme.colors.primary} stroke="#fff" strokeWidth={3} />
           </Svg>
         ) : (
           <View style={styles.mapEmpty}>

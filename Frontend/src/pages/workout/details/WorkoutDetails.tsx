@@ -11,7 +11,6 @@ import { loadLabel, WORKOUT_DETAILS } from "../../../data/workoutDetails";
 import { useWorkouts } from "../../../data/WorkoutProvider";
 import { useSession } from "../../../data/SessionProvider";
 import { OnboardingHeader, PrimaryButton } from "../../../components/OnboardingUI";
-import { ACCENT } from "../../../components/MovementUI";
 import { FooterLinks, StatRow, Tags } from "../../../components/WorkoutDetailUI";
 import { DARK_TEXT } from "../../../components/WorkoutUI";
 
@@ -86,7 +85,7 @@ export default function WorkoutDetails() {
           style={styles.equipLink}
           accessibilityRole="button"
         >
-          <Ionicons name="options-outline" size={14} color={ACCENT.purple} />
+          <Ionicons name="options-outline" size={14} color={theme.colors.primary} />
           <Text style={styles.equipText}>Change equipment</Text>
         </Pressable>
 
@@ -148,10 +147,10 @@ const createStyles = (theme: any) =>
     statWrap: { marginTop: 14 },
     tagsWrap: { marginTop: 12 },
     equipLink: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12 },
-    equipText: { color: ACCENT.purple, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
+    equipText: { color: theme.colors.primary, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
     rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 18, marginBottom: 10 },
     heading: { color: theme.colors.text, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
-    count: { color: ACCENT.purple, fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
+    count: { color: theme.colors.primary, fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
     move: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, padding: 12, marginBottom: 8 },
     moveCopy: { flex: 1 },
     moveName: { color: DARK_TEXT, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },

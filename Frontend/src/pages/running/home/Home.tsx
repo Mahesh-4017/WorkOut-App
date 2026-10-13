@@ -8,7 +8,7 @@ import { useSession, fmtClock } from "../../../data/SessionProvider";
 import { useTheme } from "../../../theme/ThemeProvider";
 import { useUser } from "../../../data/UserProvider";
 import { ROUTES } from "../../../navigation/routes";
-import { ScreenHeader, ACCENT } from "../data/Movementui";
+import { ScreenHeader } from "../data/Movementui";
 
 type Metric = "move" | "steps" | "energy";
 const utcDateKey = (date: Date) => date.toISOString().slice(0, 10);
@@ -155,7 +155,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
   scroll: { paddingHorizontal: 18, paddingBottom: 28 },
   userRow: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 8 },
-  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: ACCENT.purple, alignItems: "center", justifyContent: "center" },
+  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
   avatarText: { color: "#fff", fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
   hello: { color: theme.colors.muted, fontSize: 11, fontFamily: theme.typography.fontFamily },
   name: { color: theme.colors.text, fontSize: 15, fontFamily: theme.typography.fontFamilyBold },
@@ -187,7 +187,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   primaryButtonText: { color: theme.colors.onPrimary, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
   secondaryButton: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.border },
   secondaryButtonText: { color: theme.colors.text, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
-  error: { color: "#B42318", fontSize: 12, marginTop: 9, fontFamily: theme.typography.fontFamily },
+  error: { color: theme.colors.danger, fontSize: 12, marginTop: 9, fontFamily: theme.typography.fontFamily },
   empty: { alignItems: "center", gap: 8, padding: 20, borderRadius: 14, backgroundColor: theme.colors.card },
   emptyText: { color: theme.colors.muted, fontSize: 12, textAlign: "center", fontFamily: theme.typography.fontFamily },
   activityRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, marginBottom: 8, borderRadius: 13, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },

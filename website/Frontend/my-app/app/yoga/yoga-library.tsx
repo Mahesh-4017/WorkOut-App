@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiRequest, FeaturedCard, mediaUrl } from "../api";
 import { useWebsiteAuth } from "../website-auth";
+import { useWebsiteHydrationSignal } from "../website-motion";
 
 function YogaImage({ src, alt }: { src?: string; alt: string }) {
   const [failed, setFailed] = useState(false);
@@ -14,6 +15,7 @@ function YogaImage({ src, alt }: { src?: string; alt: string }) {
 }
 
 export default function YogaLibrary() {
+  useWebsiteHydrationSignal();
   const { user } = useWebsiteAuth();
   const [cards, setCards] = useState<FeaturedCard[]>([]);
   const [loading, setLoading] = useState(true);

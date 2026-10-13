@@ -9,13 +9,14 @@ import { ROUTES } from "../../../navigation/routes";
 import { GLASS_ML, useFood } from "../../../data/FoodProvider";
 import { PrimaryButton } from "../../../components/OnboardingUI";
 import { ProgressRing, ScreenHeader } from "../../running/data/Movementui";
-import { BLUE, BLUE_BG } from "../../../components/FoodUI";
+import { useHydrationColors } from "../../../components/FoodUI";
 
 export default function WaterTracker() {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
+  const hydrationColors = useHydrationColors();
   const { goals, waterMl, todayWater, addWater } = useFood();
-  const s = createStyles(theme);
+  const s = createStyles(theme, hydrationColors);
 
   const totalGlasses = Math.ceil(goals.water / GLASS_ML);
   const filled = Math.min(Math.floor(waterMl / GLASS_ML), totalGlasses);
@@ -34,7 +35,7 @@ export default function WaterTracker() {
             <Text style={s.liters}>{liters(waterMl)}</Text>
             <Text style={s.goal}>of {liters(goals.water)} daily goal</Text>
           </View>
-          <ProgressRing size={96} stroke={10} progress={waterMl / goals.water} color={BLUE}>
+          <ProgressRing size={96} stroke={10} progress={waterMl / goals.water} color={hydrationColors.foreground}>
             <Text style={s.pct}>{pct}%</Text>
             <Text style={s.pctSub}>hydrated</Text>
           </ProgressRing>
@@ -58,8 +59,8 @@ export default function WaterTracker() {
                 style={[s.glass, on && s.glassOn]}
                 accessibilityLabel={on ? "Glass logged" : "Log a glass"}
               >
-                <Ionicons name={on ? "water" : "water-outline"} size={20} color={on ? BLUE : theme.colors.muted} />
-                <Text style={[s.glassText, on && { color: BLUE }]}>{GLASS_ML} ml</Text>
+                <Ionicons name={on ? "water" : "water-outline"} size={20} color={on ? hydrationColors.foreground : theme.colors.muted} />
+                <Text style={[s.glassText, on && { color: hydrationColors.foreground }]}>{GLASS_ML} ml</Text>
               </Pressable>
             );
           })}
@@ -85,24 +86,24 @@ export default function WaterTracker() {
   );
 }
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, hydrationColors: { foreground: string; background: string }) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.background },
     scroll: { paddingHorizontal: 18, paddingBottom: 24 },
-    hero: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: BLUE_BG, borderRadius: 20, padding: 18, marginTop: 4 },
-    today: { color: "#4B6B8F", fontSize: 10, letterSpacing: 0.8, fontFamily: theme.typography.fontFamilyMedium },
-    liters: { color: BLUE, fontSize: 32, marginTop: 2, fontFamily: theme.typography.fontFamilyBold },
-    goal: { color: "#4B6B8F", fontSize: 11, fontFamily: theme.typography.fontFamily },
-    pct: { color: BLUE, fontSize: 20, fontFamily: theme.typography.fontFamilyBold },
-    pctSub: { color: "#4B6B8F", fontSize: 9, fontFamily: theme.typography.fontFamily },
+    hero: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: hydrationColors.background, borderRadius: 20, padding: 18, marginTop: 4 },
+    today: { color: hydrationColors.foreground, fontSize: 10, letterSpacing: 0.8, fontFamily: theme.typography.fontFamilyMedium },
+    liters: { color: hydrationColors.foreground, fontSize: 32, marginTop: 2, fontFamily: theme.typography.fontFamilyBold },
+    goal: { color: hydrationColors.foreground, fontSize: 11, fontFamily: theme.typography.fontFamily },
+    pct: { color: hydrationColors.foreground, fontSize: 20, fontFamily: theme.typography.fontFamilyBold },
+    pctSub: { color: hydrationColors.foreground, fontSize: 9, fontFamily: theme.typography.fontFamily },
     rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 22, marginBottom: 10 },
     heading: { color: theme.colors.text, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
     muted: { color: theme.colors.muted, fontSize: 11, fontFamily: theme.typography.fontFamily },
     grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
     glass: { width: "22.5%", aspectRatio: 1, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.card, alignItems: "center", justifyContent: "center", gap: 4 },
-    glassOn: { backgroundColor: BLUE_BG, borderColor: BLUE_BG },
+    glassOn: { backgroundColor: hydrationColors.background, borderColor: hydrationColors.background },
     glassText: { color: theme.colors.muted, fontSize: 10, fontFamily: theme.typography.fontFamilyMedium },
     logRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
     logTime: { color: theme.colors.muted, fontSize: 12, fontFamily: theme.typography.fontFamily },
-    logMl: { color: BLUE, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
+    logMl: { color: hydrationColors.foreground, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
   });

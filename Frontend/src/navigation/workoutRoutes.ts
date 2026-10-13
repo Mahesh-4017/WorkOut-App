@@ -14,6 +14,7 @@ export const WORKOUT_ROUTES = {
   INSTRUCTIONS: "ExerciseInstructions",
   VIDEO: "ExerciseVideo",
   SCHEDULE: "WorkoutSchedule",
+  PLANNER: "WorkoutPlanner",
   DATE_CLASSES: "DateClasses",
   CLASS_DETAILS: "ClassDetails",
   INSTRUCTORS: "Instructors",

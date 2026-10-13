@@ -13,11 +13,11 @@ export type Workout = {
 };
 
 export const TINTS = {
-  peach: "#FBE5C4",
-  lavender: "#E6DFF6",
-  mint: "#D8EEE0",
-  lime: "#DDF58B",
-  sage: "#DDE9E2",
+  peach: "#F0E8D8",
+  lavender: "#DCE5F0",
+  mint: "#DDE6D2",
+  lime: "#9CAF68",
+  sage: "#E3E7D5",
 };
 
 export const CATALOG: Workout[] = [
@@ -36,7 +36,7 @@ export const CATALOG: Workout[] = [
 ];
 
 export const COLLECTIONS = [
-  { id: "outdoor" as const, title: "Outdoor Workout Collection", meta: "Yoga · 8 classes", tint: "#DCE8D8" },
+  { id: "outdoor" as const, title: "Outdoor Workout Collection", meta: "Yoga · 8 classes", tint: TINTS.mint },
   { id: "mindful" as const, title: "Mindful Fitness Collection", meta: "Meditation · 9 classes", tint: TINTS.peach },
   { id: "essentials" as const, title: "The Velocity Essentials", meta: "Strength · 12 classes", tint: TINTS.sage },
 ];

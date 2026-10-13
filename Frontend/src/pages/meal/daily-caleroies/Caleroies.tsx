@@ -7,13 +7,15 @@ import { useTheme } from "../../../theme/ThemeProvider";
 import { ROUTES } from "../../../navigation/routes";
 import { useFood } from "../../../data/FoodProvider";
 import { ProgressRing, ScreenHeader } from "../../running/data/Movementui";
-import { BLUE_BG, MACRO_COLORS, MacroBox, BLUE } from "../../../components/FoodUI";
+import { MacroBox, useHydrationColors, useMacroColors } from "../../../components/FoodUI";
 
 export default function CalorieBreakdown() {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
+  const macroColors = useMacroColors();
+  const hydrationColors = useHydrationColors();
   const { totals, goals, waterMl } = useFood();
-  const s = createStyles(theme);
+  const s = createStyles(theme, hydrationColors);
 
   const remaining = Math.max(goals.kcal - totals.kcal, 0);
   const ratio = totals.kcal / goals.kcal;
@@ -45,7 +47,7 @@ export default function CalorieBreakdown() {
             </View>
             <View>
               <Text style={s.label}>REMAINING</Text>
-              <Text style={[s.big, { color: "#7B4EF0" }]}>
+              <Text style={[s.big, { color: theme.colors.primary }]}>
                 {remaining.toLocaleString()} <Text style={s.unit}>kcal</Text>
               </Text>
             </View>
@@ -53,9 +55,9 @@ export default function CalorieBreakdown() {
         </View>
 
         <View style={s.macros}>
-          <MacroBox label="Protein" grams={totals.protein} color={MACRO_COLORS.protein} />
-          <MacroBox label="Carbs" grams={totals.carbs} color={MACRO_COLORS.carbs} />
-          <MacroBox label="Fat" grams={totals.fat} color={MACRO_COLORS.fat} />
+          <MacroBox label="Protein" grams={totals.protein} color={macroColors.protein} />
+          <MacroBox label="Carbs" grams={totals.carbs} color={macroColors.carbs} />
+          <MacroBox label="Fat" grams={totals.fat} color={macroColors.fat} />
         </View>
 
         <View style={[s.water]}>
@@ -71,16 +73,16 @@ export default function CalorieBreakdown() {
         <View style={s.status}>
           <View>
             <Text style={s.label}>Calorie status</Text>
-            <Text style={[s.statusText, status === "Over" && { color: "#C2410C" }]}>{status}</Text>
+            <Text style={[s.statusText, status === "Over" && { color: theme.colors.warning }]}>{status}</Text>
           </View>
-          <ProgressRing size={64} stroke={8} progress={ratio} color={status === "Over" ? "#F59E2B" : "#6BB300"} />
+          <ProgressRing size={64} stroke={8} progress={ratio} color={status === "Over" ? theme.colors.warning : theme.colors.success} />
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, hydrationColors: { foreground: string; background: string }) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.background },
     scroll: { paddingHorizontal: 18, paddingBottom: 24 },
@@ -94,10 +96,10 @@ const createStyles = (theme: any) =>
     big: { color: theme.colors.text, fontSize: 20, fontFamily: theme.typography.fontFamilyBold },
     unit: { color: theme.colors.muted, fontSize: 12, fontFamily: theme.typography.fontFamily },
     macros: { flexDirection: "row", gap: 10, marginTop: 12 },
-    water: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: BLUE_BG, borderRadius: 14, padding: 14, marginTop: 12 },
-    waterTitle: { color: "#1B3A5C", fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
-    waterValue: { color: BLUE, fontSize: 16, marginTop: 2, fontFamily: theme.typography.fontFamilyBold },
-    waterPct: { color: BLUE, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
+    water: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: hydrationColors.background, borderRadius: 14, padding: 14, marginTop: 12 },
+    waterTitle: { color: hydrationColors.foreground, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
+    waterValue: { color: hydrationColors.foreground, fontSize: 16, marginTop: 2, fontFamily: theme.typography.fontFamilyBold },
+    waterPct: { color: hydrationColors.foreground, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
     status: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: theme.colors.card, borderRadius: 14, padding: 14, marginTop: 12, borderWidth: 1, borderColor: theme.colors.border },
-    statusText: { color: "#2F8A00", fontSize: 18, marginTop: 2, fontFamily: theme.typography.fontFamilyBold },
+    statusText: { color: theme.colors.success, fontSize: 18, marginTop: 2, fontFamily: theme.typography.fontFamilyBold },
   });

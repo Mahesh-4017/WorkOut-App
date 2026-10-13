@@ -10,9 +10,11 @@ import { useSchedule } from "../../../data/ScheduleProvider";
 import { useTheme } from "../../../theme/ThemeProvider";
 import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
 import { OnboardingHeader } from "../../../components/OnboardingUI";
+import { addDays } from "../../../data/classSchedule";
 
 const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const todayKey = () => dateKey(new Date());
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function DateClasses() {
   const navigation = useNavigation<any>();
@@ -27,6 +29,8 @@ export default function DateClasses() {
   const [selectedExercise, setSelectedExercise] = useState<PublicExercise | null>(null);
   const [time, setTime] = useState("18:00");
   const [duration, setDuration] = useState(30);
+  const [repeatDays, setRepeatDays] = useState<number[]>([]);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,10 +79,14 @@ export default function DateClasses() {
       setError("Choose a workout and enter a time in 24-hour format, such as 18:00.");
       return;
     }
+    if (reminderEnabled && !repeatDays.length && date === todayKey() && new Date(`${date}T${time}:00`).getTime() <= Date.now()) {
+      setError("Choose a future time for today's reminder.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      const saved = await addExercise(selectedExercise, date, time, duration);
+      const saved = await addExercise(selectedExercise, date, time, duration, repeatDays, reminderEnabled);
       if (saved) navigation.navigate(WORKOUT_ROUTES.SCHEDULE);
     } finally {
       setSaving(false);
@@ -90,6 +98,13 @@ export default function DateClasses() {
       <OnboardingHeader title="Plan a workout" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.heading}>Choose a day</Text>
+        <View style={styles.quickDates}>
+          {[["Today", todayKey()], ["Tomorrow", dateKey(addDays(new Date(), 1))]].map(([label, value]) => (
+            <Pressable key={label} onPress={() => setDate(value)} style={[styles.quickDate, date === value && styles.quickDateSelected]}>
+              <Text style={[styles.quickDateText, date === value && styles.filterSelectedText]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
           {dates.map(day => {
             const key = dateKey(day);
@@ -157,11 +172,41 @@ export default function DateClasses() {
             </View>
           </View>
         </View>
+        <Text style={styles.labelHeading}>Repeat every week (optional)</Text>
+        <View style={styles.weekdays}>
+          {WEEKDAYS.map((day, index) => {
+            const selected = repeatDays.includes(index);
+            return (
+              <Pressable
+                key={`weekday-${index}`}
+                onPress={() => setRepeatDays(current => selected ? current.filter(value => value !== index) : [...current, index].sort())}
+                style={[styles.weekdayButton, selected && styles.filterSelected]}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`${selected ? "Stop repeating on" : "Repeat on"} ${day}`}
+              >
+                <Text style={[styles.weekdayText, selected && styles.filterSelectedText]}>{day}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Pressable
+          onPress={() => setReminderEnabled(value => !value)}
+          style={styles.reminderRow}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: reminderEnabled }}
+        >
+          <Ionicons name={reminderEnabled ? "checkbox" : "square-outline"} size={20} color={theme.colors.primary} />
+          <View style={styles.reminderCopy}>
+            <Text style={styles.reminderTitle}>Remind me at this time</Text>
+            <Text style={styles.note}>Sends a device notification for each scheduled workout.</Text>
+          </View>
+        </Pressable>
         {scheduleError ? <Text style={styles.errorText}>{scheduleError}</Text> : null}
         <Pressable onPress={scheduleSelected} disabled={saving} style={[styles.saveButton, saving && styles.disabled]} accessibilityRole="button">
           <Text style={styles.saveText}>{saving ? "Saving…" : "Add to my schedule"}</Text>
         </Pressable>
-        <Text style={styles.note}>Schedules expire after their planned day.</Text>
+        <Text style={styles.note}>{repeatDays.length ? "Repeats weekly on the selected days until you remove it." : "You can plan for today, tomorrow, or any date shown above."}</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -172,6 +217,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   content: { paddingBottom: 28 },
   heading: { color: theme.colors.text, fontSize: 17, marginTop: 16, marginBottom: 10, fontFamily: theme.typography.fontFamilyBold },
   dateList: { gap: 8, paddingBottom: 4 },
+  quickDates: { flexDirection: "row", gap: 8, marginBottom: 10 },
+  quickDate: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+  quickDateSelected: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  quickDateText: { color: theme.colors.text, fontSize: 12, fontFamily: theme.typography.fontFamilyMedium },
   dateCard: { width: 58, paddingVertical: 10, alignItems: "center", borderRadius: 12, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
   dateCardSelected: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
   dateDay: { color: theme.colors.muted, fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
@@ -190,6 +239,13 @@ const createStyles = (theme: any) => StyleSheet.create({
   exerciseTitle: { color: theme.colors.text, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
   exerciseMeta: { color: theme.colors.muted, fontSize: 10, marginTop: 3, fontFamily: theme.typography.fontFamily },
   details: { flexDirection: "row", gap: 14, marginTop: 18 },
+  labelHeading: { color: theme.colors.text, fontSize: 12, marginTop: 18, marginBottom: 8, fontFamily: theme.typography.fontFamilyBold },
+  weekdays: { flexDirection: "row", justifyContent: "space-between", gap: 5 },
+  weekdayButton: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.card },
+  weekdayText: { color: theme.colors.text, fontSize: 10, fontFamily: theme.typography.fontFamilyMedium },
+  reminderRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16, padding: 12, borderRadius: 12, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+  reminderCopy: { flex: 1 },
+  reminderTitle: { color: theme.colors.text, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
   inputGroup: { flex: 1 },
   label: { color: theme.colors.text, fontSize: 12, marginBottom: 7, fontFamily: theme.typography.fontFamilyBold },
   input: { color: theme.colors.text, height: 42, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, paddingHorizontal: 12, backgroundColor: theme.colors.card },

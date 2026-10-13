@@ -1,8 +1,10 @@
 # WorkOut website
 
-This Next.js site mirrors the WorkOut app's Home, Explore, Collections,
-Calendar, and Profile pages. Published workout content and signed-in progress
-are loaded from the backend rather than duplicated in the website.
+This Next.js site mirrors the WorkOut app's Home, Explore, Collections, Yoga,
+Calendar/Planner, and Profile pages. Published workout content and signed-in
+progress are loaded from the backend rather than duplicated in the website.
+The shared responsive shell includes a site-wide footer, GSAP page reveals,
+and a first-visit welcome splash.
 
 ## Run locally
 
@@ -16,9 +18,9 @@ Open `http://localhost:3000`. The site defaults to the deployed API at
 `NEXT_PUBLIC_API_BASE_URL` to its absolute API base URL, for example
 `http://localhost:5000/api`.
 
-Sign in with an existing app account to view profile and progress data. Plans
-created on the website Calendar are saved to `/api/app/schedule` and shared
-with the signed-in app account.
+Sign in with an existing app account to view profile and progress data. Workout
+and full-day plans created on the website Calendar use `/api/app/schedule` and
+`/api/app/daily-plans` and are shared with the signed-in app account.
 
 ## Android download
 

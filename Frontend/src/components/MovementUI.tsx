@@ -1,5 +1,4 @@
 export {
-  ACCENT,
   PillTabs,
   ProgressRing,
   ScreenHeader,

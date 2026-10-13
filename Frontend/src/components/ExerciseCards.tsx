@@ -9,6 +9,7 @@ import {
 
 import { useNavigation } from "@react-navigation/native";
 import { ROUTES } from "../navigation/routes";
+import { useTheme } from "../theme/ThemeProvider";
 
 type Props = {
   exercise: {
@@ -25,6 +26,8 @@ export default function ExerciseCard({
 }: Props) {
 
   const navigation = useNavigation<any>();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
 
   return (
     <Pressable
@@ -98,18 +101,18 @@ export default function ExerciseCard({
 }
 
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
 
   card: {
     minHeight: 78,
 
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.colors.card,
 
     borderRadius: 15,
 
     borderWidth: 1,
 
-    borderColor: "#E8EDF5",
+    borderColor: theme.colors.border,
 
     padding: 10,
 
@@ -126,7 +129,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 12,
 
-    backgroundColor: "#EEF0FF",
+    backgroundColor: theme.colors.panel,
 
     alignItems: "center",
     justifyContent: "center",
@@ -139,7 +142,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#5865F2",
+    color: theme.colors.primary,
   },
 
   content: {
@@ -151,13 +154,13 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#111827",
+    color: theme.colors.text,
   },
 
   meta: {
     fontSize: 10,
 
-    color: "#64748B",
+    color: theme.colors.textSecondary,
 
     marginTop: 4,
   },
@@ -168,7 +171,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 10,
 
-    backgroundColor: "#F0F2FF",
+    backgroundColor: theme.colors.surface,
 
     alignItems: "center",
     justifyContent: "center",
@@ -179,7 +182,7 @@ const styles = StyleSheet.create({
   videoIcon: {
     fontSize: 11,
 
-    color: "#5865F2",
+    color: theme.colors.primary,
 
     marginLeft: 2,
   },
@@ -187,6 +190,6 @@ const styles = StyleSheet.create({
   arrow: {
     fontSize: 24,
 
-    color: "#94A3B8",
+    color: theme.colors.muted,
   },
 });

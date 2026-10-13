@@ -21,6 +21,7 @@ export default function YogaPage() {
   const { user } = useAuth();
   const styles = createStyles(theme);
   const [cards, setCards] = useState<ApiCard[]>([]);
+  const [featuredCards, setFeaturedCards] = useState<ApiCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +30,7 @@ export default function YogaPage() {
     setError(null);
     try {
       const allCards = await getAllPublicCards(user?.gender);
+      setFeaturedCards(allCards.slice(0, 6));
       setCards(allCards.filter(card =>
         card.category.trim().toLocaleLowerCase().includes("yoga") ||
         card.tags.some(tag => tag.trim().toLocaleLowerCase() === "yoga"),
@@ -56,6 +58,56 @@ export default function YogaPage() {
           onProfile={() => navigation.navigate(ROUTES.PROFILE)}
         />
         <Text style={styles.subtitle}>Published sessions for a calmer, more mobile day.</Text>
+
+        <View style={styles.featuredHeading}>
+          <View style={styles.featuredHeadingCopy}>
+            <Text style={styles.featuredTitle}>A little stronger today</Text>
+            <Text style={styles.featuredSubtitle}>Sessions from your studio library.</Text>
+          </View>
+          <Pressable
+            onPress={() => navigation.navigate(WORKOUT_ROUTES.EXPLORE)}
+            accessibilityRole="button"
+            accessibilityLabel="View all workouts"
+          >
+            <Text style={styles.viewAll}>View all ›</Text>
+          </Pressable>
+        </View>
+        {loading ? <Text style={styles.message}>Loading sessions…</Text> : null}
+        {!loading && featuredCards.length === 0 ? (
+          <Text style={styles.message}>Published sessions will appear here.</Text>
+        ) : null}
+        {featuredCards.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.featuredRow}
+          >
+            {featuredCards.map(card => (
+              <Pressable
+                key={card._id}
+                style={styles.featuredCard}
+                onPress={() => navigation.navigate(WORKOUT_ROUTES.YOGA_DETAILS, { card })}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${card.title}`}
+              >
+                <YogaCardImage
+                  thumbnailUrl={card.thumbnailUrl}
+                  title={card.title}
+                  imageStyle={styles.featuredImage}
+                  fallbackStyle={styles.imageFallback}
+                  fallbackLabelStyle={styles.fallbackLabel}
+                  iconColor={theme.colors.primary}
+                />
+                <View style={styles.featuredCardBody}>
+                  <Text numberOfLines={1} style={styles.featuredCardCategory}>{card.category}</Text>
+                  <Text numberOfLines={2} style={styles.featuredCardName}>{card.title}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
+
+        <Text style={styles.yogaSectionTitle}>Yoga sessions</Text>
         {loading ? <Text style={styles.message}>Loading published Yoga sessions…</Text> : null}
         {error ? (
           <View style={styles.empty}>
@@ -144,6 +196,18 @@ const createStyles = (theme: any) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
   content: { paddingHorizontal: 18, paddingBottom: 30 },
   subtitle: { color: theme.colors.muted, fontSize: 14, lineHeight: 20, marginBottom: 14, fontFamily: theme.typography.fontFamily },
+  featuredHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8, marginBottom: 12 },
+  featuredHeadingCopy: { flex: 1 },
+  featuredTitle: { color: theme.colors.text, fontSize: 17, fontFamily: theme.typography.fontFamilyBold },
+  featuredSubtitle: { color: theme.colors.muted, fontSize: 10, marginTop: 4, fontFamily: theme.typography.fontFamily },
+  viewAll: { color: theme.colors.primary, fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
+  featuredRow: { gap: 11, paddingBottom: 4 },
+  featuredCard: { width: 210, overflow: "hidden", borderRadius: 15, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+  featuredImage: { width: "100%", height: 118 },
+  featuredCardBody: { padding: 11 },
+  featuredCardCategory: { color: theme.colors.primary, fontSize: 9, letterSpacing: 0.5, fontFamily: theme.typography.fontFamilyBold },
+  featuredCardName: { color: theme.colors.text, fontSize: 13, lineHeight: 17, marginTop: 5, fontFamily: theme.typography.fontFamilyBold },
+  yogaSectionTitle: { color: theme.colors.text, fontSize: 17, marginTop: 24, fontFamily: theme.typography.fontFamilyBold },
   message: { color: theme.colors.muted, fontSize: 13, lineHeight: 19, fontFamily: theme.typography.fontFamily },
   retry: { color: theme.colors.primary, marginTop: 10, fontFamily: theme.typography.fontFamilyBold },
   empty: { alignItems: "center", gap: 8, padding: 24, borderRadius: 16, backgroundColor: theme.colors.card },

@@ -9,12 +9,13 @@ import { ROUTES } from "../../../navigation/routes";
 import { FOOD_ROUTES } from "../../../navigation/foodRoutes";
 import { MEALS, useFood } from "../../../data/FoodProvider";
 import { PrimaryButton } from "../../../components/OnboardingUI";
-import { ProgressRing, ScreenHeader, ACCENT } from "../../running/data/Movementui";
-import { MACRO_COLORS, MacroRing } from "../../../components/FoodUI";
+import { ProgressRing, ScreenHeader } from "../../running/data/Movementui";
+import { MacroRing, useMacroColors } from "../../../components/FoodUI";
 
 export default function FoodDiary() {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
+  const macroColors = useMacroColors();
   const { todayEntries, totals, goals, removeEntry } = useFood();
   const s = createStyles(theme);
 
@@ -31,7 +32,7 @@ export default function FoodDiary() {
             <Text style={s.date}>{dateLabel}</Text>
             <Text style={s.headline}>{over ? "A bit over today" : "Stay on track today"}</Text>
           </View>
-          <View style={[s.chip, over && { backgroundColor: "#FBE3D0" }]}>
+          <View style={[s.chip, { backgroundColor: over ? theme.colors.panelWarm : theme.colors.statsBackground }]}>
             <Text style={s.chipText}>{over ? "Over goal" : "On track"}</Text>
           </View>
         </View>
@@ -42,16 +43,16 @@ export default function FoodDiary() {
             <Text style={s.kcalSub}>of {goals.kcal.toLocaleString()} kcal</Text>
           </ProgressRing>
           <View style={s.macros}>
-            <MacroRing label="Protein" grams={totals.protein} goal={goals.protein} color={MACRO_COLORS.protein} />
-            <MacroRing label="Carbs" grams={totals.carbs} goal={goals.carbs} color={MACRO_COLORS.carbs} />
-            <MacroRing label="Fat" grams={totals.fat} goal={goals.fat} color={MACRO_COLORS.fat} />
+            <MacroRing label="Protein" grams={totals.protein} goal={goals.protein} color={macroColors.protein} />
+            <MacroRing label="Carbs" grams={totals.carbs} goal={goals.carbs} color={macroColors.carbs} />
+            <MacroRing label="Fat" grams={totals.fat} goal={goals.fat} color={macroColors.fat} />
           </View>
         </Pressable>
 
         <View style={s.sectionRow}>
           <Text style={s.sectionTitle}>Today's meals</Text>
           <Pressable onPress={() => navigation.navigate(FOOD_ROUTES.SCAN_INTRO)} style={s.scanLink}>
-            <Ionicons name="scan-outline" size={14} color={ACCENT.purple} />
+            <Ionicons name="scan-outline" size={14} color={theme.colors.primary} />
             <Text style={s.scanText}>Scan meal</Text>
           </Pressable>
         </View>
@@ -101,8 +102,8 @@ const createStyles = (theme: any) =>
     dateRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4 },
     date: { color: theme.colors.muted, fontSize: 11, fontFamily: theme.typography.fontFamily },
     headline: { color: theme.colors.text, fontSize: 16, marginTop: 2, fontFamily: theme.typography.fontFamilyBold },
-    chip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: "#FBEBC8" },
-    chipText: { color: "#7A4B00", fontSize: 10, fontFamily: theme.typography.fontFamilyBold },
+    chip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+    chipText: { color: theme.colors.primaryDark, fontSize: 10, fontFamily: theme.typography.fontFamilyBold },
     summary: {
       flexDirection: "row",
       alignItems: "center",
@@ -120,7 +121,7 @@ const createStyles = (theme: any) =>
     sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 22, marginBottom: 10 },
     sectionTitle: { color: theme.colors.text, fontSize: 16, fontFamily: theme.typography.fontFamilyBold },
     scanLink: { flexDirection: "row", alignItems: "center", gap: 4 },
-    scanText: { color: ACCENT.purple, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
+    scanText: { color: theme.colors.primary, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
     empty: { color: theme.colors.muted, fontSize: 13, lineHeight: 19, fontFamily: theme.typography.fontFamily },
     mealCard: { backgroundColor: theme.colors.card, borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
     mealHead: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },

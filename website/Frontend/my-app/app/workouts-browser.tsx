@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { apiRequest, BodyPart, Exercise, mediaUrl } from "./api";
+import { useWebsiteHydrationSignal } from "./website-motion";
 
 function ContentImage({ src, alt, className }: { src?: string; alt: string; className: string }) {
   const [failed, setFailed] = useState(false);
@@ -33,6 +34,7 @@ function videoEmbedUrl(value: string) {
 }
 
 export default function WorkoutsBrowser({ collections = false }: { collections?: boolean }) {
+  useWebsiteHydrationSignal();
   const [bodyParts, setBodyParts] = useState<BodyPart[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

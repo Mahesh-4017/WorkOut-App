@@ -1,11 +1,17 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../theme/ThemeProvider";
-import { ProgressRing, ACCENT } from "../pages/running/data/Movementui";
+import { ProgressRing } from "../pages/running/data/Movementui";
 
-export const MACRO_COLORS = { protein: ACCENT.orange, carbs: ACCENT.purple, fat: "#6BB300" };
-export const BLUE = "#2F7DE1";
-export const BLUE_BG = "#DCEBFB";
+export function useMacroColors() {
+  const { theme } = useTheme();
+  return { protein: theme.colors.accent, carbs: theme.colors.primary, fat: theme.colors.warning };
+}
+
+export function useHydrationColors() {
+  const { theme } = useTheme();
+  return { foreground: theme.colors.accent, background: theme.colors.panel };
+}
 
 /** Small ring with grams underneath, used for protein / carbs / fat. */
 export function MacroRing({ label, grams, goal, color }: { label: string; grams: number; goal: number; color: string }) {

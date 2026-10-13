@@ -61,6 +61,7 @@ import ExerciseInstructions from "../pages/workout/details/ExerciseInstructions"
 import ExerciseVideo from "../pages/workout/details/ExerciseVideo";
 import LibraryExerciseDetails from "../pages/workout/details/LibraryExerciseDetails";
 import WorkoutSchedule from "../pages/workout/schedule/WorkoutSchedule";
+import WorkoutPlanner from "../pages/workout/schedule/WorkoutPlanner";
 import DateClasses from "../pages/workout/schedule/DateClasses";
 import ClassDetails from "../pages/workout/schedule/ClassDetails";
 import Instructors from "../pages/workout/schedule/Instructors";
@@ -369,6 +370,11 @@ const RootStack = createNativeStackNavigator({
 
         [WORKOUT_ROUTES.SCHEDULE]: {
             screen: WorkoutSchedule,
+            options: { headerShown: false },
+        },
+
+        [WORKOUT_ROUTES.PLANNER]: {
+            screen: WorkoutPlanner,
             options: { headerShown: false },
         },
 

@@ -19,6 +19,7 @@ import {
   WeightRecord,
   WorkoutSessionRecord,
 } from "../api/progress";
+import { useAuth } from "../context/AuthContext";
 
 export type HistoryEntry = WorkoutSessionRecord;
 
@@ -91,6 +92,8 @@ export const fmtClock = (seconds: number, hours = true) => {
 };
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const authenticatedUserId = user?.id;
   const [active, setActive] = useState<Active | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [goals, setGoals] = useState<FitnessGoals | null>(null);
@@ -105,6 +108,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   historyRef.current = history;
 
   const refreshProgress = useCallback(async () => {
+    if (!authenticatedUserId) {
+      historyRef.current = [];
+      setHistory([]);
+      setGoals(null);
+      setWeightEntries([]);
+      setStepEntries([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -121,13 +135,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authenticatedUserId]);
 
   useEffect(() => {
-    refreshProgress().catch(loadError => {
-      console.error("Unable to load progress data from the backend.", loadError);
-    });
-  }, [refreshProgress]);
+    if (!authenticatedUserId) {
+      void refreshProgress();
+      return;
+    }
+    refreshProgress().catch(() => undefined);
+  }, [authenticatedUserId, refreshProgress]);
 
   const setCurrentActive = useCallback((next: Active | null) => {
     activeRef.current = next;

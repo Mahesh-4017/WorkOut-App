@@ -37,6 +37,17 @@ export type PlannedWorkout = {
   date: string;
   time: string;
   durationMinutes: number;
+  repeatDays?: number[];
+  reminderEnabled?: boolean;
+};
+export type DailyPlan = {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  repeatDays: number[];
+  reminderEnabled: boolean;
 };
 export type AppUser = {
   id: string;

@@ -98,7 +98,7 @@ export default function WorkoutCollections() {
                   <Text style={s.categoryCount}>{category.count}</Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </ScrollView>sh
           </View>
         ))}
       </ScrollView>

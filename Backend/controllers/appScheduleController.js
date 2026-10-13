@@ -10,18 +10,29 @@ function currentDateForOffset(offsetMinutes = 0) {
 
 function publicPlan(plan) {
   const { _id, user, __v, ...fields } = plan;
-  return { id: String(_id), ...fields };
+  return {
+    id: String(_id),
+    ...fields,
+    repeatDays: fields.repeatDays || [],
+    reminderEnabled: Boolean(fields.reminderEnabled)
+  };
 }
 
 async function list(req, res) {
   const offset = Number(req.query.timezoneOffsetMinutes || 0);
   const today = currentDateForOffset(offset);
-  const plans = await PlannedWorkout.find({ user: req.appUser._id, date: { $gte: today } }).sort({ date: 1, time: 1 }).lean();
+  const plans = await PlannedWorkout.find({
+    user: req.appUser._id,
+    $or: [
+      { date: { $gte: today } },
+      { repeatDays: { $exists: true, $ne: [] } }
+    ]
+  }).sort({ date: 1, time: 1 }).lean();
   return sendSuccess(res, 200, { items: plans.map(publicPlan) });
 }
 
 async function create(req, res) {
-  const { exerciseId, classId, title, bodyPart, category, date, time, durationMinutes } = req.body;
+  const { exerciseId, classId, title, bodyPart, category, date, time, durationMinutes, repeatDays, reminderEnabled } = req.body;
   if (!exerciseId && !classId) {
     return res.status(400).json({ success: false, message: 'Choose a published exercise to schedule' });
   }
@@ -42,7 +53,9 @@ async function create(req, res) {
     category: category || '',
     date,
     time,
-    durationMinutes: durationMinutes || 30
+    durationMinutes: durationMinutes || 30,
+    repeatDays: repeatDays || [],
+    reminderEnabled: Boolean(reminderEnabled)
   });
   return sendSuccess(res, 201, { item: publicPlan(plan.toObject()) }, 'Workout scheduled');
 }

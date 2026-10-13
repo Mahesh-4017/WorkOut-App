@@ -62,7 +62,7 @@ export function WorkoutRow({
           <Ionicons
             name={heartIcon ?? (favorite ? "heart" : "heart-outline")}
             size={18}
-            color={favorite || heartIcon ? "#E5484D" : text}
+            color={favorite || heartIcon ? theme.colors.danger : text}
           />
         </Pressable>
       ) : null}

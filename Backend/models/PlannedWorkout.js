@@ -9,7 +9,9 @@ const plannedWorkoutSchema = new mongoose.Schema({
   category: { type: String, trim: true, maxlength: 80, default: '' },
   date: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
   time: { type: String, required: true, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
-  durationMinutes: { type: Number, min: 1, max: 600, default: 30 }
+  durationMinutes: { type: Number, min: 1, max: 600, default: 30 },
+  repeatDays: { type: [Number], default: [] },
+  reminderEnabled: { type: Boolean, default: false }
 }, { timestamps: true });
 
 plannedWorkoutSchema.index({ user: 1, date: 1, time: 1 });

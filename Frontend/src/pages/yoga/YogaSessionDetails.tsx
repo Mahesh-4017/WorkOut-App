@@ -74,7 +74,7 @@ export default function YogaSessionDetails() {
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
         <OnboardingHeader
-          title="Yoga session"
+          title={card?.category || "Session details"}
           onBack={() => {
             if (navigation.canGoBack()) navigation.goBack();
             else navigation.navigate(ROUTES.YOGA);
@@ -128,7 +128,7 @@ export default function YogaSessionDetails() {
             ) : null}
             <View style={styles.note}>
               <Ionicons name="leaf-outline" size={18} color={theme.colors.primary} />
-              <Text style={styles.noteText}>Move at a comfortable pace and pause whenever you need.</Text>
+              <Text style={styles.noteText}>Follow along at a comfortable pace and pause whenever you need.</Text>
             </View>
           </>
         )}

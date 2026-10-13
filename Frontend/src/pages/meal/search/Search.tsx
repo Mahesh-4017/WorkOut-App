@@ -9,7 +9,6 @@ import { FOOD_ROUTES } from "../../../navigation/foodRoutes";
 import { POPULAR_FOODS, searchFoods } from "../../../api/nutrition";
 import { FoodItem, useFood } from "../../../data/FoodProvider";
 import { OnboardingHeader } from "../../../components/OnboardingUI";
-import { ACCENT } from "../../running/data/Movementui";
 
 export default function FoodSearch() {
   const navigation = useNavigation<any>();
@@ -124,11 +123,11 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.background, paddingHorizontal: 18 },
     scroll: { paddingBottom: 30 },
-    search: { flexDirection: "row", alignItems: "center", gap: 8, height: 44, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1.5, borderColor: ACCENT.purple, backgroundColor: theme.colors.surface },
+    search: { flexDirection: "row", alignItems: "center", gap: 8, height: 44, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1.5, borderColor: theme.colors.primary, backgroundColor: theme.colors.surface },
     input: { flex: 1, color: theme.colors.text, fontSize: 14, fontFamily: theme.typography.fontFamily },
     rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 18 },
     heading: { color: theme.colors.text, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
-    clear: { color: ACCENT.purple, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
+    clear: { color: theme.colors.primary, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
     chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: theme.colors.surfaceAlt ?? theme.colors.border },
     chipText: { color: theme.colors.text, fontSize: 12, fontFamily: theme.typography.fontFamily },

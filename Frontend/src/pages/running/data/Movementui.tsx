@@ -4,8 +4,6 @@ import Svg, { Circle } from "react-native-svg";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useTheme } from "../../../theme/ThemeProvider";
 
-export const ACCENT = { purple: "#7B4EF0", orange: "#F59E2B" };
-
 export function ScreenHeader({ title, onBell, onProfile, onBack }: { title: string; onBell?: () => void; onProfile?: () => void; onBack?: () => void }) {
   const { theme } = useTheme();
   const s = styles(theme);

@@ -22,6 +22,7 @@ const appProgressRoutes = require('./routes/appProgress');
 const mediaRoutes = require('./routes/media');
 const exerciseRoutes = require('./routes/exercises');
 const appScheduleRoutes = require('./routes/appSchedule');
+const appDailyPlanRoutes = require('./routes/appDailyPlans');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -73,6 +74,8 @@ app.use('/api/app/progress', appProgressRoutes);
 app.use('/api/v1/app/progress', appProgressRoutes);
 app.use('/api/app/schedule', appScheduleRoutes);
 app.use('/api/v1/app/schedule', appScheduleRoutes);
+app.use('/api/app/daily-plans', appDailyPlanRoutes);
+app.use('/api/v1/app/daily-plans', appDailyPlanRoutes);
 app.use('/api/nutrition', nutritionRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/exercises', exerciseRoutes);

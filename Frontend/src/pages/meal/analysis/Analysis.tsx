@@ -8,12 +8,13 @@ import { FOOD_ROUTES } from "../../../navigation/foodRoutes";
 import { analyzeMealImage, MealResult } from "../../../api/nutrition";
 import { defaultMeal, GOALS, useFood } from "../../../data/FoodProvider";
 import { OnboardingHeader, PrimaryButton } from "../../../components/OnboardingUI";
-import { MACRO_COLORS, MacroRing } from "../../../components/FoodUI";
+import { MacroRing, useMacroColors } from "../../../components/FoodUI";
 
 export default function MealAnalysis() {
   const navigation = useNavigation<any>();
   const { params } = useRoute<any>();
   const { theme } = useTheme();
+  const macroColors = useMacroColors();
   const { addEntry } = useFood();
   const s = createStyles(theme);
 
@@ -69,9 +70,9 @@ export default function MealAnalysis() {
             </View>
 
             <View style={s.macros}>
-              <MacroRing label="Protein" grams={result.protein} goal={GOALS.protein} color={MACRO_COLORS.protein} />
-              <MacroRing label="Carbs" grams={result.carbs} goal={GOALS.carbs} color={MACRO_COLORS.carbs} />
-              <MacroRing label="Fat" grams={result.fat} goal={GOALS.fat} color={MACRO_COLORS.fat} />
+              <MacroRing label="Protein" grams={result.protein} goal={GOALS.protein} color={macroColors.protein} />
+              <MacroRing label="Carbs" grams={result.carbs} goal={GOALS.carbs} color={macroColors.carbs} />
+              <MacroRing label="Fat" grams={result.fat} goal={GOALS.fat} color={macroColors.fat} />
             </View>
 
             <View style={s.scoreRow}>

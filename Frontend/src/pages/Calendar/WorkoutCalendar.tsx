@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
+import { useFocusEffect } from "@react-navigation/native";
 
 import {
   responsiveWidth,
@@ -20,6 +21,7 @@ import { useNavigation } from "@react-navigation/native";
 import { WORKOUT_ROUTES } from "../../navigation/workoutRoutes";
 import { useSchedule } from "../../data/ScheduleProvider";
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { weekdayName } from "../../utils/scheduleReminders";
 
 /* =========================================================
    Responsive Helpers
@@ -49,6 +51,10 @@ type Workout = {
   muscles: string;
   exercises: number;
   duration: string;
+  time: string;
+  repeatDays: number[];
+  reminderEnabled: boolean;
+  kind: "workout" | "day";
   icon: React.ComponentProps<typeof Ionicons>["name"];
   exerciseId?: string;
 };
@@ -67,7 +73,7 @@ const dateAtOffset = (days: number) => {
 export default function CalendarScreen({ selectedDate: initialDate }: { selectedDate?: string } = {}) {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
-  const { scheduled, loading, error, refresh } = useSchedule();
+  const { scheduled, dayPlans, loading, error, refresh, remove, removeDayPlan } = useSchedule();
 
   const styles = createStyles(theme);
 
@@ -81,6 +87,12 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
     }
   }, [initialDate]);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
+
   /* =========================================================
      Selected Workout
   ========================================================= */
@@ -93,9 +105,63 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
     muscles: [plan.bodyPart, plan.category].filter(Boolean).join(" • ") || "Workout",
     exercises: 1,
     duration: `${plan.durationMinutes} min`,
+    time: plan.time,
+    repeatDays: plan.repeatDays || [],
+    reminderEnabled: plan.reminderEnabled,
+    kind: "workout" as const,
     icon: "barbell-outline" as const,
     exerciseId: plan.exerciseId,
   })), [scheduled]);
+
+  const personalPlans = useMemo(() => dayPlans.flatMap(plan => {
+    const repeatsOnSelectedDate = selectedDate >= plan.date
+      && plan.repeatDays?.includes(new Date(`${selectedDate}T12:00:00`).getDay());
+    if (plan.repeatDays?.length ? !repeatsOnSelectedDate : plan.date !== selectedDate) return [];
+    return [{
+      id: plan.id,
+      date: selectedDate,
+      label: new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }),
+      name: plan.title,
+      muscles: plan.description || "Personal day plan",
+      exercises: 0,
+      duration: "",
+      time: plan.time,
+      repeatDays: plan.repeatDays || [],
+      reminderEnabled: plan.reminderEnabled,
+      kind: "day" as const,
+      icon: "calendar-outline" as const,
+    }];
+  }), [dayPlans, selectedDate]);
+
+  const upcomingPersonalPlans = useMemo(() => dayPlans.flatMap(plan => {
+    const lastDay = new Date(`${selectedDate}T12:00:00`);
+    lastDay.setDate(lastDay.getDate() + 30);
+    const firstDay = new Date(`${selectedDate}T12:00:00`);
+    const occurrences: Workout[] = [];
+    for (const day = new Date(firstDay); day <= lastDay; day.setDate(day.getDate() + 1)) {
+      const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+      const isDue = plan.repeatDays?.length
+        ? key >= plan.date && plan.repeatDays.includes(day.getDay())
+        : key === plan.date;
+      if (isDue && key !== selectedDate) {
+        occurrences.push({
+          id: plan.id,
+          date: key,
+          label: day.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }),
+          name: plan.title,
+          muscles: plan.description || "Personal day plan",
+          exercises: 0,
+          duration: "",
+          time: plan.time,
+          repeatDays: plan.repeatDays || [],
+          reminderEnabled: plan.reminderEnabled,
+          kind: "day",
+          icon: "calendar-outline",
+        });
+      }
+    }
+    return occurrences;
+  }), [dayPlans, selectedDate]);
 
   const selectedWorkouts = useMemo(
     () => workouts.filter(workout => workout.date === selectedDate),
@@ -112,11 +178,25 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
     /*
      * Add workout dots
      */
-    workouts.forEach((workout) => {
+    [...workouts, ...dayPlans.map(plan => ({
+      date: plan.date,
+      repeatDays: plan.repeatDays || [],
+    }))].forEach((workout) => {
       marks[workout.date] = {
         marked: true,
         dotColor: theme.colors.primary,
       };
+      workout.repeatDays.forEach(day => {
+        const start = new Date(`${workout.date}T12:00:00`);
+        const end = new Date();
+        end.setDate(end.getDate() + 365);
+        for (let occurrence = new Date(start); occurrence <= end; occurrence.setDate(occurrence.getDate() + 1)) {
+          if (occurrence.getDay() === day) {
+            const key = dateAtOffset(Math.round((occurrence.getTime() - new Date(`${dateAtOffset(0)}T12:00:00`).getTime()) / 86400000));
+            marks[key] = { ...(marks[key] || {}), marked: true, dotColor: theme.colors.primary };
+          }
+        }
+      });
     });
 
     /*
@@ -136,7 +216,7 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
       marked: !!workouts.find(
         (workout) =>
           workout.date === selectedDate
-      ),
+      ) || personalPlans.length > 0,
 
       dotColor:
         theme.colors.onPrimary,
@@ -146,6 +226,8 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
   }, [
     selectedDate,
     workouts,
+    dayPlans,
+    personalPlans.length,
     theme.colors,
   ]);
 
@@ -279,22 +361,65 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
               Selected Workout
           ================================================= */}
 
+          <Pressable
+            onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "workout", date: selectedDate })}
+            style={styles.planShortcut}
+            accessibilityRole="button"
+          >
+            <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary} />
+            <Text style={styles.planShortcutText}>Plan for {selectedDate === dateAtOffset(0) ? "today" : new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "long" })}</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
+          </Pressable>
           {loading ? <Text style={styles.workoutMuscles}>Loading your synced schedule…</Text> : null}
           {error ? (
-            <Pressable onPress={() => void refresh()} style={styles.workoutCard}>
+            <Pressable onPress={refresh} style={styles.workoutCard}>
               <Text style={styles.workoutMuscles}>{error} · Tap to retry</Text>
             </Pressable>
           ) : null}
-          {!loading && selectedWorkouts.length === 0 ? <EmptyWorkoutCard styles={styles} /> : null}
+          {!loading && selectedWorkouts.length === 0 ? (
+            <EmptyWorkoutCard
+              styles={styles}
+              onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "workout", date: selectedDate })}
+            />
+          ) : null}
           {selectedWorkouts.map(workout => (
             <WorkoutCard
               key={workout.id}
               workout={workout}
               selected
               styles={styles}
+              onRemove={() => remove(workout.id)}
               onPress={() => workout.exerciseId
                 ? navigation.navigate(WORKOUT_ROUTES.LIBRARY_EXERCISE, { exerciseId: workout.exerciseId })
                 : navigation.navigate(WORKOUT_ROUTES.SCHEDULE)}
+            />
+          ))}
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Personal plans</Text>
+            <Pressable
+              hitSlop={10}
+              onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: selectedDate })}
+              accessibilityRole="button"
+            >
+              <Text style={styles.viewAll}>+ Add plan</Text>
+            </Pressable>
+          </View>
+          {!loading && personalPlans.length === 0 ? (
+            <EmptyWorkoutCard
+              styles={styles}
+              personal
+              onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: selectedDate })}
+            />
+          ) : null}
+          {personalPlans.map(plan => (
+            <WorkoutCard
+              key={`${plan.id}-${plan.date}`}
+              workout={plan}
+              selected
+              styles={styles}
+              onRemove={() => removeDayPlan(plan.id)}
+              onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: plan.date })}
             />
           ))}
 
@@ -306,12 +431,12 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
             Upcoming
           </Text>
 
-          {workouts
+          {[...workouts, ...upcomingPersonalPlans]
             .filter(workout => workout.date >= selectedDate)
             .filter(workout => workout.date !== selectedDate)
             .map((workout) => (
               <WorkoutCard
-                key={workout.id}
+                key={`${workout.kind}-${workout.id}-${workout.date}`}
                 workout={workout}
                 selected={false}
                 styles={styles}
@@ -336,11 +461,13 @@ function WorkoutCard({
   workout,
   selected,
   onPress,
+  onRemove,
   styles,
 }: {
   workout: Workout;
   selected: boolean;
   onPress: () => void;
+  onRemove?: () => void;
   styles: any;
 }) {
   return (
@@ -391,13 +518,9 @@ function WorkoutCard({
 
         <View style={styles.workoutMeta}>
           <Text style={styles.metaText}>
-            {workout.exercises} exercises
-          </Text>
-
-          <View style={styles.metaDot} />
-
-          <Text style={styles.metaText}>
-            {workout.duration}
+            {workout.kind === "workout"
+              ? `${workout.exercises} exercise${workout.exercises === 1 ? "" : "s"} · ${workout.duration}`
+              : `${workout.time}${workout.repeatDays.length ? ` · Every ${workout.repeatDays.map(weekdayName).join(", ")}` : ""}${workout.reminderEnabled ? " · Reminder on" : ""}`}
           </Text>
         </View>
       </View>
@@ -405,6 +528,16 @@ function WorkoutCard({
       {/* Arrow */}
 
       <View style={styles.arrowContainer}>
+        {onRemove ? (
+          <Pressable
+            onPress={event => { event.stopPropagation(); onRemove(); }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${workout.name}`}
+          >
+            <Ionicons name="trash-outline" size={17} color={styles.colors.muted} />
+          </Pressable>
+        ) : null}
         <Ionicons name="chevron-forward" size={19} color={styles.colors.icon} />
       </View>
     </Pressable>
@@ -417,11 +550,15 @@ function WorkoutCard({
 
 function EmptyWorkoutCard({
   styles,
+  onPress,
+  personal = false,
 }: {
   styles: any;
+  onPress: () => void;
+  personal?: boolean;
 }) {
   return (
-    <View style={styles.emptyCard}>
+    <Pressable onPress={onPress} style={styles.emptyCard} accessibilityRole="button">
       {/* Icon */}
 
       <View style={styles.emptyIcon}>
@@ -432,24 +569,22 @@ function EmptyWorkoutCard({
 
       <View style={styles.emptyContent}>
         <Text style={styles.emptyTitle}>
-          No workout planned
+          {personal ? "No personal plans" : "No workout planned"}
         </Text>
 
         <Text style={styles.emptyText}>
-          Add a workout for this day
+          {personal ? "Add a reminder, activity, or note for this day" : "Add a workout for this day"}
         </Text>
       </View>
 
       {/* Add */}
 
-      <Pressable
-        style={styles.addButton}
-      >
+      <View style={styles.addButton}>
         <Text style={styles.addButtonText}>
           Add
         </Text>
-      </Pressable>
-    </View>
+      </View>
+    </Pressable>
   );
 }
 
@@ -582,6 +717,26 @@ const createStyles = (theme: any) =>
 
       color:
         theme.colors.text,
+    },
+
+    planShortcut: {
+      minHeight: rh(43),
+      flexDirection: "row",
+      alignItems: "center",
+      gap: rw(8),
+      paddingHorizontal: rw(12),
+      marginTop: rh(10),
+      borderRadius: rw(12),
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+
+    planShortcutText: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: rf(10),
+      fontWeight: "700",
     },
 
     viewAll: {

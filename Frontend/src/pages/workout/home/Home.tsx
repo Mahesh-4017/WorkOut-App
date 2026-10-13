@@ -18,9 +18,9 @@ export default function WorkoutHub() {
   const { theme } = useTheme();
   const { scheduled, loading, error, refresh } = useSchedule();
   const styles = createStyles(theme);
-  const orange = theme.dark ? "#FFB454" : "#C65F00";
-  const orangeSurface = theme.dark ? "#3B2A1B" : "#FFF0D9";
-  const orangeText = theme.dark ? "#FFE0B9" : "#8A4100";
+  const orange = theme.colors.primary;
+  const orangeSurface = theme.colors.panelWarm;
+  const orangeText = theme.colors.primaryDark;
 
   useFocusEffect(
     React.useCallback(() => {
@@ -97,6 +97,16 @@ export default function WorkoutHub() {
           </Pressable>
         </View>
 
+        <Pressable
+          onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER)}
+          style={styles.plannerShortcut}
+          accessibilityRole="button"
+        >
+          <Ionicons name="calendar-outline" size={17} color={orange} />
+          <Text style={[styles.plannerShortcutText, { color: orange }]}>Plan a workout or your full day</Text>
+          <Ionicons name="arrow-forward" size={15} color={orange} />
+        </Pressable>
+
         {loading ? <Text style={styles.message}>Loading your schedule…</Text> : null}
         {!loading && error ? (
           <Pressable onPress={refresh} style={styles.messageCard} accessibilityRole="button">
@@ -112,11 +122,11 @@ export default function WorkoutHub() {
             <Text style={styles.emptyTitle}>Nothing planned yet</Text>
             <Text style={styles.emptyText}>Add a workout to your schedule and it will appear here.</Text>
             <Pressable
-              onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE)}
+              onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER)}
               style={styles.scheduleButton}
               accessibilityRole="button"
             >
-              <Text style={[styles.scheduleButtonText, { color: orange }]}>Plan a workout</Text>
+              <Text style={[styles.scheduleButtonText, { color: orange }]}>Plan your day</Text>
               <Ionicons name="arrow-forward" size={15} color={orange} />
             </Pressable>
           </View>
@@ -160,13 +170,13 @@ const createStyles = (theme: any) =>
       marginTop: 11,
       padding: 18,
       borderRadius: 20,
-      backgroundColor: theme.dark ? "#3B2A1B" : "#FFF0D9",
+      backgroundColor: theme.colors.panelWarm,
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
     heroCopy: { paddingRight: 55 },
     eyebrow: {
-      color: theme.dark ? "#FFB454" : "#C65F00",
+      color: theme.colors.primary,
       fontSize: 9,
       letterSpacing: 1.1,
       fontFamily: theme.typography.fontFamilyBold,
@@ -194,7 +204,7 @@ const createStyles = (theme: any) =>
       borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.dark ? "#FFB454" : "#C65F00",
+      backgroundColor: theme.colors.primary,
     },
     startButton: {
       minHeight: 43,
@@ -204,10 +214,10 @@ const createStyles = (theme: any) =>
       gap: 8,
       marginTop: 16,
       borderRadius: 13,
-      backgroundColor: theme.dark ? "#FFB454" : "#C65F00",
+      backgroundColor: theme.colors.primary,
     },
     startButtonText: {
-      color: theme.dark ? "#2B1A08" : "#FFFFFF",
+      color: theme.colors.onPrimary,
       fontSize: 12,
       fontFamily: theme.typography.fontFamilyBold,
     },
@@ -222,11 +232,11 @@ const createStyles = (theme: any) =>
     sectionCopy: { flex: 1 },
     sectionTitle: { color: theme.colors.text, fontSize: 17, fontFamily: theme.typography.fontFamilyBold },
     sectionSubtitle: { color: theme.colors.muted, fontSize: 10, marginTop: 4, fontFamily: theme.typography.fontFamily },
-    viewAll: { color: theme.dark ? "#FFB454" : "#C65F00", fontSize: 10, fontFamily: theme.typography.fontFamilyBold },
+    viewAll: { color: theme.colors.primary, fontSize: 10, fontFamily: theme.typography.fontFamilyBold },
     message: { color: theme.colors.muted, fontSize: 12, paddingVertical: 16, fontFamily: theme.typography.fontFamily },
     messageCard: { padding: 14, borderRadius: 14, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
     messageText: { color: theme.colors.text, fontSize: 11, lineHeight: 16, fontFamily: theme.typography.fontFamily },
-    retry: { color: theme.dark ? "#FFB454" : "#C65F00", fontSize: 11, marginTop: 8, fontFamily: theme.typography.fontFamilyBold },
+    retry: { color: theme.colors.primary, fontSize: 11, marginTop: 8, fontFamily: theme.typography.fontFamilyBold },
     emptyCard: {
       alignItems: "center",
       paddingHorizontal: 22,
@@ -240,7 +250,20 @@ const createStyles = (theme: any) =>
     emptyTitle: { color: theme.colors.text, fontSize: 14, marginTop: 11, fontFamily: theme.typography.fontFamilyBold },
     emptyText: { color: theme.colors.muted, fontSize: 10, lineHeight: 15, textAlign: "center", marginTop: 5, fontFamily: theme.typography.fontFamily },
     scheduleButton: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 14 },
-    scheduleButtonText: { color: theme.dark ? "#FFB454" : "#C65F00", fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
+    scheduleButtonText: { color: theme.colors.primary, fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
+    plannerShortcut: {
+      minHeight: 43,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 12,
+      marginTop: 9,
+      borderRadius: 12,
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    plannerShortcutText: { flex: 1, fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
     workoutCard: {
       minHeight: 78,
       flexDirection: "row",
@@ -256,6 +279,6 @@ const createStyles = (theme: any) =>
     workoutIcon: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 13 },
     workoutCopy: { flex: 1 },
     workoutTitle: { color: theme.colors.text, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
-    workoutMeta: { color: theme.dark ? "#FFE0B9" : "#8A4100", fontSize: 10, marginTop: 4, fontFamily: theme.typography.fontFamilyMedium },
+    workoutMeta: { color: theme.colors.primaryDark, fontSize: 10, marginTop: 4, fontFamily: theme.typography.fontFamilyMedium },
     duration: { color: theme.colors.muted, fontSize: 9, marginTop: 3, fontFamily: theme.typography.fontFamily },
   });

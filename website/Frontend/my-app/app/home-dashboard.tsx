@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { apiRequest, Exercise, FeaturedCard, mediaUrl, PlannedWorkout, ProgressData } from "./api";
 import { useWebsiteAuth } from "./website-auth";
+import { useWebsiteHydrationSignal } from "./website-motion";
 
 function HomeImage({ src, alt, className = "featured-image" }: { src?: string; alt: string; className?: string }) {
   const [failed, setFailed] = useState(false);
@@ -14,6 +15,7 @@ function HomeImage({ src, alt, className = "featured-image" }: { src?: string; a
 }
 
 export default function HomeDashboard() {
+  useWebsiteHydrationSignal();
   const { user, token, ready } = useWebsiteAuth();
   const [cards, setCards] = useState<FeaturedCard[]>([]);
   const [cardsError, setCardsError] = useState("");
@@ -106,9 +108,20 @@ export default function HomeDashboard() {
           <span className="eyebrow"><span className="live-dot" />YOUR MOVEMENT, YOUR PACE</span>
           <h1>{greeting}{user ? `, ${user.name.split(" ")[0]}` : ""}.<br /><em>Ready to move?</em></h1>
           <p>Find a workout that fits today, build consistency, and keep your progress moving forward.</p>
-          <div className="hero-actions"><Link className="button button-primary" href="/workouts">Explore workouts <span aria-hidden="true">→</span></Link><Link className="button button-light" href="/calendar">Open calendar <span aria-hidden="true">→</span></Link></div>
+          <div className="hero-actions"><Link className="button button-primary" href="/workouts">Explore workouts <span aria-hidden="true">→</span></Link><Link className="button button-light" href="/calendar">Plan your day <span aria-hidden="true">→</span></Link></div>
         </div>
-        <div className="welcome-art" aria-hidden="true"><div className="welcome-sun" /><span className="welcome-art-label">SHOW UP<br />FOR YOURSELF</span></div>
+        <div className="welcome-art" aria-hidden="true">
+          <div className="welcome-orbit welcome-orbit-one" />
+          <div className="welcome-orbit welcome-orbit-two" />
+          <div className="welcome-sun" />
+          <div className="welcome-art-card">
+            <div className="welcome-art-heading"><span>YOUR NEXT MOVE</span><span>01 — 03</span></div>
+            <div className="welcome-art-row"><span className="welcome-art-icon">↗</span><span><strong>Build strength</strong><small>Explore workouts</small></span><b>01</b></div>
+            <div className="welcome-art-row"><span className="welcome-art-icon">✳</span><span><strong>Find your flow</strong><small>Move with Yoga</small></span><b>02</b></div>
+            <div className="welcome-art-row"><span className="welcome-art-icon">▦</span><span><strong>Make a plan</strong><small>Shape your day</small></span><b>03</b></div>
+            <div className="welcome-art-footer"><span /> SHOW UP FOR YOURSELF</div>
+          </div>
+        </div>
       </section>
 
       <section className="dashboard-section">

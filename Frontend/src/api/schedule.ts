@@ -10,10 +10,24 @@ export type PlannedWorkout = {
   date: string;
   time: string;
   durationMinutes: number;
+  repeatDays: number[];
+  reminderEnabled: boolean;
 };
 
 type PlannedWorkoutInput = Omit<PlannedWorkout, "id">;
 type ScheduleResponse<T> = { data: T };
+
+export type DailyPlan = {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  repeatDays: number[];
+  reminderEnabled: boolean;
+};
+
+type DailyPlanInput = Omit<DailyPlan, "id">;
 
 export async function getPlannedWorkouts(timezoneOffsetMinutes = new Date().getTimezoneOffset()) {
   try {
@@ -43,6 +57,37 @@ export async function createPlannedWorkout(
 export async function deletePlannedWorkout(id: string) {
   try {
     await apiClient.delete(`/app/schedule/${encodeURIComponent(id)}`);
+  } catch (error) {
+    throw new Error(apiErrorMessage(error));
+  }
+}
+
+export async function getDailyPlans(timezoneOffsetMinutes = new Date().getTimezoneOffset()) {
+  try {
+    const response = await apiClient.get<ScheduleResponse<{ items: DailyPlan[] }>>(
+      `/app/daily-plans?timezoneOffsetMinutes=${timezoneOffsetMinutes}`,
+    );
+    return response.data.data.items;
+  } catch (error) {
+    throw new Error(apiErrorMessage(error));
+  }
+}
+
+export async function createDailyPlan(plan: DailyPlanInput) {
+  try {
+    const response = await apiClient.post<ScheduleResponse<{ item: DailyPlan }>>("/app/daily-plans", {
+      ...plan,
+      timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+    });
+    return response.data.data.item;
+  } catch (error) {
+    throw new Error(apiErrorMessage(error));
+  }
+}
+
+export async function deleteDailyPlan(id: string) {
+  try {
+    await apiClient.delete(`/app/daily-plans/${encodeURIComponent(id)}`);
   } catch (error) {
     throw new Error(apiErrorMessage(error));
   }

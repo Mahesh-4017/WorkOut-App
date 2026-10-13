@@ -31,7 +31,7 @@ export const lightColors = {
 
   // Status
   success: "#32C76B",
-  danger: "#FF5252",
+  danger: "#32C768",
   warning: "#B8873D",
 };
 
@@ -69,6 +69,6 @@ export const darkColors = {
 
   // Status
   success: "#45E06F",
-  danger: "#FF5C5C",
+  danger: "#45E06F",
   warning: "#E2B465",
 };

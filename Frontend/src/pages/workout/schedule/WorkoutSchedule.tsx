@@ -17,9 +17,9 @@ export default function WorkoutSchedule() {
   const { theme } = useTheme();
   const { scheduled, dates, remove, error, loading, refresh } = useSchedule();
   const styles = createStyles(theme);
-  const orange = theme.dark ? "#FFB454" : "#C65F00";
-  const orangeSurface = theme.dark ? "#3B2A1B" : "#FFF0D9";
-  const orangeText = theme.dark ? "#FFE0B9" : "#8A4100";
+  const orange = theme.colors.primary;
+  const orangeSurface = theme.colors.panelWarm;
+  const orangeText = theme.colors.primaryDark;
   const todayKey = toKey(new Date());
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -82,7 +82,7 @@ export default function WorkoutSchedule() {
           </View>
 
           <View style={styles.weekRow}>
-            {WEEKDAYS.map(day => <Text key={day} style={styles.weekday}>{day}</Text>)}
+            {WEEKDAYS.map((day, index) => <Text key={`weekday-${index}`} style={styles.weekday}>{day}</Text>)}
           </View>
 
           {cells.map((row, rowIndex) => (
@@ -177,12 +177,12 @@ export default function WorkoutSchedule() {
 
       <View style={styles.bottom}>
         <Pressable
-          onPress={() => openDate(todayKey)}
+          onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER)}
           style={[styles.addButton, { backgroundColor: orange }]}
           accessibilityRole="button"
         >
           <Ionicons name="add" size={20} color={theme.dark ? "#2B1A08" : "#FFFFFF"} />
-          <Text style={styles.addButtonText}>Add to schedule</Text>
+          <Text style={styles.addButtonText}>Plan workout or full day</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -209,7 +209,7 @@ const createStyles = (theme: any) =>
     legendText: { color: theme.colors.muted, fontSize: 10, marginRight: 8, fontFamily: theme.typography.fontFamily },
     rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 20, marginBottom: 10 },
     heading: { color: theme.colors.text, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
-    count: { color: theme.dark ? "#FFB454" : "#C65F00", fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
+    count: { color: theme.colors.primary, fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
     empty: { color: theme.colors.muted, fontSize: 12, fontFamily: theme.typography.fontFamily },
     item: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.colors.card, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.colors.border },
     itemIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },

@@ -206,7 +206,7 @@ export function ProgressBarChart({
       <View style={[styles.chartBars, { height }]}>
         {values.map((value, index) => (
           <View
-            key={labels?.[index] ?? index}
+            key={`bar-${index}`}
             style={[
               styles.chartBar,
               {

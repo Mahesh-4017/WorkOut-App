@@ -16,6 +16,7 @@ type AppHeaderProps = {
   showBack?: boolean;
   rightIcon?: React.ReactNode;
   onRightPress?: () => void;
+  rightAccessibilityLabel?: string;
 };
 
 export default function AppHeader({
@@ -24,14 +25,15 @@ export default function AppHeader({
   showBack = true,
   rightIcon,
   onRightPress,
+  rightAccessibilityLabel = "Header action",
 }: AppHeaderProps) {
   const navigation = useNavigation<NavigationProp<any>>();
   const { theme } = useTheme();
   const styles = StyleSheet.create({
     header: { height: 86, flexDirection: "row", alignItems: "flex-end", paddingBottom: 7, paddingHorizontal: 15, backgroundColor: theme.colors.background },
-    backSlot: { width: 40, alignItems: "flex-start", justifyContent: "center" },
+    backSlot: { width: showBack ? 40 : 0, alignItems: "flex-start", justifyContent: "center" },
     backText: { fontFamily: theme.typography.fontFamily, fontSize: theme.typography.sizes.display, color: theme.colors.text, fontWeight: "400" },
-    titleGroup: { flex: 1, paddingLeft: 10 },
+    titleGroup: { flex: 1, paddingLeft: showBack ? 10 : 0 },
     title: { fontFamily: theme.typography.fontFamilyBold, fontSize: theme.typography.sizes.xl, fontWeight: theme.typography.weights.heavy, color: theme.colors.text },
     description: { marginTop: 1, fontFamily: theme.typography.fontFamily, fontSize: theme.typography.sizes.xs, fontWeight: theme.typography.weights.regular, color: theme.colors.textSecondary },
     rightSlot: { width: 45, alignItems: "flex-end" },
@@ -47,6 +49,8 @@ export default function AppHeader({
           <Pressable
             onPress={() => navigation.goBack()}
             hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
           >
             <Text style={styles.backText}>
               ‹
@@ -76,6 +80,8 @@ export default function AppHeader({
   <Pressable
     onPress={onRightPress}
     hitSlop={10}
+    accessibilityRole="button"
+    accessibilityLabel={rightAccessibilityLabel}
   >
     <View style={styles.rightButton}>
       <Text style={styles.rightText}>

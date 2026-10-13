@@ -19,6 +19,9 @@ router.post('/', [
   body().custom(value => Boolean(value.exerciseId || value.classId)).withMessage('Choose a published exercise to schedule'),
   body('time').matches(/^([01]\d|2[0-3]):[0-5]\d$/),
   body('durationMinutes').optional().isInt({ min: 1, max: 600 }),
+  body('repeatDays').optional().isArray({ max: 7 }),
+  body('repeatDays.*').optional().isInt({ min: 0, max: 6 }),
+  body('reminderEnabled').optional().isBoolean(),
   body('timezoneOffsetMinutes').optional().isInt({ min: -720, max: 840 })
 ], validate, asyncRoute(controller.create));
 router.delete('/:id', param('id').isMongoId(), validate, asyncRoute(controller.remove));

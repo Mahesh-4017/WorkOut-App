@@ -7,14 +7,14 @@ import { useTheme } from "../../../theme/ThemeProvider";
 import { FOOD_ROUTES } from "../../../navigation/foodRoutes";
 import { defaultMeal, FoodItem, MealType, MEALS, useFood } from "../../../data/FoodProvider";
 import { OnboardingHeader, PrimaryButton } from "../../../components/OnboardingUI";
-import { MACRO_COLORS, MacroBox } from "../../../components/FoodUI";
-import { ACCENT } from "../../running/data/Movementui";
+import { MacroBox, useMacroColors } from "../../../components/FoodUI";
 
 export default function AddFood() {
   const navigation = useNavigation<any>();
   const { params } = useRoute<any>();
   const food: FoodItem = params.food;
   const { theme } = useTheme();
+  const macroColors = useMacroColors();
   const { addEntry } = useFood();
   const s = createStyles(theme);
 
@@ -68,9 +68,9 @@ export default function AddFood() {
         </View>
 
         <View style={s.macros}>
-          <MacroBox label="Protein" grams={scale(food.protein)} color={MACRO_COLORS.protein} />
-          <MacroBox label="Carbs" grams={scale(food.carbs)} color={MACRO_COLORS.carbs} />
-          <MacroBox label="Fat" grams={scale(food.fat)} color={MACRO_COLORS.fat} />
+          <MacroBox label="Protein" grams={scale(food.protein)} color={macroColors.protein} />
+          <MacroBox label="Carbs" grams={scale(food.carbs)} color={macroColors.carbs} />
+          <MacroBox label="Fat" grams={scale(food.fat)} color={macroColors.fat} />
         </View>
 
         <Text style={[s.heading, { marginTop: 18 }]}>Add to meal</Text>
@@ -97,7 +97,7 @@ const createStyles = (theme: any) =>
     hero: { alignItems: "center", backgroundColor: theme.colors.surfaceAlt ?? theme.colors.card, borderRadius: 18, padding: 20, marginTop: 6 },
     heroName: { color: theme.colors.text, fontSize: 16, textAlign: "center", fontFamily: theme.typography.fontFamilyBold },
     heroSub: { color: theme.colors.muted, fontSize: 11, marginTop: 2, fontFamily: theme.typography.fontFamily },
-    heroKcal: { color: ACCENT.purple, fontSize: 24, marginTop: 6, fontFamily: theme.typography.fontFamilyBold },
+    heroKcal: { color: theme.colors.primary, fontSize: 24, marginTop: 6, fontFamily: theme.typography.fontFamilyBold },
     heading: { color: theme.colors.text, fontSize: 14, marginTop: 18, marginBottom: 10, fontFamily: theme.typography.fontFamilyBold },
     field: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: theme.colors.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: theme.colors.border },
     fieldLabel: { color: theme.colors.muted, fontSize: 12, fontFamily: theme.typography.fontFamily },

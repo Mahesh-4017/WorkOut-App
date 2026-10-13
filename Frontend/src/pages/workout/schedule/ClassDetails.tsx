@@ -9,7 +9,6 @@ import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
 import { CLASSES, fromKey, instructorName, toKey } from "../../../data/classSchedule";
 import { useSchedule } from "../../../data/ScheduleProvider";
 import { OnboardingHeader, PrimaryButton } from "../../../components/OnboardingUI";
-import { ACCENT } from "../../../components/MovementUI";
 import { DARK_TEXT } from "../../../components/WorkoutUI";
 
 export default function ClassDetails() {
@@ -96,7 +95,7 @@ export default function ClassDetails() {
           style={styles.scheduleRow}
           accessibilityRole="button"
         >
-          <Ionicons name={entry ? "calendar" : "calendar-outline"} size={16} color={ACCENT.purple} />
+          <Ionicons name={entry ? "calendar" : "calendar-outline"} size={16} color={theme.colors.primary} />
           <Text style={styles.scheduleText}>
             {entry
               ? `Scheduled for ${dateText}, ${entry.time} (tap to remove)`
@@ -134,7 +133,7 @@ const createStyles = (theme: any) =>
     done: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: theme.colors.surfaceAlt ?? theme.colors.card, borderRadius: 10, padding: 10, marginTop: 14 },
     doneText: { color: theme.colors.text, fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
     scheduleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14 },
-    scheduleText: { flex: 1, color: ACCENT.purple, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
+    scheduleText: { flex: 1, color: theme.colors.primary, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
     scheduleError: { color: "#A63737", fontSize: 11, lineHeight: 16, marginTop: 8, fontFamily: theme.typography.fontFamilyMedium },
     bottom: { paddingBottom: 16, paddingTop: 8 },
   });

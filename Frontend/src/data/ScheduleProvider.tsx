@@ -1,39 +1,94 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { createPlannedWorkout, deletePlannedWorkout, getPlannedWorkouts, PlannedWorkout } from "../api/schedule";
+import {
+  createDailyPlan,
+  createPlannedWorkout,
+  DailyPlan,
+  deleteDailyPlan,
+  deletePlannedWorkout,
+  getDailyPlans,
+  getPlannedWorkouts,
+  PlannedWorkout,
+} from "../api/schedule";
 import { useAuth } from "../context/AuthContext";
-import { CLASSES } from "./classSchedule";
+import { addDays, CLASSES, toKey } from "./classSchedule";
 import { PublicExercise } from "../api/exercises";
+import { cancelPlanReminder, schedulePlanReminder } from "../utils/scheduleReminders";
 
 type ScheduleContextValue = {
   scheduled: PlannedWorkout[];
+  dayPlans: DailyPlan[];
   loading: boolean;
   error: string | null;
-  add: (classId: string, date: string, time: string) => Promise<void>;
-  addExercise: (exercise: PublicExercise, date: string, time: string, durationMinutes: number) => Promise<boolean>;
+  add: (classId: string, date: string, time: string, repeatDays?: number[], reminderEnabled?: boolean) => Promise<void>;
+  addExercise: (
+    exercise: PublicExercise,
+    date: string,
+    time: string,
+    durationMinutes: number,
+    repeatDays?: number[],
+    reminderEnabled?: boolean,
+  ) => Promise<boolean>;
+  addDayPlan: (plan: Omit<DailyPlan, "id">) => Promise<boolean>;
   remove: (id: string) => Promise<void>;
+  removeDayPlan: (id: string) => Promise<void>;
   find: (classId: string, date: string) => PlannedWorkout | undefined;
   dates: Set<string>;
   refresh: () => Promise<void>;
 };
 
 const ScheduleContext = createContext<ScheduleContextValue | null>(null);
+const dateKeyOffset = 365;
+
+function expandWorkoutPlans(plans: PlannedWorkout[]) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayKey = toKey(today);
+  const instances: PlannedWorkout[] = [];
+
+  for (const plan of plans) {
+    if (!plan.repeatDays?.length) {
+      if (plan.date >= todayKey) instances.push(plan);
+      continue;
+    }
+    for (let offset = 0; offset <= dateKeyOffset; offset += 1) {
+      const date = addDays(today, offset);
+      const key = toKey(date);
+      if (key >= plan.date && plan.repeatDays.includes(date.getDay())) {
+        instances.push({ ...plan, date: key });
+      }
+    }
+  }
+  return instances.sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+}
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [scheduled, setScheduled] = useState<PlannedWorkout[]>([]);
+  const [workoutPlans, setWorkoutPlans] = useState<PlannedWorkout[]>([]);
+  const [dayPlans, setDayPlans] = useState<DailyPlan[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scheduled = useMemo(() => expandWorkoutPlans(workoutPlans), [workoutPlans]);
 
   const refresh = useCallback(async () => {
     if (!user) {
-      setScheduled([]);
+      setWorkoutPlans([]);
+      setDayPlans([]);
       setError(null);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      setScheduled(await getPlannedWorkouts());
+      const [workouts, activities] = await Promise.all([getPlannedWorkouts(), getDailyPlans()]);
+      setWorkoutPlans(workouts);
+      setDayPlans(activities);
+      const reminderResults = await Promise.allSettled([
+        ...workouts.filter(plan => plan.reminderEnabled).map(plan => schedulePlanReminder(plan, "workout")),
+        ...activities.filter(plan => plan.reminderEnabled).map(plan => schedulePlanReminder(plan, "day")),
+      ]);
+      if (reminderResults.some(result => result.status === "rejected")) {
+        setError("Your schedule loaded, but one or more device reminders could not be restored.");
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load your workout schedule.");
     } finally {
@@ -59,7 +114,13 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timeout);
   }, [refresh]);
 
-  const add = useCallback(async (classId: string, date: string, time: string) => {
+  const add = useCallback(async (
+    classId: string,
+    date: string,
+    time: string,
+    repeatDays: number[] = [],
+    reminderEnabled = false,
+  ) => {
     if (!user) {
       setError("Sign in to sync your workout schedule with your account.");
       return;
@@ -79,8 +140,18 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         date,
         time,
         durationMinutes: classSession.minutes,
+        repeatDays,
+        reminderEnabled,
       });
-      setScheduled(current => [...current, plan].sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)));
+      setWorkoutPlans(current => [...current, plan]);
+      if (reminderEnabled) {
+        try {
+          const enabled = await schedulePlanReminder(plan, "workout", true);
+          if (!enabled) setError("Workout saved, but notifications are disabled on this device.");
+        } catch (reminderError) {
+          setError(reminderError instanceof Error ? `Workout saved, but ${reminderError.message}` : "Workout saved, but its reminder could not be scheduled.");
+        }
+      }
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save this workout.");
     }
@@ -91,6 +162,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     date: string,
     time: string,
     durationMinutes: number,
+    repeatDays: number[] = [],
+    reminderEnabled = false,
   ): Promise<boolean> => {
     if (!user) {
       setError("Sign in to sync your workout schedule with your account.");
@@ -106,11 +179,45 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         date,
         time,
         durationMinutes,
+        repeatDays,
+        reminderEnabled,
       });
-      setScheduled(current => [...current, plan].sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)));
+      setWorkoutPlans(current => [...current, plan]);
+      if (reminderEnabled) {
+        try {
+          const enabled = await schedulePlanReminder(plan, "workout", true);
+          if (!enabled) setError("Workout saved, but notifications are disabled on this device.");
+        } catch (reminderError) {
+          setError(reminderError instanceof Error ? `Workout saved, but ${reminderError.message}` : "Workout saved, but its reminder could not be scheduled.");
+        }
+      }
       return true;
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save this workout.");
+      return false;
+    }
+  }, [user]);
+
+  const addDayPlan = useCallback(async (planInput: Omit<DailyPlan, "id">): Promise<boolean> => {
+    if (!user) {
+      setError("Sign in to sync your day plan with your account.");
+      return false;
+    }
+    setError(null);
+    try {
+      const plan = await createDailyPlan(planInput);
+      setDayPlans(current => [...current, plan].sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)));
+      if (plan.reminderEnabled) {
+        try {
+          const enabled = await schedulePlanReminder(plan, "day", true);
+          if (!enabled) setError("Plan saved, but notifications are disabled on this device.");
+        } catch (reminderError) {
+          setError(reminderError instanceof Error ? `Plan saved, but ${reminderError.message}` : "Plan saved, but its reminder could not be scheduled.");
+        }
+      }
+      return true;
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save this day plan.");
       return false;
     }
   }, [user]);
@@ -119,23 +226,40 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       await deletePlannedWorkout(id);
-      setScheduled(current => current.filter(item => item.id !== id));
+      const plan = workoutPlans.find(item => item.id === id);
+      if (plan?.reminderEnabled) await cancelPlanReminder(id, "workout", plan.repeatDays);
+      setWorkoutPlans(current => current.filter(item => item.id !== id));
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : "Unable to remove this workout.");
     }
-  }, []);
+  }, [workoutPlans]);
+
+  const removeDayPlan = useCallback(async (id: string) => {
+    setError(null);
+    try {
+      await deleteDailyPlan(id);
+      const plan = dayPlans.find(item => item.id === id);
+      if (plan?.reminderEnabled) await cancelPlanReminder(id, "day", plan.repeatDays);
+      setDayPlans(current => current.filter(item => item.id !== id));
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : "Unable to remove this planned activity.");
+    }
+  }, [dayPlans]);
 
   const value = useMemo<ScheduleContextValue>(() => ({
     scheduled,
+    dayPlans,
     loading,
     error,
     add,
     addExercise,
+    addDayPlan,
     remove,
+    removeDayPlan,
     find: (classId, date) => scheduled.find(item => item.classId === classId && item.date === date),
     dates: new Set(scheduled.map(item => item.date)),
     refresh,
-  }), [scheduled, loading, error, add, addExercise, remove, refresh]);
+  }), [scheduled, dayPlans, loading, error, add, addExercise, addDayPlan, remove, removeDayPlan, refresh]);
 
   return <ScheduleContext.Provider value={value}>{children}</ScheduleContext.Provider>;
 }
