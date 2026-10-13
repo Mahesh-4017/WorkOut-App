@@ -84,7 +84,7 @@ export default function YogaPage() {
           >
             {featuredCards.map(card => (
               <Pressable
-                key={card._id}
+                key={`featured-${card._id}`}
                 style={styles.featuredCard}
                 onPress={() => navigation.navigate(WORKOUT_ROUTES.YOGA_DETAILS, { card })}
                 accessibilityRole="button"
@@ -124,7 +124,7 @@ export default function YogaPage() {
         ) : null}
         {cards.map(card => (
           <Pressable
-            key={card._id}
+            key={`yoga-${card._id}`}
             style={styles.card}
             onPress={() => navigation.navigate(WORKOUT_ROUTES.YOGA_DETAILS, { card })}
             accessibilityRole="button"
