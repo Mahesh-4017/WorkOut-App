@@ -145,7 +145,7 @@ export default function WorkoutSchedule() {
           const classSession = CLASSES.find(entry => entry.id === item.classId);
           return (
             <Pressable
-              key={item.id}
+              key={`${item.id}-${item.date}`}
               onPress={() => item.exerciseId
                 ? navigation.navigate(WORKOUT_ROUTES.LIBRARY_EXERCISE, { exerciseId: item.exerciseId })
                 : classSession && navigation.navigate(WORKOUT_ROUTES.CLASS_DETAILS, {
