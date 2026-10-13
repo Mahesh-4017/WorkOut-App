@@ -8,9 +8,7 @@ import { useTheme } from "../../../theme/ThemeProvider";
 import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
 import { addDays, CLASSES, fromKey, toKey } from "../../../data/classSchedule";
 import { useSchedule } from "../../../data/ScheduleProvider";
-import { OnboardingHeader, PrimaryButton } from "../../../components/OnboardingUI";
-import { ACCENT } from "../../../components/MovementUI";
-import { DARK_TEXT } from "../../../components/WorkoutUI";
+import { OnboardingHeader } from "../../../components/OnboardingUI";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -19,6 +17,9 @@ export default function WorkoutSchedule() {
   const { theme } = useTheme();
   const { scheduled, dates, remove, error, loading, refresh } = useSchedule();
   const styles = createStyles(theme);
+  const orange = theme.dark ? "#FFB454" : "#C65F00";
+  const orangeSurface = theme.dark ? "#3B2A1B" : "#FFF0D9";
+  const orangeText = theme.dark ? "#FFE0B9" : "#8A4100";
   const todayKey = toKey(new Date());
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -70,13 +71,13 @@ export default function WorkoutSchedule() {
           <Text style={styles.cardTitle}>Plan your workouts ahead</Text>
           <View style={styles.monthRow}>
             <Pressable onPress={() => shiftMonth(-1)} hitSlop={10} accessibilityLabel="Previous month">
-              <Ionicons name="chevron-back" size={16} color={DARK_TEXT} />
+              <Ionicons name="chevron-back" size={16} color={orangeText} />
             </Pressable>
             <Text style={styles.month}>
               {month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
             </Text>
             <Pressable onPress={() => shiftMonth(1)} hitSlop={10} accessibilityLabel="Next month">
-              <Ionicons name="chevron-forward" size={16} color={DARK_TEXT} />
+              <Ionicons name="chevron-forward" size={16} color={orangeText} />
             </Pressable>
           </View>
 
@@ -95,11 +96,19 @@ export default function WorkoutSchedule() {
                   <View key={columnIndex} style={styles.cell}>
                     <Pressable
                       onPress={() => openDate(key)}
-                      style={[styles.day, hasClasses && styles.dayHas, isToday && styles.dayToday]}
+                      style={[
+                        styles.day,
+                        hasClasses && { backgroundColor: orangeSurface, borderColor: orange },
+                        isToday && { backgroundColor: orange, borderColor: orange },
+                      ]}
                       accessibilityRole="button"
                       accessibilityLabel={`${key}${hasClasses ? ", has classes" : ""}`}
                     >
-                      <Text style={[styles.dayText, (hasClasses || isToday) && styles.dayTextEmphasis]}>
+                      <Text style={[
+                        styles.dayText,
+                        hasClasses && { color: orangeText, fontFamily: theme.typography.fontFamilyBold },
+                        isToday && styles.todayText,
+                      ]}>
                         {day}
                       </Text>
                     </Pressable>
@@ -110,15 +119,15 @@ export default function WorkoutSchedule() {
           ))}
 
           <View style={styles.legend}>
-            <View style={[styles.dot, { backgroundColor: theme.colors.primary }]} />
+            <View style={[styles.dot, styles.scheduledDot, { backgroundColor: orangeSurface, borderColor: orange }]} />
             <Text style={styles.legendText}>Scheduled</Text>
-            <View style={[styles.dot, { backgroundColor: ACCENT.orange }]} />
+            <View style={[styles.dot, { backgroundColor: orange }]} />
             <Text style={styles.legendText}>Today</Text>
           </View>
         </View>
 
         {error ? (
-          <Pressable onPress={() => refresh()} style={styles.item} accessibilityRole="button">
+          <Pressable onPress={refresh} style={styles.item} accessibilityRole="button">
             <Text style={styles.itemTitle}>{error}</Text>
             <Text style={styles.itemMeta}>Tap to retry schedule sync</Text>
           </Pressable>
@@ -146,8 +155,8 @@ export default function WorkoutSchedule() {
               style={styles.item}
               accessibilityRole="button"
             >
-              <View style={styles.itemIcon}>
-                <Ionicons name="barbell-outline" size={16} color={DARK_TEXT} />
+              <View style={[styles.itemIcon, { backgroundColor: orangeSurface }]}>
+                <Ionicons name="barbell-outline" size={16} color={orange} />
               </View>
               <View style={styles.itemCopy}>
                 <Text style={styles.itemTitle}>{item.title || classSession?.title || "Workout"}</Text>
@@ -167,7 +176,14 @@ export default function WorkoutSchedule() {
       </ScrollView>
 
       <View style={styles.bottom}>
-        <PrimaryButton label="+  Add schedule" onPress={() => openDate(todayKey)} />
+        <Pressable
+          onPress={() => openDate(todayKey)}
+          style={[styles.addButton, { backgroundColor: orange }]}
+          accessibilityRole="button"
+        >
+          <Ionicons name="add" size={20} color={theme.dark ? "#2B1A08" : "#FFFFFF"} />
+          <Text style={styles.addButtonText}>Add to schedule</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -177,29 +193,30 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.background, paddingHorizontal: 18 },
     scroll: { paddingBottom: 16 },
-    card: { backgroundColor: "#FFF0D9", borderRadius: 18, padding: 14, marginTop: 6 },
-    cardTitle: { color: "#8A4B08", fontSize: 20, lineHeight: 24, maxWidth: 260, fontFamily: theme.typography.fontFamilyBold },
+    card: { backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1, borderRadius: 18, padding: 14, marginTop: 6 },
+    cardTitle: { color: theme.colors.text, fontSize: 20, lineHeight: 24, maxWidth: 260, fontFamily: theme.typography.fontFamilyBold },
     monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12, marginBottom: 8 },
-    month: { color: DARK_TEXT, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
+    month: { color: theme.colors.text, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
     weekRow: { flexDirection: "row" },
-    weekday: { flex: 1, textAlign: "center", color: "rgba(27,31,26,0.55)", fontSize: 10, marginBottom: 4, fontFamily: theme.typography.fontFamilyMedium },
+    weekday: { flex: 1, textAlign: "center", color: theme.colors.muted, fontSize: 10, marginBottom: 4, fontFamily: theme.typography.fontFamilyMedium },
     cell: { flex: 1, aspectRatio: 1, padding: 2 },
-    day: { flex: 1, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.55)" },
-    dayHas: { backgroundColor: theme.colors.primary },
-    dayToday: { backgroundColor: ACCENT.orange },
-    dayText: { color: "rgba(27,31,26,0.75)", fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
-    dayTextEmphasis: { color: DARK_TEXT, fontFamily: theme.typography.fontFamilyBold },
+    day: { flex: 1, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
+    dayText: { color: theme.colors.text, fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
+    todayText: { color: theme.dark ? "#2B1A08" : "#FFFFFF" },
     legend: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
-    dot: { width: 8, height: 8, borderRadius: 4 },
-    legendText: { color: "rgba(27,31,26,0.65)", fontSize: 10, marginRight: 8, fontFamily: theme.typography.fontFamily },
+    dot: { width: 9, height: 9, borderRadius: 5 },
+    scheduledDot: { borderWidth: 1 },
+    legendText: { color: theme.colors.muted, fontSize: 10, marginRight: 8, fontFamily: theme.typography.fontFamily },
     rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 20, marginBottom: 10 },
     heading: { color: theme.colors.text, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
-    count: { color: ACCENT.purple, fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
+    count: { color: theme.dark ? "#FFB454" : "#C65F00", fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
     empty: { color: theme.colors.muted, fontSize: 12, fontFamily: theme.typography.fontFamily },
     item: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: theme.colors.card, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.colors.border },
-    itemIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
+    itemIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
     itemCopy: { flex: 1 },
     itemTitle: { color: theme.colors.text, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
     itemMeta: { color: theme.colors.muted, fontSize: 11, marginTop: 2, fontFamily: theme.typography.fontFamily },
-    bottom: { paddingBottom: 16, paddingTop: 8 },
+    bottom: { paddingBottom: 12, paddingTop: 8, backgroundColor: theme.colors.background },
+    addButton: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: 15 },
+    addButtonText: { color: theme.dark ? "#2B1A08" : "#FFFFFF", fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
   });

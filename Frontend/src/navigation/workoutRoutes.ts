@@ -10,6 +10,7 @@ export const WORKOUT_ROUTES = {
   EQUIPMENT: "EquipmentSelection",
   EXERCISE: "ExerciseDetails",
   LIBRARY_EXERCISE: "LibraryExerciseDetails",
+  YOGA_DETAILS: "YogaSessionDetails",
   INSTRUCTIONS: "ExerciseInstructions",
   VIDEO: "ExerciseVideo",
   SCHEDULE: "WorkoutSchedule",

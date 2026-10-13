@@ -46,6 +46,9 @@ import FoodSearch from "../pages/meal/search/Search";
 import AddFood from "../pages/meal/add-food/Add";
 import NotificationsScreen from "../pages/notifications/Notifications";
 import YogaPage from "../pages/yoga/Yoga";
+import YogaSessionDetails from "../pages/yoga/YogaSessionDetails";
+import WorkoutHub from "../pages/workout/home/Home";
+import WorkoutWelcome from "../pages/workout/welcome/Welcome";
 import ExploreWorkouts from "../pages/workout/Explore/Explore";
 import WorkoutCollections from "../pages/workout/collection/Collection";
 import WorkoutSearch from "../pages/workout/search/Search";
@@ -150,6 +153,11 @@ const RootStack = createNativeStackNavigator({
 
         [ROUTES.YOGA]: {
             screen: YogaPage,
+            options: { headerShown: false },
+        },
+
+        [WORKOUT_ROUTES.YOGA_DETAILS]: {
+            screen: YogaSessionDetails,
             options: { headerShown: false },
         },
 
@@ -295,12 +303,12 @@ const RootStack = createNativeStackNavigator({
         },
 
         [WORKOUT_ROUTES.WELCOME]: {
-            screen: ExploreWorkouts,
+            screen: WorkoutWelcome,
             options: { headerShown: false },
         },
 
         [WORKOUT_ROUTES.HUB]: {
-            screen: ExploreWorkouts,
+            screen: WorkoutHub,
             options: { headerShown: false },
         },
 

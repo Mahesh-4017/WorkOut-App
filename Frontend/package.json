@@ -30,6 +30,8 @@
     "react-native-svg": "^15.15.5",
     "react-native-video": "^6.19.3",
     "react-native-vision-camera": "^4.7.3",
+    "react-native-webview": "^14.0.1",
+    "react-native-youtube-iframe": "^2.4.1",
     "uuid": "^14.0.2"
   },
   "devDependencies": {

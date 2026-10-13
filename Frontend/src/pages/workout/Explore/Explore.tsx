@@ -9,6 +9,7 @@ import { resolveApiMediaUrl } from "../../../api/client";
 import { useTheme } from "../../../theme/ThemeProvider";
 import { ROUTES } from "../../../navigation/routes";
 import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
+import { returnToMainHome } from "../../../navigation/workoutNavigation";
 import BottomTabBar from "../../../components/BottomTabBar";
 import { ScreenHeader } from "../../../components/MovementUI";
 
@@ -72,10 +73,7 @@ export default function ExploreWorkouts({
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title="Explore Workouts"
-          onBack={onBack ?? (() => {
-            if (navigation.canGoBack()) navigation.goBack();
-            else navigation.navigate(ROUTES.HOME, { tab: "home" });
-          })}
+          onBack={onBack ?? (() => returnToMainHome(navigation))}
           onBell={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
           onProfile={() => navigation.navigate(ROUTES.PROFILE)}
         />

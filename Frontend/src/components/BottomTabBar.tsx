@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { View, Text, Pressable, StyleSheet, Animated } from "react-native";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../theme/ThemeProvider";
@@ -51,6 +51,7 @@ const BottomTabBar = ({
     workoutActiveTab,
 }: BottomTabBarProps) => {
     const navigation = useNavigation<any>();
+    const route = useRoute<any>();
     const insets = useSafeAreaInsets();
     const { theme } = useTheme();
     const styles = createStyles(theme);
@@ -71,7 +72,11 @@ const BottomTabBar = ({
                     theme={theme}
                     onPress={() => {
                         if (variant === "workout") {
-                            if (!selected) navigation.navigate(tab.route);
+                            if (!selected) {
+                                const isWorkoutScreen = WORKOUT_TABS.some(workoutTab => workoutTab.route === route.name);
+                                if (isWorkoutScreen) navigation.replace(tab.route);
+                                else navigation.navigate(tab.route);
+                            }
                             return;
                         }
                         if (onTabPress) {
