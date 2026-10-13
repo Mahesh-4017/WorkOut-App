@@ -1,7 +1,7 @@
 import React from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { getExerciseBodyParts, ExerciseBodyPart } from "../../../api/exercises";
@@ -20,6 +20,13 @@ export default function ExploreWorkouts({
   onBack?: () => void;
 }) {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const workoutActiveTab =
+    route.name === WORKOUT_ROUTES.WELCOME
+      ? "welcome"
+      : route.name === WORKOUT_ROUTES.HUB
+        ? "hub"
+        : "explore";
   const { theme } = useTheme();
   const s = createStyles(theme);
   const [query, setQuery] = React.useState("");
@@ -200,7 +207,7 @@ export default function ExploreWorkouts({
           <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
         </Pressable>
       </ScrollView>
-      {showBottomTabBar ? <BottomTabBar activeTab="workout" variant="workout" workoutActiveTab="explore" /> : null}
+      {showBottomTabBar ? <BottomTabBar activeTab="workout" variant="workout" workoutActiveTab={workoutActiveTab} /> : null}
     </SafeAreaView>
   );
 }
