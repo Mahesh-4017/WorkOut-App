@@ -22,25 +22,42 @@ if (await initLayout('Workout library')) {
       <input id="body-part" placeholder="Body part (e.g. Chest)">
       <input id="category" placeholder="Category (e.g. Upper chest)">
       <select id="status"><option value="">All statuses</option><option value="published">Published</option><option value="draft">Drafts</option></select>
+      <label class="exercise-page-size">Cards per page
+        <select id="page-size" aria-label="Cards per page">
+          <option value="12">12</option>
+          <option value="24" selected>24</option>
+          <option value="48">48</option>
+        </select>
+      </label>
       <a class="btn" href="/exercise-form.html">+ Add exercise</a>
     </div>
-    <div class="grid cards-grid" id="exercises"></div>
+    <p class="exercise-library-summary" id="exercise-summary" aria-live="polite"></p>
+    <div class="grid cards-grid exercise-cards-grid" id="exercises"></div>
     <div class="pagination" id="pagination"></div>`;
   const searchInput = document.getElementById('search');
   const bodyPartInput = document.getElementById('body-part');
   const categoryInput = document.getElementById('category');
   const statusSelect = document.getElementById('status');
+  const pageSizeSelect = document.getElementById('page-size');
   const exerciseList = document.getElementById('exercises');
+  const summary = document.getElementById('exercise-summary');
   const pagination = document.getElementById('pagination');
   let page = 1;
   async function load() {
-    const params = new URLSearchParams({ page: String(page), limit: '12' });
+    const params = new URLSearchParams({ page: String(page), limit: pageSizeSelect.value });
     if (searchInput.value.trim()) params.set('search', searchInput.value.trim());
     if (bodyPartInput.value.trim()) params.set('bodyPart', bodyPartInput.value.trim());
     if (categoryInput.value.trim()) params.set('category', categoryInput.value.trim());
     if (statusSelect.value) params.set('status', statusSelect.value);
     try {
       const { data } = await get(`/exercises?${params}`);
+      const { total, pages } = data.pagination;
+      const shown = data.items.length;
+      const firstItem = shown ? (page - 1) * Number(pageSizeSelect.value) + 1 : 0;
+      const lastItem = firstItem + shown - 1;
+      summary.textContent = total
+        ? `Showing ${firstItem}–${lastItem} of ${total} exercises`
+        : 'No exercises to show';
       exerciseList.innerHTML = data.items.length
         ? data.items.map(exercise => `<article class="video-card exercise-admin-card">
             <div class="video-thumb">${exercise.imageUrl ? `<img src="${escapeHtml(exercise.imageUrl)}" alt="">` : '<div class="video-placeholder">▶</div>'}</div>
@@ -53,7 +70,7 @@ if (await initLayout('Workout library')) {
             </div>
           </article>`).join('')
         : '<div class="empty">No workout exercises match these filters.</div>';
-      pagination.innerHTML = Array.from({ length: data.pagination.pages }, (_, index) =>
+      pagination.innerHTML = Array.from({ length: pages }, (_, index) =>
         `<button class="btn ${index + 1 === page ? '' : 'secondary'} page" data-page="${index + 1}">${index + 1}</button>`
       ).join('');
       document.querySelectorAll('.delete').forEach(button => {
@@ -85,6 +102,7 @@ if (await initLayout('Workout library')) {
     };
   }
   statusSelect.onchange = () => { page = 1; load(); };
+  pageSizeSelect.onchange = () => { page = 1; load(); };
   await load();
 }
 </script>
