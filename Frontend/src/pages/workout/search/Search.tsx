@@ -41,6 +41,15 @@ export default function WorkoutSearch() {
       : [],
     [bodyPart, scheduled, today, nextWeek],
   );
+  const planGroups = React.useMemo(() => {
+    const groups = new Map<string, typeof bodyPartPlans>();
+    for (const plan of bodyPartPlans) {
+      const group = groups.get(plan.id);
+      if (group) group.push(plan);
+      else groups.set(plan.id, [plan]);
+    }
+    return Array.from(groups.values());
+  }, [bodyPartPlans]);
   const [query, setQuery] = React.useState<string>(params?.query ?? "");
   const [exercises, setExercises] = React.useState<PublicExercise[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -96,30 +105,34 @@ export default function WorkoutSearch() {
               </View>
               <Ionicons name="calendar-outline" size={19} color={theme.colors.primary} />
             </View>
-            {bodyPartPlans.map(plan => (
-              <View key={`${plan.id}-${plan.date}`} style={s.plannedCard}>
-                <View style={s.planIcon}>
-                  <Ionicons name="barbell-outline" size={17} color={theme.colors.primary} />
+            {planGroups.map(plans => {
+              const plan = plans[0];
+              const dates = [...new Set(plans.map(item => formatPlanDate(item.date)))];
+              return (
+                <View key={plan.id} style={s.plannedCard}>
+                  <View style={s.planIcon}>
+                    <Ionicons name="barbell-outline" size={17} color={theme.colors.primary} />
+                  </View>
+                  <View style={s.copy}>
+                    <Text style={s.exerciseTitle}>{plan.title}</Text>
+                    <Text style={s.description}>
+                      {dates.join(", ")} · {plan.time} · {plan.durationMinutes} min
+                    </Text>
+                    {plan.reminderEnabled ? (
+                      <Text style={s.meta}>Reminder at {plan.reminderTime || plan.time}</Text>
+                    ) : null}
+                  </View>
+                  <Pressable
+                    onPress={() => remove(plan.id)}
+                    hitSlop={9}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${plan.title} from your schedule`}
+                  >
+                    <Ionicons name="trash-outline" size={17} color={theme.colors.muted} />
+                  </Pressable>
                 </View>
-                <View style={s.copy}>
-                  <Text style={s.exerciseTitle}>{plan.title}</Text>
-                  <Text style={s.description}>
-                    {formatPlanDate(plan.date)} · {plan.time} · {plan.durationMinutes} min
-                  </Text>
-                  {plan.reminderEnabled ? (
-                    <Text style={s.meta}>Reminder at {plan.reminderTime || plan.time}</Text>
-                  ) : null}
-                </View>
-                <Pressable
-                  onPress={() => remove(plan.id)}
-                  hitSlop={9}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${plan.title} from your schedule`}
-                >
-                  <Ionicons name="trash-outline" size={17} color={theme.colors.muted} />
-                </Pressable>
-              </View>
-            ))}
+              );
+            })}
           </View>
         ) : null}
         <View style={s.resultsHeader}>

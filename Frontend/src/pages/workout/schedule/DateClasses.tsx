@@ -15,6 +15,7 @@ import NotificationSounds, { playSampleSound, stopSampleSound, Sound } from "rea
 
 import { ExerciseBodyPart, getExerciseBodyParts } from "../../../api/exercises";
 import { useSchedule } from "../../../data/ScheduleProvider";
+import { openReminderNotificationSettings } from "../../../utils/scheduleReminders";
 import { useTheme } from "../../../theme/ThemeProvider";
 import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
 import { OnboardingHeader } from "../../../components/OnboardingUI";
@@ -188,10 +189,6 @@ export default function DateClasses() {
     }
     if (repeatMode === "dates" && !repeatDates.length) {
       setError("Choose at least one date for your workout.");
-      return;
-    }
-    if (reminderEnabled && Platform.OS === "android" && !selectedSound) {
-      setError("Choose a notification sound. Tap a sound below to preview and select it.");
       return;
     }
     if (reminderEnabled) {
@@ -408,7 +405,7 @@ export default function DateClasses() {
                   </Text>
                 </Pressable>
                 <Text style={styles.note}>
-                  Tap a sound in the list to preview and select it. The selected sound will play for this reminder.
+                  A custom sound is optional. Without one, this reminder uses your default notification sound.
                 </Text>
               </>
             ) : (
@@ -419,6 +416,20 @@ export default function DateClasses() {
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {scheduleError ? <Text style={styles.errorText}>{scheduleError}</Text> : null}
+        {reminderEnabled && scheduleError ? (
+          <Pressable
+            onPress={() => {
+              openReminderNotificationSettings().catch(settingsError => {
+                setError(settingsError instanceof Error ? settingsError.message : "Unable to open phone notification settings.");
+              });
+            }}
+            style={styles.soundButton}
+            accessibilityRole="button"
+          >
+            <Ionicons name="settings-outline" size={17} color={theme.colors.primary} />
+            <Text style={styles.soundButtonText}>Open alarm & notification settings</Text>
+          </Pressable>
+        ) : null}
         <Pressable onPress={() => scheduleSelected()} disabled={saving || loading} style={[styles.saveButton, (saving || loading) && styles.disabled]} accessibilityRole="button">
           <Text style={styles.saveText}>{saving ? "Saving to your account…" : "Save my workout plan"}</Text>
           <Ionicons name="checkmark" size={18} color={theme.colors.onPrimary} />

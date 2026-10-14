@@ -25,6 +25,7 @@ import { resolveApiMediaUrl } from "../../api/client";
 import { FOOD_ROUTES } from "../../navigation/foodRoutes";
 import { useSchedule } from "../../data/ScheduleProvider";
 import { toKey } from "../../data/classSchedule";
+import { useNotifications } from "../../data/NotificationProvider";
 
 const DEFAULT_WEEKLY_GOAL = 5;
 const DARK_TEXT = "#1B1F1A"; // text on the pastel tiles
@@ -34,13 +35,32 @@ export default function Home() {
   const { theme, isDark, toggleTheme } = useTheme();
   const { name } = useUser();
   const { history, goals, loading: progressLoading, error: progressError } = useSession();
-  const { scheduled, refresh: refreshSchedule } = useSchedule();
+  const { scheduled, dayPlans, refresh: refreshSchedule } = useSchedule();
+  const { readIds, ready: notificationsReady } = useNotifications();
   const { user } = useAuth();
   const s = createStyles(theme);
 
   const [today] = React.useState(() => new Date());
   const todayKey = toKey(today);
   const todayWorkouts = scheduled.filter(item => item.date === todayKey);
+  const todayPersonalPlans = dayPlans.filter(plan => plan.repeatDays.length
+    ? todayKey >= plan.date && plan.repeatDays.includes(today.getDay())
+    : plan.date === todayKey);
+  const todayWorkoutGroups = Array.from(
+    todayWorkouts.reduce((groups, plan) => {
+      const key = (plan.bodyPart || plan.title).trim().toLocaleLowerCase();
+      const group = groups.get(key);
+      if (group) group.push(plan);
+      else groups.set(key, [plan]);
+      return groups;
+    }, new Map<string, typeof todayWorkouts>()),
+    ([, plans]) => plans,
+  );
+  const unreadNotifications = todayWorkouts.filter(item =>
+    !readIds.includes(`today-workout-${item.id}-${item.date}`),
+  ).length + todayPersonalPlans.filter(plan =>
+    !readIds.includes(`today-day-${plan.id}-${todayKey}`),
+  ).length;
   const [cardsState, setCardsState] = React.useState<{ items: ApiCard[]; error: string | null }>({
     items: [],
     error: null,
@@ -150,13 +170,13 @@ export default function Home() {
             <Pressable
               onPress={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
               style={[s.iconButton, s.notificationButton]}
-              accessibilityLabel={`${todayWorkouts.length} notifications`}
+              accessibilityLabel={`${unreadNotifications} unread notifications`}
               accessibilityRole="button"
             >
               <Ionicons name="notifications-outline" size={18} color={theme.colors.text} />
-              {todayWorkouts.length > 0 ? (
+              {notificationsReady && unreadNotifications > 0 ? (
                 <View style={s.notificationBadge}>
-                  <Text style={s.notificationBadgeText}>{todayWorkouts.length > 9 ? "9+" : todayWorkouts.length}</Text>
+                  <Text style={s.notificationBadgeText}>{unreadNotifications > 9 ? "9+" : unreadNotifications}</Text>
                 </View>
               ) : null}
             </Pressable>
@@ -178,40 +198,49 @@ export default function Home() {
 
         {todayWorkouts.length > 0 ? (
           <View style={s.todayPlanSection}>
-            {todayWorkouts.map(plan => (
-              <Pressable
-                key={`${plan.id}-${plan.date}`}
-                onPress={() => openTodayWorkout(plan.bodyPart)}
-                style={s.todayPlanCard}
-                accessibilityRole="button"
-                accessibilityLabel={`Today, do your ${plan.bodyPart || plan.title} workout. Open workout details.`}
-              >
-                <View style={s.todayPlanTop}>
-                  <View style={s.todayPlanEyebrow}>
-                    <Ionicons name="sunny-outline" size={13} color={theme.colors.onPrimary} />
-                    <Text style={s.todayPlanEyebrowText}>TODAY’S WORKOUT</Text>
+            {todayWorkoutGroups.map(plans => {
+              const plan = plans[0];
+              const workoutName = plan.bodyPart || plan.title;
+              const times = [...new Set(plans.map(item => item.time))].sort();
+              return (
+                <Pressable
+                  key={workoutName}
+                  onPress={() => openTodayWorkout(plan.bodyPart)}
+                  style={s.todayPlanCard}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Today, do your ${workoutName} workout. Open workout details.`}
+                >
+                  <View style={s.todayPlanTop}>
+                    <View style={s.todayPlanEyebrow}>
+                      <Ionicons name="sunny-outline" size={13} color={theme.colors.onPrimary} />
+                      <Text style={s.todayPlanEyebrowText}>TODAY’S WORKOUT</Text>
+                    </View>
+                    <View style={s.todayPlanTime}>
+                      <Ionicons name="time-outline" size={13} color={theme.colors.onPrimary} />
+                      <Text style={s.todayPlanTimeText}>{times.length === 1 ? times[0] : `${plans.length} sessions`}</Text>
+                    </View>
                   </View>
-                  <View style={s.todayPlanTime}>
-                    <Ionicons name="time-outline" size={13} color={theme.colors.onPrimary} />
-                    <Text style={s.todayPlanTimeText}>{plan.time}</Text>
+                  <View style={s.todayPlanMiddle}>
+                    <View style={s.todayPlanIcon}>
+                      <Ionicons name="barbell-outline" size={23} color={theme.colors.primaryDark} />
+                    </View>
+                    <View style={s.todayPlanCopy}>
+                      <Text style={s.todayPlanKicker}>YOUR TRAINING PLAN</Text>
+                      <Text numberOfLines={1} style={s.todayPlanTitle}>{workoutName}</Text>
+                      <Text style={s.todayPlanMeta}>
+                        {plans.length === 1
+                          ? `${plan.durationMinutes} min planned · Tap to explore exercises`
+                          : `${plans.length} plans today · Tap to explore exercises`}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-                <View style={s.todayPlanMiddle}>
-                  <View style={s.todayPlanIcon}>
-                    <Ionicons name="barbell-outline" size={23} color={theme.colors.primaryDark} />
+                  <View style={s.todayPlanAction}>
+                    <Text style={s.todayPlanActionText}>View workout</Text>
+                    <Ionicons name="arrow-forward" size={16} color={theme.colors.onPrimary} />
                   </View>
-                  <View style={s.todayPlanCopy}>
-                    <Text style={s.todayPlanKicker}>YOUR TRAINING PLAN</Text>
-                    <Text numberOfLines={1} style={s.todayPlanTitle}>{plan.bodyPart || plan.title}</Text>
-                    <Text style={s.todayPlanMeta}>{plan.durationMinutes} min planned · Tap to explore exercises</Text>
-                  </View>
-                </View>
-                <View style={s.todayPlanAction}>
-                  <Text style={s.todayPlanActionText}>View workout</Text>
-                  <Ionicons name="arrow-forward" size={16} color={theme.colors.onPrimary} />
-                </View>
-              </Pressable>
-            ))}
+                </Pressable>
+              );
+            })}
           </View>
         ) : null}
 

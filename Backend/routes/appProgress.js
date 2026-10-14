@@ -45,6 +45,7 @@ router.put('/goals', [
   body('weeklySessions').optional({ nullable: true }).isInt({ min: 1, max: 21 }),
   body('targetWeightKg').optional({ nullable: true }).isFloat({ min: 20, max: 500 }),
   body('dailySteps').optional({ nullable: true }).isInt({ min: 1, max: 100000 }),
+  body('dailyStepsReminderTime').optional({ nullable: true }).matches(/^([01]\d|2[0-3]):[0-5]\d$/),
   body('dailyCalories').optional({ nullable: true }).isInt({ min: 1, max: 100000 })
 ], validate, asyncRoute(saveGoals));
 

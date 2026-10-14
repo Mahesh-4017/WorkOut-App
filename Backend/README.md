@@ -142,7 +142,7 @@ curl -X POST -H "Authorization: Bearer APP_USER_TOKEN" -H 'Content-Type: applica
 
 # Save or update account goals (send only fields being changed)
 curl -X PUT -H "Authorization: Bearer APP_USER_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"weeklySessions":4,"targetWeightKg":68,"dailySteps":8000,"dailyCalories":400}' \
+  -d '{"weeklySessions":4,"targetWeightKg":68,"dailySteps":8000,"dailyStepsReminderTime":"20:00","dailyCalories":400}' \
   http://localhost:5001/api/app/progress/goals
 
 # Add measurements; steps upsert the current UTC day

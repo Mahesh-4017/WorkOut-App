@@ -5,11 +5,21 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { useTheme } from "../../../theme/ThemeProvider";
 import { useSchedule } from "../../../data/ScheduleProvider";
 import { toKey } from "../../../data/classSchedule";
+import { useNotifications } from "../../../data/NotificationProvider";
 
 export function ScreenHeader({ title, onBell, onProfile, onBack }: { title: string; onBell?: () => void; onProfile?: () => void; onBack?: () => void }) {
   const { theme } = useTheme();
-  const { scheduled } = useSchedule();
-  const todayCount = scheduled.filter(item => item.date === toKey(new Date())).length;
+  const { scheduled, dayPlans } = useSchedule();
+  const { readIds, ready: notificationsReady } = useNotifications();
+  const todayKey = toKey(new Date());
+  const todayCount = scheduled.filter(item =>
+    item.date === todayKey && !readIds.includes(`today-workout-${item.id}-${item.date}`),
+  ).length + dayPlans.filter(plan => {
+    const dueToday = plan.repeatDays.length
+      ? todayKey >= plan.date && plan.repeatDays.includes(new Date(`${todayKey}T12:00:00`).getDay())
+      : plan.date === todayKey;
+    return dueToday && !readIds.includes(`today-day-${plan.id}-${todayKey}`);
+  }).length;
   const s = styles(theme);
   return (
     <View style={s.header}>
@@ -20,10 +30,10 @@ export function ScreenHeader({ title, onBell, onProfile, onBack }: { title: stri
       ) : null}
       <Text style={[s.headerTitle, onBack && s.headerTitleWithBack]}>{title}</Text>
       <View style={s.headerIcons}>
-        <Pressable onPress={onBell} hitSlop={10} accessibilityLabel={`${todayCount} workout notifications`}>
+        <Pressable onPress={onBell} hitSlop={10} accessibilityLabel={`${todayCount} unread workout notifications`}>
           <View style={s.bellWrap}>
             <Ionicons name="notifications-outline" size={22} color={theme.colors.text} />
-            {todayCount > 0 ? (
+            {notificationsReady && todayCount > 0 ? (
               <View style={s.notificationBadge}>
                 <Text style={s.notificationBadgeText}>{todayCount > 9 ? "9+" : todayCount}</Text>
               </View>

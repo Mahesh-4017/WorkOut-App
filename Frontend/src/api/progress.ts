@@ -22,6 +22,7 @@ export type FitnessGoals = {
   weeklySessions?: number;
   targetWeightKg?: number;
   dailySteps?: number;
+  dailyStepsReminderTime?: string;
   dailyCalories?: number;
 };
 

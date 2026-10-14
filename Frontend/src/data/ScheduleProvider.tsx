@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { AppState } from "react-native";
 import {
   createDailyPlan,
   createPlannedWorkout,
@@ -19,7 +20,7 @@ type ScheduleContextValue = {
   dayPlans: DailyPlan[];
   loading: boolean;
   error: string | null;
-  add: (classId: string, date: string, time: string, repeatDays?: number[], reminderEnabled?: boolean) => Promise<void>;
+  add: (classId: string, date: string, time: string, repeatDays?: number[], reminderEnabled?: boolean) => Promise<boolean>;
   addExercise: (
     exercise: PublicExercise,
     date: string,
@@ -97,7 +98,6 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setLoading(true);
-    setError(null);
     try {
       const [workouts, activities] = await Promise.all([getPlannedWorkouts(), getDailyPlans()]);
       setWorkoutPlans(workouts);
@@ -106,8 +106,10 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         ...workouts.filter(plan => plan.reminderEnabled).map(plan => schedulePlanReminder(plan, "workout")),
         ...activities.filter(plan => plan.reminderEnabled).map(plan => schedulePlanReminder(plan, "day")),
       ]);
-      if (reminderResults.some(result => result.status === "rejected")) {
-        setError("Your schedule loaded, but one or more device reminders could not be restored.");
+      if (reminderResults.some(result => result.status === "rejected" || !result.value)) {
+        setError("Your schedule loaded, but one or more phone reminders could not be restored. Check notification settings and save the reminder again.");
+      } else {
+        setError(null);
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load your workout schedule.");
@@ -118,6 +120,13 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", state => {
+      if (state === "active") refresh();
+    });
+    return () => subscription.remove();
   }, [refresh]);
 
   useEffect(() => {
@@ -143,12 +152,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!user) {
       setError("Sign in to sync your workout schedule with your account.");
-      return;
+      return false;
     }
     const classSession = CLASSES.find(item => item.id === classId);
     if (!classSession) {
       setError("This workout is no longer available to schedule.");
-      return;
+      return false;
     }
     setError(null);
     try {
@@ -169,13 +178,20 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       if (reminderEnabled) {
         try {
           const enabled = await schedulePlanReminder(plan, "workout", true);
-          if (!enabled) setError("Workout saved, but notifications are disabled on this device.");
+          if (!enabled) {
+            setError("Workout saved, but its phone reminder could not be scheduled.");
+            return false;
+          }
         } catch (reminderError) {
           setError(reminderError instanceof Error ? `Workout saved, but ${reminderError.message}` : "Workout saved, but its reminder could not be scheduled.");
+          return false;
         }
       }
+      setError(null);
+      return true;
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save this workout.");
+      return false;
     }
   }, [user]);
 
@@ -212,9 +228,13 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       if (reminderEnabled) {
         try {
           const enabled = await schedulePlanReminder(plan, "workout", true);
-          if (!enabled) setError("Workout saved, but notifications are disabled on this device.");
+          if (!enabled) {
+            setError("Workout saved, but its phone reminder could not be scheduled.");
+            return false;
+          }
         } catch (reminderError) {
           setError(reminderError instanceof Error ? `Workout saved, but ${reminderError.message}` : "Workout saved, but its reminder could not be scheduled.");
+          return false;
         }
       }
       return true;
@@ -260,9 +280,13 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       if (reminderEnabled) {
         try {
           const enabled = await schedulePlanReminder(plan, "workout", true);
-          if (!enabled) setError("Workout saved, but notifications are disabled on this device.");
+          if (!enabled) {
+            setError("Workout saved, but its phone reminder could not be scheduled.");
+            return false;
+          }
         } catch (reminderError) {
           setError(reminderError instanceof Error ? `Workout saved, but ${reminderError.message}` : "Workout saved, but its reminder could not be scheduled.");
+          return false;
         }
       }
       return true;
@@ -284,9 +308,13 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       if (plan.reminderEnabled) {
         try {
           const enabled = await schedulePlanReminder(plan, "day", true);
-          if (!enabled) setError("Plan saved, but notifications are disabled on this device.");
+          if (!enabled) {
+            setError("Plan saved, but its phone reminder could not be scheduled.");
+            return false;
+          }
         } catch (reminderError) {
           setError(reminderError instanceof Error ? `Plan saved, but ${reminderError.message}` : "Plan saved, but its reminder could not be scheduled.");
+          return false;
         }
       }
       return true;

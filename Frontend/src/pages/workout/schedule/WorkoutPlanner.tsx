@@ -9,7 +9,7 @@ import { useSchedule } from "../../../data/ScheduleProvider";
 import { addDays, toKey } from "../../../data/classSchedule";
 import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
 import { useTheme } from "../../../theme/ThemeProvider";
-import { weekdayName } from "../../../utils/scheduleReminders";
+import { openReminderNotificationSettings, weekdayName } from "../../../utils/scheduleReminders";
 
 type PlannerMode = "workout" | "day";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -57,6 +57,16 @@ export default function WorkoutPlanner() {
   const todayKey = toKey(new Date());
   const weekEnd = toKey(addDays(new Date(), 6));
   const upcomingWorkouts = scheduled.filter(item => item.date >= todayKey && item.date <= weekEnd);
+  const workoutPlanGroups = useMemo(() => {
+    const groups = new Map<string, typeof upcomingWorkouts>();
+    for (const workout of upcomingWorkouts) {
+      const key = (workout.bodyPart || workout.title).trim().toLocaleLowerCase();
+      const group = groups.get(key);
+      if (group) group.push(workout);
+      else groups.set(key, [workout]);
+    }
+    return Array.from(groups.values());
+  }, [upcomingWorkouts]);
   const upcomingDayPlans = useMemo(() => {
     const instances: { id: string; title: string; description: string; date: string; time: string; repeatDays: number[]; reminderEnabled: boolean }[] = [];
     for (const plan of dayPlans) {
@@ -164,26 +174,38 @@ export default function WorkoutPlanner() {
                 <Text style={styles.link}>Calendar</Text>
               </Pressable>
             </View>
-            {upcomingWorkouts.length === 0 ? (
+            {workoutPlanGroups.length === 0 ? (
               <Text style={styles.empty}>No workouts planned for the next 7 days.</Text>
-            ) : upcomingWorkouts.map(item => (
-              <View key={`${item.id}-${item.date}`} style={styles.planCard}>
-                <View style={[styles.planIcon, styles.orangeSurface]}>
-                  <Ionicons name="barbell-outline" size={19} color={theme.colors.primary} />
+            ) : workoutPlanGroups.map(days => {
+              const item = days[0];
+              const workoutDays = [...new Set(days.map(workout => new Date(`${workout.date}T12:00:00`).getDay()))];
+              const times = [...new Set(days.map(workout => workout.time))];
+              const planIds = [...new Set(days.map(workout => workout.id))];
+              const workoutName = item.bodyPart || item.title;
+              return (
+                <View key={item.id} style={styles.planCard}>
+                  <View style={[styles.planIcon, styles.orangeSurface]}>
+                    <Ionicons name="barbell-outline" size={19} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.planCopy}>
+                    <Text style={styles.planTitle}>{workoutName}</Text>
+                    <Text style={styles.planMeta}>{weekdaySummary(workoutDays)} · {times.join(", ")}</Text>
+                    <Text style={styles.planNote}>
+                      {item.durationMinutes} min planned
+                      {days.some(workout => workout.reminderEnabled) ? " · Reminder on" : ""}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => planIds.forEach(id => { remove(id); })}
+                    hitSlop={9}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove all ${workoutName} workouts from schedule`}
+                  >
+                    <Ionicons name="trash-outline" size={17} color={theme.colors.muted} />
+                  </Pressable>
                 </View>
-                <View style={styles.planCopy}>
-                  <Text style={styles.planTitle}>{item.title}</Text>
-                  <Text style={styles.planMeta}>{planDateLabel(item.date)} · {item.time}</Text>
-                  <Text style={styles.planNote}>
-                    {weekdaySummary(item.repeatDays) ?? `${item.durationMinutes} min · ${item.bodyPart || item.category || "Workout"}`}
-                    {item.reminderEnabled ? " · Reminder on" : ""}
-                  </Text>
-                </View>
-                <Pressable onPress={() => remove(item.id)} hitSlop={9} accessibilityRole="button" accessibilityLabel={`Remove ${item.title} from schedule`}>
-                  <Ionicons name="trash-outline" size={17} color={theme.colors.muted} />
-                </Pressable>
-              </View>
-            ))}
+              );
+            })}
           </>
         ) : (
           <>
@@ -274,6 +296,20 @@ export default function WorkoutPlanner() {
 
               {message ? <Text style={styles.message}>{message}</Text> : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
+              {reminderEnabled && error ? (
+                <Pressable
+                  onPress={() => {
+                    openReminderNotificationSettings().catch(settingsError => {
+                      setMessage(settingsError instanceof Error ? settingsError.message : "Unable to open phone notification settings.");
+                    });
+                  }}
+                  style={styles.reminderRow}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="settings-outline" size={17} color={theme.colors.primary} />
+                  <Text style={styles.link}>Open alarm & notification settings</Text>
+                </Pressable>
+              ) : null}
               <Pressable onPress={saveDayPlan} disabled={saving} style={[styles.primaryButton, saving && styles.disabled]} accessibilityRole="button">
                 <Text style={styles.primaryButtonText}>{saving ? "Saving…" : "Save my day plan"}</Text>
                 <Ionicons name="checkmark" size={17} color={theme.colors.onPrimary} />

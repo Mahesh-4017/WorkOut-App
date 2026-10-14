@@ -62,6 +62,12 @@ If everything is set up correctly, you should see your new app running in the An
 
 This is one way to run your app — you can also build it directly from Android Studio or Xcode.
 
+## Phone steps and notifications
+
+Phone step sync reads the day's total from Health Connect on Android (API 26+) or Apple Health on iOS and saves it to the signed-in WorkOut account. Users must grant step-reading access in the corresponding health app. Android releases using Health Connect may require Google Play's Health Connect declaration and approval.
+
+Scheduled workouts, personal day plans, and daily step reminder times are stored in the WorkOut backend. Timer controls and scheduled reminders use local phone notifications; the daily step reminder reports the latest health total synced while WorkOut is open.
+
 ## Step 3: Modify your app
 
 Now that you have successfully run the app, let's make changes!

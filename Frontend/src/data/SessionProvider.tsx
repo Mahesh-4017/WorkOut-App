@@ -7,6 +7,9 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AppState } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import notifee, { EventType } from "@notifee/react-native";
 import {
   addStepsRecord,
   addWeightRecord,
@@ -20,6 +23,14 @@ import {
   WorkoutSessionRecord,
 } from "../api/progress";
 import { useAuth } from "../context/AuthContext";
+import { connectPhoneSteps, readTodayPhoneSteps } from "../utils/phoneSteps";
+import {
+  cancelActiveTimerNotification,
+  cancelDailyStepsReminder,
+  createTimerNotificationActions,
+  scheduleDailyStepsReminder,
+  showActiveTimerNotification,
+} from "../utils/scheduleReminders";
 
 export type HistoryEntry = WorkoutSessionRecord;
 
@@ -64,11 +75,15 @@ type Ctx = {
   saveGoals: (goals: FitnessGoals) => Promise<void>;
   addWeight: (weightKg: number) => Promise<void>;
   addSteps: (steps: number) => Promise<void>;
+  syncPhoneSteps: (connect?: boolean) => Promise<number>;
   refreshProgress: () => Promise<void>;
   elapsedSeconds: () => number;
 };
 
 const SessionContext = createContext<Ctx | null>(null);
+const ACTIVE_SESSION_KEY = "@workout/active-session";
+const CONNECTED_PHONE_STEPS_KEY = "@workout/phone-steps-connected";
+const PENDING_TIMER_ACTION_KEY = "@workout/pending-timer-action";
 
 const meters = (a: Point, b: Point) => {
   const radius = 6371000;
@@ -106,6 +121,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [lastSummary, setLastSummary] = useState<HistoryEntry | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
   const activeRef = useRef<Active | null>(null);
   const historyRef = useRef(history);
   activeRef.current = active;
@@ -143,7 +159,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!authenticatedUserId) {
-      void refreshProgress();
+      refreshProgress().catch(loadError => {
+        console.error("Unable to clear progress for signed-out user.", loadError);
+      });
       return;
     }
     refreshProgress().catch(() => undefined);
@@ -152,6 +170,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const setCurrentActive = useCallback((next: Active | null) => {
     activeRef.current = next;
     setActive(next);
+    const persist = next
+      ? AsyncStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(next))
+      : AsyncStorage.removeItem(ACTIVE_SESSION_KEY);
+    persist.catch(storageError => {
+      console.error("Unable to persist active workout state.", storageError);
+      setError("Your active timer could not be saved on this device.");
+    });
   }, []);
 
   const elapsedSeconds = useCallback(() => {
@@ -212,6 +237,29 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setCurrentActive]);
 
+  const syncPhoneSteps = useCallback(async (connect = false) => {
+    if (connect) {
+      await connectPhoneSteps();
+      await AsyncStorage.setItem(CONNECTED_PHONE_STEPS_KEY, "true");
+    }
+    const steps = await readTodayPhoneSteps();
+    setError(null);
+    try {
+      const entry = await addStepsRecord(steps);
+      setStepEntries(current => [
+        entry,
+        ...current.filter(item => item.recordedAt.slice(0, 10) !== entry.recordedAt.slice(0, 10)),
+      ]);
+      if (goals?.dailyStepsReminderTime) {
+        await scheduleDailyStepsReminder(goals.dailyStepsReminderTime, steps);
+      }
+      return steps;
+    } catch (syncError) {
+      setError(syncError instanceof Error ? syncError.message : "Unable to sync today's phone steps.");
+      throw syncError;
+    }
+  }, [goals?.dailyStepsReminderTime]);
+
   const endSession = useCallback(async (): Promise<HistoryEntry | null> => {
     const session = activeRef.current;
     if (!session) return null;
@@ -247,6 +295,134 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       throw saveError;
     }
   }, [elapsedSeconds, setCurrentActive]);
+
+  const handleTimerAction = useCallback(async (action: string | undefined) => {
+    if (action === "pause") pause();
+    else if (action === "resume") resume();
+    else if (action === "stop") {
+      await endSession();
+    }
+  }, [endSession, pause, resume]);
+
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(ACTIVE_SESSION_KEY).then(value => {
+      if (!mounted) return;
+      if (value) {
+        const saved: unknown = JSON.parse(value);
+        if (
+          typeof saved === "object"
+          && saved !== null
+          && "startedAt" in saved
+          && "status" in saved
+          && "moves" in saved
+          && typeof saved.startedAt === "number"
+          && (saved.status === "running" || saved.status === "paused")
+          && Array.isArray(saved.moves)
+        ) {
+          setCurrentActive(saved as Active);
+        } else {
+          setError("The saved active timer could not be restored.");
+          AsyncStorage.removeItem(ACTIVE_SESSION_KEY).catch(storageError => {
+            console.error("Unable to remove invalid active session state.", storageError);
+          });
+        }
+      }
+      setSessionReady(true);
+    }).catch(storageError => {
+      console.error("Unable to restore active workout state.", storageError);
+      if (mounted) {
+        setError("Unable to restore the active workout timer.");
+        setSessionReady(true);
+      }
+    });
+    return () => { mounted = false; };
+  }, [setCurrentActive]);
+
+  useEffect(() => notifee.onForegroundEvent(({ type, detail }) => {
+    if (type === EventType.ACTION_PRESS) {
+      handleTimerAction(detail.pressAction?.id).catch(actionError => {
+        console.error("Unable to handle workout notification action.", actionError);
+        setError(actionError instanceof Error ? actionError.message : "Unable to control the active timer.");
+      });
+    }
+  }), [handleTimerAction]);
+
+  useEffect(() => {
+    if (!sessionReady) return;
+    const processPendingAction = async () => {
+      const action = await AsyncStorage.getItem(PENDING_TIMER_ACTION_KEY);
+      if (!action) return;
+      await AsyncStorage.removeItem(PENDING_TIMER_ACTION_KEY);
+      await handleTimerAction(action);
+    };
+    processPendingAction().catch(actionError => {
+      console.error("Unable to process pending timer action.", actionError);
+      setError(actionError instanceof Error ? actionError.message : "Unable to control the active timer.");
+    });
+    const subscription = AppState.addEventListener("change", state => {
+      if (state === "active") {
+        processPendingAction().catch(actionError => {
+          console.error("Unable to process pending timer action.", actionError);
+          setError(actionError instanceof Error ? actionError.message : "Unable to control the active timer.");
+        });
+      }
+    });
+    return () => subscription.remove();
+  }, [handleTimerAction, sessionReady]);
+
+  useEffect(() => {
+    if (!sessionReady || !active) {
+      if (sessionReady) {
+        cancelActiveTimerNotification().catch(notificationError => {
+          console.error("Unable to clear active timer notification.", notificationError);
+        });
+      }
+      return;
+    }
+    const updateNotification = () => {
+      createTimerNotificationActions(active.status)
+        .then(() => showActiveTimerNotification({
+          title: active.title,
+          status: active.status,
+          startedAt: active.startedAt,
+          elapsedSeconds: elapsedSeconds(),
+        }))
+        .catch(notificationError => {
+          console.error("Unable to update active timer notification.", notificationError);
+          setError(notificationError instanceof Error ? notificationError.message : "Unable to update the active timer notification.");
+        });
+    };
+    updateNotification();
+    if (active.status !== "running") return;
+    const interval = setInterval(updateNotification, 30_000);
+    return () => clearInterval(interval);
+  }, [active, elapsedSeconds, sessionReady]);
+
+  useEffect(() => {
+    if (!authenticatedUserId) return;
+    let mounted = true;
+    const syncIfConnected = async () => {
+      const connected = await AsyncStorage.getItem(CONNECTED_PHONE_STEPS_KEY);
+      if (mounted && connected === "true") await syncPhoneSteps();
+    };
+    syncIfConnected().catch(syncError => {
+      console.error("Unable to sync phone step total.", syncError);
+      if (mounted) setError(syncError instanceof Error ? syncError.message : "Unable to sync today's phone steps.");
+    });
+    const subscription = AppState.addEventListener("change", state => {
+      if (state === "active") {
+        syncIfConnected().catch(syncError => {
+          console.error("Unable to sync phone step total.", syncError);
+          setError(syncError instanceof Error ? syncError.message : "Unable to sync today's phone steps.");
+        });
+      }
+    });
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, [authenticatedUserId, syncPhoneSteps]);
 
   const markExerciseDone = useCallback(async (exercise: { id: string; title: string; durationMinutes: number }) => {
     const startedAt = new Date();
@@ -299,11 +475,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = await saveFitnessGoals(nextGoals);
       setGoals(saved);
+      if (saved.dailyStepsReminderTime) {
+        const todayKey = localDayKey(new Date());
+        const todaySteps = stepEntries.find(entry => localDayKey(new Date(entry.recordedAt)) === todayKey)?.steps ?? 0;
+        await scheduleDailyStepsReminder(saved.dailyStepsReminderTime, todaySteps);
+      } else if (Object.prototype.hasOwnProperty.call(nextGoals, "dailyStepsReminderTime")) {
+        await cancelDailyStepsReminder();
+      }
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save fitness goals.");
       throw saveError;
     }
-  }, []);
+  }, [stepEntries]);
 
   const addWeight = useCallback(async (weightKg: number) => {
     setError(null);
@@ -351,6 +534,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       saveGoals: updateGoals,
       addWeight,
       addSteps,
+      syncPhoneSteps,
       refreshProgress,
       elapsedSeconds,
     }),
@@ -374,6 +558,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       updateGoals,
       addWeight,
       addSteps,
+      syncPhoneSteps,
       refreshProgress,
       elapsedSeconds,
     ],

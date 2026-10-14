@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Alert, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { useTheme } from "../../../theme/ThemeProvider";
 import { useSession } from "../../../data/SessionProvider";
@@ -19,9 +20,10 @@ const RANGES = ["Week", "Month", "Year"];
 
 export default function StepsProgressScreen() {
   const { theme } = useTheme();
-  const { stepEntries, goals, addSteps } = useSession();
+  const { stepEntries, goals, addSteps, syncPhoneSteps } = useSession();
   const [range, setRange] = useState("Week");
   const [steps, setSteps] = useState("");
+  const [syncing, setSyncing] = useState(false);
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const todayEntry = stepEntries.find(entry => {
@@ -79,6 +81,17 @@ export default function StepsProgressScreen() {
       Alert.alert("Unable to save steps", error instanceof Error ? error.message : "Please try again.");
     }
   };
+  const syncPhone = async () => {
+    setSyncing(true);
+    try {
+      const total = await syncPhoneSteps(true);
+      Alert.alert("Phone steps synced", `${total.toLocaleString()} steps saved to your WorkOut account today.`);
+    } catch (error) {
+      Alert.alert("Unable to sync phone steps", error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <ProgressScreen title="Steps progress">
@@ -89,6 +102,17 @@ export default function StepsProgressScreen() {
       </View>
       <ProgressCard>
         <ProgressSectionTitle>Daily movement</ProgressSectionTitle>
+        <Pressable
+          onPress={syncPhone}
+          disabled={syncing}
+          style={{ minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginBottom: 10, borderRadius: 10, backgroundColor: theme.colors.surface }}
+          accessibilityRole="button"
+        >
+          <Ionicons name="phone-portrait-outline" size={17} color={theme.colors.primary} />
+          <Text style={{ color: theme.colors.primary, fontSize: 11, fontFamily: theme.typography.fontFamilyBold }}>
+            {syncing ? "Connecting and syncing…" : "Connect & sync phone steps"}
+          </Text>
+        </Pressable>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <TextInput
             value={steps}

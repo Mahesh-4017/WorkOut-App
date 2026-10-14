@@ -20,6 +20,7 @@ async function getProgress(req, res) {
       weeklySessions: goals.weeklySessions,
       targetWeightKg: goals.targetWeightKg,
       dailySteps: goals.dailySteps,
+      dailyStepsReminderTime: goals.dailyStepsReminderTime,
       dailyCalories: goals.dailyCalories
     } : null,
     weightEntries: weightEntries.map(({ _id, user, __v, ...entry }) => ({ id: String(_id), ...entry })),
@@ -60,7 +61,7 @@ async function updateFeedback(req, res) {
 async function saveGoals(req, res) {
   const update = {};
   const unset = {};
-  for (const field of ['weeklySessions', 'targetWeightKg', 'dailySteps', 'dailyCalories']) {
+  for (const field of ['weeklySessions', 'targetWeightKg', 'dailySteps', 'dailyStepsReminderTime', 'dailyCalories']) {
     if (Object.prototype.hasOwnProperty.call(req.body, field)) {
       if (req.body[field] === null) unset[field] = 1;
       else update[field] = req.body[field];
@@ -78,6 +79,7 @@ async function saveGoals(req, res) {
       weeklySessions: goals.weeklySessions,
       targetWeightKg: goals.targetWeightKg,
       dailySteps: goals.dailySteps,
+      dailyStepsReminderTime: goals.dailyStepsReminderTime,
       dailyCalories: goals.dailyCalories
     }
   }, 'Fitness goals saved');

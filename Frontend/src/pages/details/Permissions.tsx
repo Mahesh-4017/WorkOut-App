@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { PERMISSIONS, request, requestNotifications } from "react-native-permissions";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { completePermissionsOnboarding } from "../../utils/onboarding";
+import { connectPhoneSteps } from "../../utils/phoneSteps";
 import { ROUTES } from "../../navigation/routes";
 import { useTheme } from "../../theme/ThemeProvider";
 import { OnboardingHeader, PrimaryButton } from "./Onboardingui";
@@ -13,7 +14,7 @@ type Key = "notifications" | "health" | "camera" | "location";
 
 const ITEMS: { key: Key; icon: string; title: string; description: string }[] = [
   { key: "notifications", icon: "🔔", title: "Notifications · Optional", description: "Workout reminders and goal celebrations." },
-  { key: "health", icon: "♡", title: "Health / activity data · Optional", description: "Connect Health Connect to sync steps, workouts and active calories." },
+  { key: "health", icon: "♡", title: "Phone step tracking · Optional", description: "Sync daily steps from Health Connect or Apple Health." },
   { key: "camera", icon: "📷", title: "Camera · For meal scanning", description: "Required only to scan meals. You can log food manually without camera access." },
   { key: "location", icon: "📍", title: "Location · Optional", description: "Only for route-based outdoor activities. No location needed for indoor workouts." },
 ];
@@ -41,14 +42,15 @@ export default function Permissions() {
         if (choices.notifications) await requestNotifications(["alert", "badge", "sound"]);
         if (choices.camera) await request(ios ? PERMISSIONS.IOS.CAMERA : PERMISSIONS.ANDROID.CAMERA);
         if (choices.location) await request(ios ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE : PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION);
-        if (choices.health) {
-          // react-native-permissions can't grant HealthKit / Health Connect.
-          // Hook up your health library here, e.g. react-native-health (iOS)
-          // or react-native-health-connect (Android) -> requestPermission([...]).
-        }
+        if (choices.health) await connectPhoneSteps();
       }
       await completePermissionsOnboarding();
       navigation.reset({ index: 0, routes: [{ name: ROUTES.HOME }] });
+    } catch (permissionError) {
+      Alert.alert(
+        "Unable to set up permissions",
+        permissionError instanceof Error ? permissionError.message : "Please try again or continue without optional access.",
+      );
     } finally {
       setRequesting(false);
     }

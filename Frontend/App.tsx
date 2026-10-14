@@ -7,6 +7,7 @@ import { FoodProvider } from "./src/data/FoodProvider";
 import { WorkoutProvider } from "./src/data/WorkoutProvider";
 import { ScheduleProvider } from "./src/data/ScheduleProvider";
 import { SessionProvider } from "./src/data/SessionProvider";
+import { NotificationProvider } from "./src/data/NotificationProvider";
 
 export default function App() {
   return (
@@ -17,7 +18,9 @@ export default function App() {
             <WorkoutProvider>
               <ScheduleProvider>
                 <SessionProvider>
-                  <Navigation />
+                  <NotificationProvider>
+                    <Navigation />
+                  </NotificationProvider>
                 </SessionProvider>
               </ScheduleProvider>
             </WorkoutProvider>
