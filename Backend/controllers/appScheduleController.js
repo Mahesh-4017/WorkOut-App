@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const PlannedWorkout = require('../models/PlannedWorkout');
-const WorkoutExercise = require('../models/WorkoutExercise');
 const { sendSuccess } = require('../utils/apiResponse');
 
 function currentDateForOffset(offsetMinutes = 0) {
@@ -14,6 +13,8 @@ function publicPlan(plan) {
     id: String(_id),
     ...fields,
     repeatDays: fields.repeatDays || [],
+    repeatDates: fields.repeatDates || [],
+    reminderTime: fields.reminderTime || fields.time,
     reminderEnabled: Boolean(fields.reminderEnabled)
   };
 }
@@ -25,24 +26,27 @@ async function list(req, res) {
     user: req.appUser._id,
     $or: [
       { date: { $gte: today } },
-      { repeatDays: { $exists: true, $ne: [] } }
+      { repeatDays: { $exists: true, $ne: [] } },
+      { repeatDates: { $elemMatch: { $gte: today } } }
     ]
   }).sort({ date: 1, time: 1 }).lean();
   return sendSuccess(res, 200, { items: plans.map(publicPlan) });
 }
 
 async function create(req, res) {
-  const { exerciseId, classId, title, bodyPart, category, date, time, durationMinutes, repeatDays, reminderEnabled } = req.body;
-  if (!exerciseId && !classId) {
-    return res.status(400).json({ success: false, message: 'Choose a published exercise to schedule' });
+  const {
+    exerciseId, classId, title, bodyPart, category, date, time,
+    durationMinutes, repeatDays, repeatDates, reminderTime, reminderSoundUrl, reminderSoundTitle, reminderEnabled
+  } = req.body;
+  if (!exerciseId && !classId && !bodyPart?.trim()) {
+    return res.status(400).json({ success: false, message: 'Choose a body part to schedule' });
   }
   const today = currentDateForOffset(Number(req.body.timezoneOffsetMinutes || 0));
-  if (date < today) {
+  if (date < today || (repeatDates || []).some(selectedDate => selectedDate < today)) {
     return res.status(400).json({ success: false, message: 'Workouts can only be scheduled for today or a future date' });
   }
-  if (exerciseId) {
-    const exists = await WorkoutExercise.exists({ _id: exerciseId, status: 'published' });
-    if (!exists) return res.status(404).json({ success: false, message: 'Published exercise not found' });
+  if (repeatDates && repeatDates.length > 30) {
+    return res.status(400).json({ success: false, message: 'Choose no more than 30 specific workout dates' });
   }
   const plan = await PlannedWorkout.create({
     user: req.appUser._id,
@@ -55,6 +59,10 @@ async function create(req, res) {
     time,
     durationMinutes: durationMinutes || 30,
     repeatDays: repeatDays || [],
+    repeatDates: repeatDates || [],
+    reminderTime: reminderTime || time,
+    reminderSoundUrl: reminderSoundUrl || undefined,
+    reminderSoundTitle: reminderSoundTitle || undefined,
     reminderEnabled: Boolean(reminderEnabled)
   });
   return sendSuccess(res, 201, { item: publicPlan(plan.toObject()) }, 'Workout scheduled');

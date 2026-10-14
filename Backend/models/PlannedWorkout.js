@@ -11,6 +11,10 @@ const plannedWorkoutSchema = new mongoose.Schema({
   time: { type: String, required: true, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
   durationMinutes: { type: Number, min: 1, max: 600, default: 30 },
   repeatDays: { type: [Number], default: [] },
+  repeatDates: { type: [String], default: [] },
+  reminderTime: { type: String, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+  reminderSoundUrl: { type: String, trim: true, maxlength: 500 },
+  reminderSoundTitle: { type: String, trim: true, maxlength: 100 },
   reminderEnabled: { type: Boolean, default: false }
 }, { timestamps: true });
 
