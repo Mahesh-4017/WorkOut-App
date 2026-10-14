@@ -113,29 +113,35 @@ export default function WorkoutPlanner() {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <OnboardingHeader title="Plan your day" onBack={() => navigation.goBack()} />
+      <OnboardingHeader title={mode === "day" ? "Personal day plan" : "Plan your day"} onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.intro}>Make space for movement and everything else that matters.</Text>
-        <View style={styles.modeSwitch}>
-          {([
-            ["workout", "Workout", "barbell-outline"],
-            ["day", "Full day", "calendar-outline"],
-          ] as const).map(([value, label, icon]) => {
-            const active = mode === value;
-            return (
-              <Pressable
-                key={value}
-                onPress={() => { setMode(value); setMessage(""); }}
-                style={[styles.modeButton, active && styles.modeButtonActive]}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
-              >
-                <Ionicons name={icon} size={17} color={active ? theme.colors.onPrimary : theme.colors.muted} />
-                <Text style={[styles.modeText, active && styles.modeTextActive]}>{label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Text style={styles.intro}>
+          {mode === "day"
+            ? "Add reminders for personal activities; workout plans are managed in your workout schedule."
+            : "Make space for movement and everything else that matters."}
+        </Text>
+        {route.params?.mode !== "day" ? (
+          <View style={styles.modeSwitch}>
+            {([
+              ["workout", "Workout", "barbell-outline"],
+              ["day", "Full day", "calendar-outline"],
+            ] as const).map(([value, label, icon]) => {
+              const active = mode === value;
+              return (
+                <Pressable
+                  key={value}
+                  onPress={() => { setMode(value); setMessage(""); }}
+                  style={[styles.modeButton, active && styles.modeButtonActive]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Ionicons name={icon} size={17} color={active ? theme.colors.onPrimary : theme.colors.muted} />
+                  <Text style={[styles.modeText, active && styles.modeTextActive]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
 
         {mode === "workout" ? (
           <>

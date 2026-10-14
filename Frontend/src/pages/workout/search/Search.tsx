@@ -9,18 +9,38 @@ import { resolveApiMediaUrl } from "../../../api/client";
 import { OnboardingHeader } from "../../../components/OnboardingUI";
 import BottomTabBar from "../../../components/BottomTabBar";
 import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
+import { useSchedule } from "../../../data/ScheduleProvider";
 import { useWorkouts } from "../../../data/WorkoutProvider";
 import { useTheme } from "../../../theme/ThemeProvider";
+import { addDays, toKey } from "../../../data/classSchedule";
+
+function formatPlanDate(date: string) {
+  const value = new Date(`${date}T12:00:00`);
+  return value.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
 
 export default function WorkoutSearch() {
   const navigation = useNavigation<any>();
   const { params } = useRoute<any>();
   const { theme } = useTheme();
   const { isFavorite, toggleFavorite } = useWorkouts();
+  const { scheduled, remove } = useSchedule();
   const s = createStyles(theme);
   const bodyPart = params?.bodyPart as string | undefined;
   const category = params?.category as string | undefined;
   const title = (params?.title as string | undefined) || category || bodyPart || "Workout library";
+  const today = toKey(new Date());
+  const nextWeek = toKey(addDays(new Date(), 6));
+  const bodyPartPlans = React.useMemo(
+    () => bodyPart
+      ? scheduled.filter(plan =>
+        plan.bodyPart.toLocaleLowerCase() === bodyPart.toLocaleLowerCase()
+        && plan.date >= today
+        && plan.date <= nextWeek,
+      )
+      : [],
+    [bodyPart, scheduled, today, nextWeek],
+  );
   const [query, setQuery] = React.useState<string>(params?.query ?? "");
   const [exercises, setExercises] = React.useState<PublicExercise[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -67,6 +87,41 @@ export default function WorkoutSearch() {
             </Pressable>
           ) : null}
         </View>
+        {bodyPartPlans.length ? (
+          <View style={s.plannedSection}>
+            <View style={s.plannedHeading}>
+              <View>
+                <Text style={s.plannedTitle}>Upcoming {bodyPart?.toLocaleLowerCase()} plan</Text>
+                <Text style={s.plannedSubtitle}>Your saved workouts for the next 7 days</Text>
+              </View>
+              <Ionicons name="calendar-outline" size={19} color={theme.colors.primary} />
+            </View>
+            {bodyPartPlans.map(plan => (
+              <View key={`${plan.id}-${plan.date}`} style={s.plannedCard}>
+                <View style={s.planIcon}>
+                  <Ionicons name="barbell-outline" size={17} color={theme.colors.primary} />
+                </View>
+                <View style={s.copy}>
+                  <Text style={s.exerciseTitle}>{plan.title}</Text>
+                  <Text style={s.description}>
+                    {formatPlanDate(plan.date)} · {plan.time} · {plan.durationMinutes} min
+                  </Text>
+                  {plan.reminderEnabled ? (
+                    <Text style={s.meta}>Reminder at {plan.reminderTime || plan.time}</Text>
+                  ) : null}
+                </View>
+                <Pressable
+                  onPress={() => remove(plan.id)}
+                  hitSlop={9}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${plan.title} from your schedule`}
+                >
+                  <Ionicons name="trash-outline" size={17} color={theme.colors.muted} />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        ) : null}
         <View style={s.resultsHeader}>
           <View>
             <Text style={s.heading}>{category || bodyPart || "Published exercises"}</Text>
@@ -131,6 +186,12 @@ const createStyles = (theme: any) => StyleSheet.create({
   search: { flexDirection: "row", alignItems: "center", gap: 8, height: 44, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
   input: { flex: 1, color: theme.colors.text, fontSize: 13, fontFamily: theme.typography.fontFamily },
   resultsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 18, marginBottom: 8 },
+  plannedSection: { gap: 8, marginTop: 15, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+  plannedHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 },
+  plannedTitle: { color: theme.colors.text, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
+  plannedSubtitle: { color: theme.colors.muted, fontSize: 10, marginTop: 2, fontFamily: theme.typography.fontFamily },
+  plannedCard: { flexDirection: "row", alignItems: "center", gap: 9, padding: 9, borderRadius: 11, backgroundColor: theme.colors.card },
+  planIcon: { width: 34, height: 34, alignItems: "center", justifyContent: "center", borderRadius: 10, backgroundColor: theme.colors.surface },
   heading: { color: theme.colors.text, fontSize: 16, fontFamily: theme.typography.fontFamilyBold },
   sub: { color: theme.colors.muted, fontSize: 11, marginTop: 3, fontFamily: theme.typography.fontFamily },
   collections: { color: theme.colors.primary, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },

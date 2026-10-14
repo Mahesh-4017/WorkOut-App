@@ -1,6 +1,9 @@
+import { Platform } from "react-native";
+import NotificationSounds from "react-native-notification-sounds";
 import { DailyPlan, PlannedWorkout } from "../api/schedule";
 
-type ReminderPlan = Pick<DailyPlan, "id" | "title" | "description" | "date" | "time" | "repeatDays">;
+type ReminderPlan = Pick<DailyPlan, "id" | "title" | "description" | "date" | "time" | "repeatDays">
+  & Partial<Pick<PlannedWorkout, "bodyPart">>;
 
 const CHANNEL_ID = "schedule-reminders";
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -18,34 +21,54 @@ export async function schedulePlanReminder(
     || settings.authorizationStatus === notifeeTypes.AuthorizationStatus.PROVISIONAL;
   if (!allowed) return false;
 
-  const channelId = await notifee.createChannel({
-    id: CHANNEL_ID,
-    name: "Schedule reminders",
-    importance: notifeeTypes.AndroidImportance.HIGH,
-  });
+  const soundUrl = "reminderSoundUrl" in plan ? plan.reminderSoundUrl : undefined;
+  const channelId = Platform.OS === "android" && soundUrl
+    ? await NotificationSounds.createSoundChannel(soundUrl)
+    : await notifee.createChannel({
+      id: CHANNEL_ID,
+      name: "Schedule reminders",
+      importance: notifeeTypes.AndroidImportance.HIGH,
+    });
   const repeatDays = plan.repeatDays ?? [];
-  const schedule = repeatDays.length
+  const workoutMessage = "bodyPart" in plan && plan.bodyPart
+    ? `Today, do your ${plan.bodyPart} workout.`
+    : `Today, do your ${plan.title}.`;
+  const reminderTime = "reminderTime" in plan ? plan.reminderTime || plan.time : plan.time;
+  const repeatDates = "repeatDates" in plan ? plan.repeatDates ?? [] : [];
+  const schedule = repeatDates.length
+    ? repeatDates.map(date => ({
+        id: `${kind}-${plan.id}-${date}`,
+        timestamp: new Date(`${date}T${reminderTime}:00`).getTime(),
+        repeatFrequency: undefined,
+        body: kind === "workout"
+          ? workoutMessage
+          : ("description" in plan && plan.description) || plan.title,
+      }))
+    : repeatDays.length
     ? repeatDays.map(day => ({
         id: `${kind}-${plan.id}-${day}`,
-        timestamp: nextWeekdayTimestamp(plan.date, plan.time, day),
+        timestamp: nextWeekdayTimestamp(plan.date, reminderTime, day),
         repeatFrequency: notifeeTypes.RepeatFrequency.WEEKLY,
-        body: `It's time for ${plan.title}${"description" in plan && plan.description ? ` — ${plan.description}` : ""}.`,
+        body: kind === "workout"
+          ? workoutMessage
+          : ("description" in plan && plan.description) || plan.title,
       }))
     : [{
         id: `${kind}-${plan.id}`,
-        timestamp: new Date(`${plan.date}T${plan.time}:00`).getTime(),
+        timestamp: new Date(`${plan.date}T${reminderTime}:00`).getTime(),
         repeatFrequency: undefined,
         body: kind === "workout"
-          ? `Your workout is ready: ${plan.title}.`
+          ? workoutMessage
           : ("description" in plan && plan.description) || plan.title,
       }];
 
-  for (const item of schedule) {
-    if (item.timestamp <= Date.now()) return false;
+  const futureSchedule = schedule.filter(item => item.timestamp > Date.now());
+  if (!futureSchedule.length) return false;
+  for (const item of futureSchedule) {
     await notifee.cancelNotification(item.id);
     await notifee.createTriggerNotification({
       id: item.id,
-      title: kind === "workout" ? "Workout reminder" : plan.title,
+      title: kind === "workout" ? "Today's workout" : plan.title,
       body: item.body,
       data: { scheduleKind: kind, planId: plan.id },
       android: {
@@ -62,9 +85,16 @@ export async function schedulePlanReminder(
   return true;
 }
 
-export async function cancelPlanReminder(planId: string, kind: "workout" | "day", repeatDays: number[] = []) {
+export async function cancelPlanReminder(
+  planId: string,
+  kind: "workout" | "day",
+  repeatDays: number[] = [],
+  repeatDates: string[] = [],
+) {
   const { default: notifee } = await import("@notifee/react-native");
-  const ids = repeatDays.length
+  const ids = repeatDates.length
+    ? repeatDates.map(date => `${kind}-${planId}-${date}`)
+    : repeatDays.length
     ? repeatDays.map(day => `${kind}-${planId}-${day}`)
     : [`${kind}-${planId}`];
   await Promise.all(ids.map(id => notifee.cancelNotification(id)));

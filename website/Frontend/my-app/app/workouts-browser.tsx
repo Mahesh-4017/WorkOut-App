@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { apiRequest, BodyPart, Exercise, mediaUrl } from "./api";
+import { apiRequest, BodyPart, Exercise, mediaUrl, ProgressData } from "./api";
+import { useWebsiteAuth } from "./website-auth";
 import { useWebsiteHydrationSignal } from "./website-motion";
 
 function ContentImage({ src, alt, className }: { src?: string; alt: string; className: string }) {
@@ -33,8 +34,13 @@ function videoEmbedUrl(value: string) {
   return undefined;
 }
 
+function localDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 export default function WorkoutsBrowser({ collections = false }: { collections?: boolean }) {
   useWebsiteHydrationSignal();
+  const { user, token, ready } = useWebsiteAuth();
   const [bodyParts, setBodyParts] = useState<BodyPart[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,6 +54,54 @@ export default function WorkoutsBrowser({ collections = false }: { collections?:
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
+  const [completionProgress, setCompletionProgress] = useState<{ token: string; day: string; exerciseIds: string[] } | null>(null);
+  const [completionSaving, setCompletionSaving] = useState(false);
+  const [completionError, setCompletionError] = useState("");
+  const completionPending = useRef(false);
+  const [progressCheckFailure, setProgressCheckFailure] = useState<{ token: string; message: string } | null>(null);
+  const progressToken = token && completionProgress?.token === token ? token : null;
+  const progressCheckError = token && progressCheckFailure?.token === token ? progressCheckFailure.message : "";
+  const exerciseCompletedToday = Boolean(
+    token
+    && detail
+    && progressToken
+    && completionProgress?.exerciseIds.includes(detail._id),
+  );
+
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    let timeout: number;
+    const loadProgress = async () => {
+      const today = localDateKey(new Date());
+      try {
+        const progress = await apiRequest<ProgressData>("/app/progress", {}, token);
+        if (!active) return;
+        const exerciseIds = progress.sessions
+          .filter(session =>
+            session.workoutId.startsWith("exercise:")
+            && localDateKey(new Date(session.startedAt)) === today,
+          )
+          .map(session => session.workoutId.slice("exercise:".length));
+        setCompletionProgress({ token, day: today, exerciseIds });
+      } catch (loadError) {
+        if (active) setProgressCheckFailure({
+          token,
+          message: loadError instanceof Error ? loadError.message : "Unable to check today's exercise progress.",
+        });
+      }
+      if (active) {
+        const now = new Date();
+        const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        timeout = window.setTimeout(() => { void loadProgress(); }, nextMidnight.getTime() - now.getTime());
+      }
+    };
+    void loadProgress();
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [token]);
 
   useEffect(() => {
     let active = true;
@@ -143,6 +197,42 @@ export default function WorkoutsBrowser({ collections = false }: { collections?:
     }
   };
 
+  const markExerciseDone = async () => {
+    if (!detail || !token || exerciseCompletedToday || completionPending.current) return;
+    completionPending.current = true;
+    setCompletionSaving(true);
+    setCompletionError("");
+    try {
+      await apiRequest<{ session: { id: string } }>("/app/progress/sessions", {
+        method: "POST",
+        body: JSON.stringify({
+          workoutId: `exercise:${detail._id}`,
+          title: detail.title,
+          startedAt: new Date().toISOString(),
+          seconds: Math.max(0, Math.round(detail.durationMinutes * 60)),
+          calories: 0,
+          distanceKm: 0,
+          movesDone: 1,
+          movesTotal: 1,
+          setsDone: 0,
+        }),
+      }, token);
+      const today = localDateKey(new Date());
+      setCompletionProgress(current => ({
+        token,
+        day: today,
+        exerciseIds: current?.token === token && current.day === today
+          ? current.exerciseIds.includes(detail._id) ? current.exerciseIds : [...current.exerciseIds, detail._id]
+          : [detail._id],
+      }));
+    } catch (saveError) {
+      setCompletionError(saveError instanceof Error ? saveError.message : "Unable to save exercise completion.");
+    } finally {
+      completionPending.current = false;
+      setCompletionSaving(false);
+    }
+  };
+
   return (
     <main className={collections ? "collections-page" : ""}>
       <section className="page-intro">
@@ -231,7 +321,59 @@ export default function WorkoutsBrowser({ collections = false }: { collections?:
             <button className="dialog-close" type="button" aria-label="Close exercise details" onClick={closeExercise}>×</button>
             {detailLoading && <p className="notice">Loading exercise details…</p>}
             {detailError && <p className="notice notice-error" role="alert">{detailError}</p>}
-            {detail && <><ContentImage src={detail.imageUrl} alt={detail.title} className="dialog-image" /><div className="dialog-copy"><span className="eyebrow">{detail.bodyPart} / {detail.category}</span><h2>{detail.title}</h2><p className="dialog-description">{detail.description}</p><div className="detail-pills"><span>{detail.level}</span><span>{detail.durationMinutes} min</span><span>{detail.equipment.length ? detail.equipment.join(", ") : "No equipment"}</span></div>{videoEmbedUrl(detail.videoUrl) ? <div className="video-frame"><iframe src={videoEmbedUrl(detail.videoUrl)} title={`${detail.title} video`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen /></div> : <a className="button button-primary" href={detail.videoUrl} target="_blank" rel="noopener noreferrer">Open exercise video ↗</a>}{detail.instructions.length > 0 && <><h3>How to do it</h3><ol className="instruction-list">{detail.instructions.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ol></>}<p className="muscles"><strong>Muscles</strong><span>{detail.muscles.join(", ") || "Not listed"}</span></p></div></>}
+            {detail && (
+              <>
+                <ContentImage src={detail.imageUrl} alt={detail.title} className="dialog-image" />
+                <div className="dialog-copy">
+                  <span className="eyebrow">{detail.bodyPart} / {detail.category}</span>
+                  <h2>{detail.title}</h2>
+                  <p className="dialog-description">{detail.description}</p>
+                  <div className="detail-pills">
+                    <span>{detail.level}</span>
+                    <span>{detail.durationMinutes} min</span>
+                    <span>{detail.equipment.length ? detail.equipment.join(", ") : "No equipment"}</span>
+                  </div>
+                  {videoEmbedUrl(detail.videoUrl) ? (
+                    <div className="video-frame">
+                      <iframe src={videoEmbedUrl(detail.videoUrl)} title={`${detail.title} video`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                    </div>
+                  ) : (
+                    <a className="button button-primary" href={detail.videoUrl} target="_blank" rel="noopener noreferrer">Open exercise video ↗</a>
+                  )}
+                  <section className="exercise-completion" aria-label="Record exercise completion">
+                    <div>
+                      <span className="eyebrow">YOUR DAILY PROGRESS</span>
+                      <p>{exerciseCompletedToday ? "This exercise is included in today's activity." : "Finished this exercise? Save it to today's activity and progress."}</p>
+                    </div>
+                    {ready && user && token ? (
+                      <button
+                        className={`button ${exerciseCompletedToday ? "button-outline" : "button-primary"}`}
+                        type="button"
+                        disabled={completionSaving || exerciseCompletedToday || (progressToken !== token && !progressCheckError)}
+                        onClick={() => void markExerciseDone()}
+                      >
+                        {completionSaving ? "Saving…" : exerciseCompletedToday ? "Done today ✓" : "Mark as done"}
+                      </button>
+                    ) : (
+                      <Link className="button button-primary" href="/profile">Sign in to save</Link>
+                    )}
+                    {progressToken !== token && !progressCheckError && ready && token && <span className="completion-status" role="status">Checking today’s progress…</span>}
+                    {progressCheckError && <span className="notice notice-error" role="alert">Unable to check saved activity: {progressCheckError}</span>}
+                    {completionError && <span className="notice notice-error" role="alert">{completionError}</span>}
+                    {progressToken === token && user && (
+                      <Link className="completion-history-link" href="/profile">View your workout progress →</Link>
+                    )}
+                  </section>
+                  {detail.instructions.length > 0 && (
+                    <>
+                      <h3>How to do it</h3>
+                      <ol className="instruction-list">{detail.instructions.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ol>
+                    </>
+                  )}
+                  <p className="muscles"><strong>Muscles</strong><span>{detail.muscles.join(", ") || "Not listed"}</span></p>
+                </div>
+              </>
+            )}
           </section>
         </div>
       )}

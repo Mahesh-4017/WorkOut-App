@@ -31,8 +31,11 @@ export default function WorkoutHub() {
   const today = new Date();
   const todayKey = toKey(today);
   const weekEnd = toKey(addDays(today, 6));
+  const todayWorkouts = scheduled
+    .filter(item => item.date === todayKey)
+    .sort((a, b) => a.time.localeCompare(b.time));
   const upcoming = scheduled
-    .filter(item => item.date >= todayKey && item.date <= weekEnd)
+    .filter(item => item.date > todayKey && item.date <= weekEnd)
     .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
 
   const dateLabel = (dateKey: string, time: string) => {
@@ -49,6 +52,10 @@ export default function WorkoutHub() {
     const classSession = CLASSES.find(entry => entry.id === item.classId);
     if (classSession) {
       navigation.navigate(WORKOUT_ROUTES.CLASS_DETAILS, { classId: classSession.id, date: item.date });
+      return;
+    }
+    if (item.bodyPart) {
+      navigation.navigate(WORKOUT_ROUTES.SEARCH, { bodyPart: item.bodyPart, title: item.bodyPart });
       return;
     }
     navigation.navigate(WORKOUT_ROUTES.SCHEDULE);
@@ -83,10 +90,50 @@ export default function WorkoutHub() {
           </Pressable>
         </View>
 
+        <View style={styles.todaySection}>
+          <View style={styles.sectionHeading}>
+            <View style={styles.sectionCopy}>
+              <Text style={styles.sectionTitle}>Today’s workout</Text>
+              <Text style={styles.sectionSubtitle}>Your plan for today.</Text>
+            </View>
+            <Ionicons name="sunny-outline" size={20} color={orange} />
+          </View>
+          {loading ? (
+            <Text style={styles.message}>Loading today’s workout…</Text>
+          ) : !error && todayWorkouts.length ? todayWorkouts.map(item => (
+            <Pressable
+              key={`${item.id}-${item.date}`}
+              onPress={() => openWorkout(item)}
+              style={styles.todayCard}
+              accessibilityRole="button"
+              accessibilityLabel={`Open today’s ${item.bodyPart || item.title} workout`}
+            >
+              <View style={[styles.todayIcon, { backgroundColor: orangeSurface }]}>
+                <Ionicons name="fitness-outline" size={19} color={orange} />
+              </View>
+              <View style={styles.workoutCopy}>
+                <Text style={styles.todayTitle}>{item.bodyPart || item.title}</Text>
+                <Text style={styles.todayMeta}>{item.time} · {item.durationMinutes} min</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={17} color={theme.colors.muted} />
+            </Pressable>
+          )) : !error ? (
+            <View style={styles.todayEmpty}>
+              <Text style={styles.todayEmptyText}>No workout planned for today.</Text>
+              <Pressable
+                onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE, { selectedDate: todayKey })}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.viewAll, { color: orange }]}>Plan one</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+
         <View style={styles.sectionHeading}>
           <View style={styles.sectionCopy}>
             <Text style={styles.sectionTitle}>Coming up</Text>
-            <Text style={styles.sectionSubtitle}>Your planned workouts for the next 7 days.</Text>
+            <Text style={styles.sectionSubtitle}>Your planned workouts for the next 6 days.</Text>
           </View>
           <Pressable
             onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE)}
@@ -98,12 +145,12 @@ export default function WorkoutHub() {
         </View>
 
         <Pressable
-          onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER)}
+          onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE)}
           style={styles.plannerShortcut}
           accessibilityRole="button"
         >
           <Ionicons name="calendar-outline" size={17} color={orange} />
-          <Text style={[styles.plannerShortcutText, { color: orange }]}>Plan a workout or your full day</Text>
+          <Text style={[styles.plannerShortcutText, { color: orange }]}>Plan your day</Text>
           <Ionicons name="arrow-forward" size={15} color={orange} />
         </Pressable>
 
@@ -114,7 +161,7 @@ export default function WorkoutHub() {
             <Text style={[styles.retry, { color: orange }]}>Tap to retry</Text>
           </Pressable>
         ) : null}
-        {!loading && !error && upcoming.length === 0 ? (
+        {!loading && !error && upcoming.length === 0 && todayWorkouts.length === 0 ? (
           <View style={styles.emptyCard}>
             <View style={[styles.emptyIcon, { backgroundColor: orangeSurface }]}>
               <Ionicons name="calendar-outline" size={21} color={orange} />
@@ -122,21 +169,24 @@ export default function WorkoutHub() {
             <Text style={styles.emptyTitle}>Nothing planned yet</Text>
             <Text style={styles.emptyText}>Add a workout to your schedule and it will appear here.</Text>
             <Pressable
-              onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER)}
+              onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE)}
               style={styles.scheduleButton}
               accessibilityRole="button"
             >
-              <Text style={[styles.scheduleButtonText, { color: orange }]}>Plan your day</Text>
+              <Text style={[styles.scheduleButtonText, { color: orange }]}>Plan a workout</Text>
               <Ionicons name="arrow-forward" size={15} color={orange} />
             </Pressable>
           </View>
+        ) : null}
+        {!loading && !error && upcoming.length === 0 && todayWorkouts.length > 0 ? (
+          <Text style={styles.message}>No more workouts planned this week.</Text>
         ) : null}
 
         {upcoming.map(item => {
           const classSession = CLASSES.find(entry => entry.id === item.classId);
           return (
             <Pressable
-              key={item.id}
+              key={`${item.id}-${item.date}`}
               onPress={() => openWorkout(item)}
               style={styles.workoutCard}
               accessibilityRole="button"
@@ -230,6 +280,24 @@ const createStyles = (theme: any) =>
       marginBottom: 12,
     },
     sectionCopy: { flex: 1 },
+    todaySection: { marginTop: 18 },
+    todayCard: {
+      minHeight: 62,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      padding: 10,
+      marginBottom: 7,
+      borderRadius: 13,
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    todayIcon: { width: 37, height: 37, alignItems: "center", justifyContent: "center", borderRadius: 11 },
+    todayTitle: { color: theme.colors.text, fontSize: 12, textTransform: "capitalize", fontFamily: theme.typography.fontFamilyBold },
+    todayMeta: { color: theme.colors.muted, fontSize: 10, marginTop: 3, fontFamily: theme.typography.fontFamily },
+    todayEmpty: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+    todayEmptyText: { color: theme.colors.muted, fontSize: 10, fontFamily: theme.typography.fontFamily },
     sectionTitle: { color: theme.colors.text, fontSize: 17, fontFamily: theme.typography.fontFamilyBold },
     sectionSubtitle: { color: theme.colors.muted, fontSize: 10, marginTop: 4, fontFamily: theme.typography.fontFamily },
     viewAll: { color: theme.colors.primary, fontSize: 10, fontFamily: theme.typography.fontFamilyBold },

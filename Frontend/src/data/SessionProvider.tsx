@@ -59,6 +59,7 @@ type Ctx = {
   nextMove: () => boolean;
   addPoint: (point: Point, accuracy?: number) => void;
   endSession: () => Promise<HistoryEntry | null>;
+  markExerciseDone: (exercise: { id: string; title: string; durationMinutes: number }) => Promise<boolean>;
   saveFeedback: (id: string, feedback: Feedback) => Promise<void>;
   saveGoals: (goals: FitnessGoals) => Promise<void>;
   addWeight: (weightKg: number) => Promise<void>;
@@ -79,6 +80,9 @@ const meters = (a: Point, b: Point) => {
     Math.cos(radians(a.lat)) * Math.cos(radians(b.lat)) * Math.sin(lngDelta / 2) ** 2;
   return 2 * radius * Math.asin(Math.sqrt(value));
 };
+
+const localDayKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 export const fmtClock = (seconds: number, hours = true) => {
   const safeSeconds = Math.max(0, Math.floor(seconds));
@@ -244,6 +248,38 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [elapsedSeconds, setCurrentActive]);
 
+  const markExerciseDone = useCallback(async (exercise: { id: string; title: string; durationMinutes: number }) => {
+    const startedAt = new Date();
+    const exerciseWorkoutId = `exercise:${exercise.id}`;
+    const alreadyLoggedToday = historyRef.current.some(entry =>
+      entry.workoutId === exerciseWorkoutId
+      && localDayKey(new Date(entry.startedAt)) === localDayKey(startedAt),
+    );
+    if (alreadyLoggedToday) return false;
+
+    setError(null);
+    try {
+      const entry = await createWorkoutSession({
+        workoutId: exerciseWorkoutId,
+        title: exercise.title,
+        startedAt: startedAt.toISOString(),
+        seconds: Math.max(0, Math.round(exercise.durationMinutes * 60)),
+        calories: 0,
+        distanceKm: 0,
+        movesDone: 1,
+        movesTotal: 1,
+        setsDone: 0,
+      });
+      const nextHistory = [entry, ...historyRef.current];
+      historyRef.current = nextHistory;
+      setHistory(nextHistory);
+      return true;
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save exercise completion.");
+      throw saveError;
+    }
+  }, []);
+
   const saveFeedback = useCallback(async (id: string, feedback: Feedback) => {
     setError(null);
     try {
@@ -310,6 +346,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       nextMove,
       addPoint,
       endSession,
+      markExerciseDone,
       saveFeedback,
       saveGoals: updateGoals,
       addWeight,
@@ -332,6 +369,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       nextMove,
       addPoint,
       endSession,
+      markExerciseDone,
       saveFeedback,
       updateGoals,
       addWeight,

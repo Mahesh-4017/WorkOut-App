@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { responsiveWidth } from "react-native-responsive-dimensions";
 
@@ -23,6 +23,8 @@ import { getAllPublicCards, ApiCard } from "../../api/cards";
 import { getPublicExercises, PublicExercise } from "../../api/exercises";
 import { resolveApiMediaUrl } from "../../api/client";
 import { FOOD_ROUTES } from "../../navigation/foodRoutes";
+import { useSchedule } from "../../data/ScheduleProvider";
+import { toKey } from "../../data/classSchedule";
 
 const DEFAULT_WEEKLY_GOAL = 5;
 const DARK_TEXT = "#1B1F1A"; // text on the pastel tiles
@@ -32,10 +34,13 @@ export default function Home() {
   const { theme, isDark, toggleTheme } = useTheme();
   const { name } = useUser();
   const { history, goals, loading: progressLoading, error: progressError } = useSession();
+  const { scheduled, refresh: refreshSchedule } = useSchedule();
   const { user } = useAuth();
   const s = createStyles(theme);
 
   const [today] = React.useState(() => new Date());
+  const todayKey = toKey(today);
+  const todayWorkouts = scheduled.filter(item => item.date === todayKey);
   const [cardsState, setCardsState] = React.useState<{ items: ApiCard[]; error: string | null }>({
     items: [],
     error: null,
@@ -121,6 +126,16 @@ export default function Home() {
   const goWorkoutSchedule = () => navigation.navigate(WORKOUT_ROUTES.SCHEDULE);
   const goFood = () => navigation.navigate(FOOD_ROUTES.WELCOME);
   const goYoga = () => navigation.navigate(ROUTES.YOGA);
+  const openTodayWorkout = (bodyPart: string) => navigation.navigate(WORKOUT_ROUTES.SEARCH, {
+    bodyPart,
+    title: bodyPart,
+  });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshSchedule();
+    }, [refreshSchedule]),
+  );
 
   return (
     <SafeAreaView style={s.screen} edges={["top"]}>
@@ -134,11 +149,16 @@ export default function Home() {
             </Pressable>
             <Pressable
               onPress={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
-              style={s.iconButton}
-              accessibilityLabel="Notifications"
+              style={[s.iconButton, s.notificationButton]}
+              accessibilityLabel={`${todayWorkouts.length} notifications`}
               accessibilityRole="button"
             >
               <Ionicons name="notifications-outline" size={18} color={theme.colors.text} />
+              {todayWorkouts.length > 0 ? (
+                <View style={s.notificationBadge}>
+                  <Text style={s.notificationBadgeText}>{todayWorkouts.length > 9 ? "9+" : todayWorkouts.length}</Text>
+                </View>
+              ) : null}
             </Pressable>
           </View>
         </View>
@@ -148,13 +168,52 @@ export default function Home() {
           <View style={s.avatar}>
             <Text style={s.avatarText}>{initials}</Text>
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={s.todayPlanCopy}>
             <Text style={s.greetTitle}>
               {greeting}, {firstName}
             </Text>
             <Text style={s.greetSub}>A little movement. A better day.</Text>
           </View>
         </View>
+
+        {todayWorkouts.length > 0 ? (
+          <View style={s.todayPlanSection}>
+            {todayWorkouts.map(plan => (
+              <Pressable
+                key={`${plan.id}-${plan.date}`}
+                onPress={() => openTodayWorkout(plan.bodyPart)}
+                style={s.todayPlanCard}
+                accessibilityRole="button"
+                accessibilityLabel={`Today, do your ${plan.bodyPart || plan.title} workout. Open workout details.`}
+              >
+                <View style={s.todayPlanTop}>
+                  <View style={s.todayPlanEyebrow}>
+                    <Ionicons name="sunny-outline" size={13} color={theme.colors.onPrimary} />
+                    <Text style={s.todayPlanEyebrowText}>TODAY’S WORKOUT</Text>
+                  </View>
+                  <View style={s.todayPlanTime}>
+                    <Ionicons name="time-outline" size={13} color={theme.colors.onPrimary} />
+                    <Text style={s.todayPlanTimeText}>{plan.time}</Text>
+                  </View>
+                </View>
+                <View style={s.todayPlanMiddle}>
+                  <View style={s.todayPlanIcon}>
+                    <Ionicons name="barbell-outline" size={23} color={theme.colors.primaryDark} />
+                  </View>
+                  <View style={s.todayPlanCopy}>
+                    <Text style={s.todayPlanKicker}>YOUR TRAINING PLAN</Text>
+                    <Text numberOfLines={1} style={s.todayPlanTitle}>{plan.bodyPart || plan.title}</Text>
+                    <Text style={s.todayPlanMeta}>{plan.durationMinutes} min planned · Tap to explore exercises</Text>
+                  </View>
+                </View>
+                <View style={s.todayPlanAction}>
+                  <Text style={s.todayPlanActionText}>View workout</Text>
+                  <Ionicons name="arrow-forward" size={16} color={theme.colors.onPrimary} />
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
 
         {/* Hero: today's workout */}
         {/* <Pressable onPress={startFeatured} style={s.hero} accessibilityRole="button" accessibilityLabel="Start today's workout">
@@ -392,6 +451,22 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
+    notificationButton: { position: "relative" },
+    notificationBadge: {
+      position: "absolute",
+      right: -3,
+      top: -3,
+      minWidth: 16,
+      height: 16,
+      paddingHorizontal: 4,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#D84C45",
+      borderWidth: 1.5,
+      borderColor: theme.colors.background,
+    },
+    notificationBadgeText: { color: "#FFFFFF", fontSize: 9, lineHeight: 11, fontFamily: theme.typography.fontFamilyBold },
 
     greetRow: { flexDirection: "row", alignItems: "center", marginTop: 6, marginBottom: 16 },
     avatar: {
@@ -406,6 +481,33 @@ const createStyles = (theme: any) =>
     avatarText: { color: theme.colors.onPrimary, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
     greetTitle: { color: theme.colors.text, fontSize: 16, fontFamily: theme.typography.fontFamilyBold },
     greetSub: { color: theme.colors.muted, fontSize: 12, marginTop: 2, fontFamily: theme.typography.fontFamily },
+    todayPlanSection: { marginBottom: 4 },
+    todayPlanCopy: { flex: 1 },
+    todayPlanCard: {
+      padding: 15,
+      marginBottom: 7,
+      borderRadius: 19,
+      backgroundColor: theme.colors.primary,
+    },
+    todayPlanTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    todayPlanEyebrow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    todayPlanEyebrowText: { color: theme.colors.onPrimary, fontSize: 10, letterSpacing: 1, fontFamily: theme.typography.fontFamilyBold },
+    todayPlanTime: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 12, backgroundColor: "rgba(0,0,0,0.12)" },
+    todayPlanTimeText: { color: theme.colors.onPrimary, fontSize: 10, fontFamily: theme.typography.fontFamilyMedium },
+    todayPlanMiddle: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16, marginBottom: 14 },
+    todayPlanIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.onPrimary,
+    },
+    todayPlanKicker: { color: theme.colors.onPrimary, opacity: 0.75, fontSize: 9, letterSpacing: 0.8, fontFamily: theme.typography.fontFamilyMedium },
+    todayPlanTitle: { color: theme.colors.onPrimary, fontSize: 22, lineHeight: 27, textTransform: "capitalize", marginTop: 2, fontFamily: theme.typography.fontFamilyBold },
+    todayPlanMeta: { color: theme.colors.onPrimary, opacity: 0.82, fontSize: 10, marginTop: 4, fontFamily: theme.typography.fontFamily },
+    todayPlanAction: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.35)" },
+    todayPlanActionText: { color: theme.colors.onPrimary, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
 
     /* Hero */
     hero: { height: 200, borderRadius: 24, overflow: "hidden", backgroundColor: theme.colors.card, justifyContent: "space-between", padding: 14 },

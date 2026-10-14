@@ -3,9 +3,13 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useTheme } from "../../../theme/ThemeProvider";
+import { useSchedule } from "../../../data/ScheduleProvider";
+import { toKey } from "../../../data/classSchedule";
 
 export function ScreenHeader({ title, onBell, onProfile, onBack }: { title: string; onBell?: () => void; onProfile?: () => void; onBack?: () => void }) {
   const { theme } = useTheme();
+  const { scheduled } = useSchedule();
+  const todayCount = scheduled.filter(item => item.date === toKey(new Date())).length;
   const s = styles(theme);
   return (
     <View style={s.header}>
@@ -16,8 +20,15 @@ export function ScreenHeader({ title, onBell, onProfile, onBack }: { title: stri
       ) : null}
       <Text style={[s.headerTitle, onBack && s.headerTitleWithBack]}>{title}</Text>
       <View style={s.headerIcons}>
-        <Pressable onPress={onBell} hitSlop={10} accessibilityLabel="Notifications">
-          <Ionicons name="notifications-outline" size={22} color={theme.colors.text} />
+        <Pressable onPress={onBell} hitSlop={10} accessibilityLabel={`${todayCount} workout notifications`}>
+          <View style={s.bellWrap}>
+            <Ionicons name="notifications-outline" size={22} color={theme.colors.text} />
+            {todayCount > 0 ? (
+              <View style={s.notificationBadge}>
+                <Text style={s.notificationBadgeText}>{todayCount > 9 ? "9+" : todayCount}</Text>
+              </View>
+            ) : null}
+          </View>
         </Pressable>
         <Pressable onPress={onProfile} hitSlop={10} accessibilityLabel="Profile">
           <Ionicons name="person-circle-outline" size={26} color={theme.colors.text} />
@@ -102,6 +113,22 @@ const styles = (theme: any) =>
     headerTitle: { color: theme.colors.text, fontSize: 22, fontFamily: theme.typography.fontFamilyBold },
     headerTitleWithBack: { marginLeft: 12 },
     headerIcons: { flexDirection: "row", alignItems: "center", gap: 14 },
+    bellWrap: { position: "relative" },
+    notificationBadge: {
+      position: "absolute",
+      right: -7,
+      top: -6,
+      minWidth: 16,
+      height: 16,
+      paddingHorizontal: 4,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#D84C45",
+      borderWidth: 1.5,
+      borderColor: theme.colors.background,
+    },
+    notificationBadgeText: { color: "#FFFFFF", fontSize: 9, lineHeight: 11, fontFamily: theme.typography.fontFamilyBold },
     pillTrack: {
       flexDirection: "row",
       backgroundColor: theme.colors.surfaceAlt ?? theme.colors.border,

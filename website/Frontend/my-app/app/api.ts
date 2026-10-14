@@ -62,7 +62,7 @@ export type AppUser = {
   createdAt?: string;
 };
 export type ProgressData = {
-  sessions: { id: string; title: string; startedAt: string; seconds: number; calories: number }[];
+  sessions: { id: string; workoutId: string; title: string; startedAt: string; seconds: number; calories: number }[];
   goals: { weeklySessions?: number; targetWeightKg?: number; dailySteps?: number; dailyCalories?: number } | null;
 };
 

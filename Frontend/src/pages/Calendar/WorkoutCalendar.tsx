@@ -362,7 +362,7 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
           ================================================= */}
 
           <Pressable
-            onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "workout", date: selectedDate })}
+            onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE, { selectedDate })}
             style={styles.planShortcut}
             accessibilityRole="button"
           >
@@ -379,7 +379,7 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
           {!loading && selectedWorkouts.length === 0 ? (
             <EmptyWorkoutCard
               styles={styles}
-              onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "workout", date: selectedDate })}
+              onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE, { selectedDate })}
             />
           ) : null}
           {selectedWorkouts.map(workout => (

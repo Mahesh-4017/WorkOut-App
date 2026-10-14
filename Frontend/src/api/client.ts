@@ -43,7 +43,24 @@ export function apiErrorMessage(error: unknown) {
     if (typeof responseData === "string") return responseData;
     if (responseData && typeof responseData === "object" && "message" in responseData) {
       const message = responseData.message;
-      if (typeof message === "string") return message;
+      if (typeof message === "string") {
+        if ("errors" in responseData && Array.isArray(responseData.errors)) {
+          const details = responseData.errors
+            .map((entry: unknown) => {
+              if (!entry || typeof entry !== "object" || !("msg" in entry)) return null;
+              const detail = typeof entry.msg === "string" ? entry.msg : null;
+              const path = "path" in entry && typeof entry.path === "string" && entry.path
+                ? entry.path
+                : "param" in entry && typeof entry.param === "string" && entry.param
+                  ? entry.param
+                  : null;
+              return detail ? `${path ? `${path}: ` : ""}${detail}` : null;
+            })
+            .filter((detail): detail is string => detail !== null);
+          if (details.length) return `${message}: ${[...new Set(details)].join("; ")}`;
+        }
+        return message;
+      }
     }
     return "Server error. Please try again.";
   }

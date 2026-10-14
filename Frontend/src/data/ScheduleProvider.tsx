@@ -27,6 +27,20 @@ type ScheduleContextValue = {
     durationMinutes: number,
     repeatDays?: number[],
     reminderEnabled?: boolean,
+    repeatDates?: string[],
+    reminderTime?: string,
+  ) => Promise<boolean>;
+  addBodyPartPlan: (
+    bodyPart: string,
+    date: string,
+    time: string,
+    durationMinutes: number,
+    repeatDays?: number[],
+    reminderEnabled?: boolean,
+    repeatDates?: string[],
+    reminderTime?: string,
+    reminderSoundUrl?: string,
+    reminderSoundTitle?: string,
   ) => Promise<boolean>;
   addDayPlan: (plan: Omit<DailyPlan, "id">) => Promise<boolean>;
   remove: (id: string) => Promise<void>;
@@ -46,6 +60,12 @@ function expandWorkoutPlans(plans: PlannedWorkout[]) {
   const instances: PlannedWorkout[] = [];
 
   for (const plan of plans) {
+    if (plan.repeatDates?.length) {
+      for (const key of plan.repeatDates) {
+        if (key >= todayKey) instances.push({ ...plan, date: key });
+      }
+      continue;
+    }
     if (!plan.repeatDays?.length) {
       if (plan.date >= todayKey) instances.push(plan);
       continue;
@@ -141,6 +161,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         time,
         durationMinutes: classSession.minutes,
         repeatDays,
+        repeatDates: [],
+        reminderTime: time,
         reminderEnabled,
       });
       setWorkoutPlans(current => [...current, plan]);
@@ -164,6 +186,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     durationMinutes: number,
     repeatDays: number[] = [],
     reminderEnabled = false,
+    repeatDates: string[] = [],
+    reminderTime = time,
   ): Promise<boolean> => {
     if (!user) {
       setError("Sign in to sync your workout schedule with your account.");
@@ -180,6 +204,56 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         time,
         durationMinutes,
         repeatDays,
+        repeatDates,
+        reminderTime,
+        reminderEnabled,
+      });
+      setWorkoutPlans(current => [...current, plan]);
+      if (reminderEnabled) {
+        try {
+          const enabled = await schedulePlanReminder(plan, "workout", true);
+          if (!enabled) setError("Workout saved, but notifications are disabled on this device.");
+        } catch (reminderError) {
+          setError(reminderError instanceof Error ? `Workout saved, but ${reminderError.message}` : "Workout saved, but its reminder could not be scheduled.");
+        }
+      }
+      return true;
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save this workout.");
+      return false;
+    }
+  }, [user]);
+
+  const addBodyPartPlan = useCallback(async (
+    bodyPart: string,
+    date: string,
+    time: string,
+    durationMinutes: number,
+    repeatDays: number[] = [],
+    reminderEnabled = false,
+    repeatDates: string[] = [],
+    reminderTime = time,
+    reminderSoundUrl?: string,
+    reminderSoundTitle?: string,
+  ): Promise<boolean> => {
+    if (!user) {
+      setError("Sign in to sync your workout schedule with your account.");
+      return false;
+    }
+    setError(null);
+    try {
+      const plan = await createPlannedWorkout({
+        title: `${bodyPart} workout`,
+        bodyPart,
+        category: "Planned",
+        date,
+        time,
+        durationMinutes,
+        repeatDays,
+        repeatDates,
+        reminderTime,
+        reminderSoundUrl,
+        reminderSoundTitle,
         reminderEnabled,
       });
       setWorkoutPlans(current => [...current, plan]);
@@ -227,7 +301,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     try {
       await deletePlannedWorkout(id);
       const plan = workoutPlans.find(item => item.id === id);
-      if (plan?.reminderEnabled) await cancelPlanReminder(id, "workout", plan.repeatDays);
+      if (plan?.reminderEnabled) await cancelPlanReminder(id, "workout", plan.repeatDays, plan.repeatDates);
       setWorkoutPlans(current => current.filter(item => item.id !== id));
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : "Unable to remove this workout.");
@@ -253,13 +327,14 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     error,
     add,
     addExercise,
+    addBodyPartPlan,
     addDayPlan,
     remove,
     removeDayPlan,
     find: (classId, date) => scheduled.find(item => item.classId === classId && item.date === date),
     dates: new Set(scheduled.map(item => item.date)),
     refresh,
-  }), [scheduled, dayPlans, loading, error, add, addExercise, addDayPlan, remove, removeDayPlan, refresh]);
+  }), [scheduled, dayPlans, loading, error, add, addExercise, addBodyPartPlan, addDayPlan, remove, removeDayPlan, refresh]);
 
   return <ScheduleContext.Provider value={value}>{children}</ScheduleContext.Provider>;
 }

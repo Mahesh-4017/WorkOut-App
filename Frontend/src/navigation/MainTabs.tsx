@@ -43,8 +43,8 @@ export default function MainTabs({
             description="Workouts and plans for your day"
             showBack={false}
             rightIcon="+"
-            onRightPress={() => navigation?.navigate(WORKOUT_ROUTES.PLANNER)}
-            rightAccessibilityLabel="Add a workout or day plan"
+            onRightPress={() => navigation?.navigate(WORKOUT_ROUTES.SCHEDULE)}
+            rightAccessibilityLabel="Plan your day"
           />
         );
       case "analysis":

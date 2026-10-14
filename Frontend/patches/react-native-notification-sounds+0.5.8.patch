@@ -1,0 +1,144 @@
+diff --git a/node_modules/react-native-notification-sounds/android/build.gradle b/node_modules/react-native-notification-sounds/android/build.gradle
+index 772ad04..f40b885 100644
+--- a/node_modules/react-native-notification-sounds/android/build.gradle
++++ b/node_modules/react-native-notification-sounds/android/build.gradle
+@@ -4,7 +4,7 @@ buildscript {
+     }
+     repositories {
+         google()
+-        jcenter()
++        mavenCentral()
+     }
+ 
+     dependencies {
+@@ -83,51 +83,3 @@ def configureReactNativePom(def pom) {
+         }
+     }
+ }
+-
+-afterEvaluate { project ->
+-
+-    task androidJavadoc(type: Javadoc) {
+-        source = android.sourceSets.main.java.srcDirs
+-        classpath += files(android.bootClasspath)
+-        //classpath += files(project.getConfigurations().getByName('compile').asList())
+-        include '**/*.java'
+-    }
+-
+-    task androidJavadocJar(type: Jar, dependsOn: androidJavadoc) {
+-        archiveClassifier = 'javadoc'
+-        from androidJavadoc.destinationDir
+-    }
+-
+-    task androidSourcesJar(type: Jar) {
+-        archiveClassifier = 'sources'
+-        from android.sourceSets.main.java.srcDirs
+-        include '**/*.java'
+-    }
+-
+-    android.libraryVariants.all { variant ->
+-        def name = variant.name.capitalize()
+-        task "jar${name}"(type: Jar, dependsOn: variant.javaCompile) {
+-            from variant.javaCompile.destinationDir
+-        }
+-    }
+-
+-    artifacts {
+-        archives androidSourcesJar
+-        archives androidJavadocJar
+-    }
+-
+-    // task installArchives(type: Upload) {
+-    //     configuration = configurations.archives
+-    //     repositories.mavenDeployer {
+-    //         // Deploy to react-native-event-bridge/maven, ready to publish to npm
+-    //         repository url: "file://${projectDir}/../android/maven"
+-
+-    //         configureReactNativePom pom
+-    //     }
+-    // }
+-}
+-subprojects { subproject ->
+-        if(project['name'] == 'react-native-notification-sounds'){
+-            project.configurations { compile { } }
+-        }
+-}
+diff --git a/node_modules/react-native-notification-sounds/android/src/main/java/com/reactlibrarynotificationsounds/NotificationSoundsModule.java b/node_modules/react-native-notification-sounds/android/src/main/java/com/reactlibrarynotificationsounds/NotificationSoundsModule.java
+index df16582..5378770 100644
+--- a/node_modules/react-native-notification-sounds/android/src/main/java/com/reactlibrarynotificationsounds/NotificationSoundsModule.java
++++ b/node_modules/react-native-notification-sounds/android/src/main/java/com/reactlibrarynotificationsounds/NotificationSoundsModule.java
+@@ -1,10 +1,14 @@
+ package com.reactlibrarynotificationsounds;
+ 
++import android.app.NotificationChannel;
++import android.app.NotificationManager;
+ import android.database.Cursor;
++import android.media.AudioAttributes;
+ import android.media.MediaPlayer;
+ import android.media.Ringtone;
+ import android.media.RingtoneManager;
+ import android.net.Uri;
++import android.os.Build;
+ import android.util.Log;
+ import android.widget.Toast;
+ 
+@@ -97,5 +101,43 @@ public class NotificationSoundsModule extends ReactContextBaseJavaModule {
+         }
+     }
+ 
++    @ReactMethod
++    public void createSoundChannel(String soundUrl, Promise promise) {
++        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
++            promise.resolve("schedule-reminders");
++            return;
++        }
++        if (soundUrl == null || soundUrl.trim().isEmpty()) {
++            promise.reject("E_INVALID_SOUND", "A notification sound URI is required.");
++            return;
++        }
++        try {
++            Uri soundUri = Uri.parse(soundUrl);
++            Ringtone ringtone = RingtoneManager.getRingtone(reactContext, soundUri);
++            if (ringtone == null) {
++                promise.reject("E_SOUND_NOT_FOUND", "The selected notification sound is unavailable on this device.");
++                return;
++            }
++            String channelId = "schedule-reminders-" + Integer.toHexString(soundUrl.hashCode());
++            NotificationManager manager = (NotificationManager) reactContext.getSystemService(ReactApplicationContext.NOTIFICATION_SERVICE);
++            if (manager == null) {
++                promise.reject("E_NOTIFICATION_MANAGER", "Notification channels are unavailable on this device.");
++                return;
++            }
++            NotificationChannel channel = new NotificationChannel(
++                channelId,
++                "Schedule reminders",
++                NotificationManager.IMPORTANCE_HIGH
++            );
++            channel.setSound(soundUri, new AudioAttributes.Builder()
++                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
++                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
++                .build());
++            manager.createNotificationChannel(channel);
++            promise.resolve(channelId);
++        } catch (Exception error) {
++            promise.reject("E_SOUND_CHANNEL", "Could not apply the selected notification sound.", error);
++        }
++    }
+ 
+ }
+diff --git a/node_modules/react-native-notification-sounds/index.d.ts b/node_modules/react-native-notification-sounds/index.d.ts
+index f6267bd..7935504 100644
+--- a/node_modules/react-native-notification-sounds/index.d.ts
++++ b/node_modules/react-native-notification-sounds/index.d.ts
+@@ -8,7 +8,10 @@ declare module 'react-native-notification-sounds' {
+   export function playSampleSound(s: Sound): void
+   export function stopSampleSound(): void
+   
+-  type TNotificationSounds = { getNotifications(type: string): Promise<Sound[]> };
++  type TNotificationSounds = {
++    getNotifications(type: string): Promise<Sound[]>;
++    createSoundChannel(soundUrl: string): Promise<string>;
++  };
+   const NotificationSounds: TNotificationSounds;
+   export default NotificationSounds
+ }

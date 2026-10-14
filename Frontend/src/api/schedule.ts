@@ -11,7 +11,11 @@ export type PlannedWorkout = {
   time: string;
   durationMinutes: number;
   repeatDays: number[];
+  repeatDates: string[];
+  reminderTime: string;
   reminderEnabled: boolean;
+  reminderSoundUrl?: string;
+  reminderSoundTitle?: string;
 };
 
 type PlannedWorkoutInput = Omit<PlannedWorkout, "id">;
