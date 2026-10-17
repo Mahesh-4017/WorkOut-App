@@ -45,7 +45,7 @@ jobs:
 
       - name: Build release APK
         working-directory: Frontend/android
-        run: ./gradlew --no-daemon assembleRelease
+        run: ./gradlew --no-daemon -PallowDebugReleaseSigning=true assembleRelease
 
       - name: Stage APK
         run: |
