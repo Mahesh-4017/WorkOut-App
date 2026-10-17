@@ -68,6 +68,10 @@ Phone step sync reads the day's total from Health Connect on Android (API 26+) o
 
 Scheduled workouts, personal day plans, and daily step reminder times are stored in the WorkOut backend. Timer controls and scheduled reminders use local phone notifications; the daily step reminder reports the latest health total synced while WorkOut is open.
 
+## Android running map
+
+The Android running map uses Google Maps and requires an API key with the Maps SDK for Android enabled. Add the key as the `ANDROID_MAPS_API_KEY` Actions secret in the GitHub repository settings so the APK release workflow can inject it into the app manifest. For local release builds, set `ANDROID_MAPS_API_KEY` in the environment or `Frontend/android/gradle.properties`. Restrict the key to the Android app package `com.workoutapp.fitness` and the signing certificate fingerprints used by the build.
+
 ## Step 3: Modify your app
 
 Now that you have successfully run the app, let's make changes!

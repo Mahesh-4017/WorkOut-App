@@ -45,6 +45,8 @@ jobs:
 
       - name: Build release APK
         working-directory: Frontend/android
+        env:
+          ANDROID_MAPS_API_KEY: ${{ secrets.ANDROID_MAPS_API_KEY }}
         run: ./gradlew --no-daemon -PallowDebugReleaseSigning=true assembleRelease
 
       - name: Stage APK
