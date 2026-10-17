@@ -7,7 +7,6 @@ import {
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Calendar } from "react-native-calendars";
 import { useFocusEffect } from "@react-navigation/native";
 
 import {
@@ -22,6 +21,7 @@ import { WORKOUT_ROUTES } from "../../navigation/workoutRoutes";
 import { useSchedule } from "../../data/ScheduleProvider";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { weekdayName } from "../../utils/scheduleReminders";
+import { addDaysToDateKey, indiaDateKey, indiaLongDateLabel, indiaWeekday } from "../../utils/indiaTime";
 
 /* =========================================================
    Responsive Helpers
@@ -59,11 +59,14 @@ type Workout = {
   exerciseId?: string;
 };
 
-const dateAtOffset = (days: number) => {
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  date.setDate(date.getDate() + days);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const dateAtOffset = (days: number) => addDaysToDateKey(indiaDateKey(), days);
+const formatScheduleTime = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return time;
+  return new Date(2000, 0, 1, hours, minutes).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 };
 
 /* =========================================================
@@ -115,12 +118,12 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
 
   const personalPlans = useMemo(() => dayPlans.flatMap(plan => {
     const repeatsOnSelectedDate = selectedDate >= plan.date
-      && plan.repeatDays?.includes(new Date(`${selectedDate}T12:00:00`).getDay());
+      && plan.repeatDays?.includes(indiaWeekday(selectedDate));
     if (plan.repeatDays?.length ? !repeatsOnSelectedDate : plan.date !== selectedDate) return [];
     return [{
       id: plan.id,
       date: selectedDate,
-      label: new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }),
+      label: indiaLongDateLabel(selectedDate),
       name: plan.title,
       muscles: plan.description || "Personal day plan",
       exercises: 0,
@@ -133,103 +136,30 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
     }];
   }), [dayPlans, selectedDate]);
 
-  const upcomingPersonalPlans = useMemo(() => dayPlans.flatMap(plan => {
-    const lastDay = new Date(`${selectedDate}T12:00:00`);
-    lastDay.setDate(lastDay.getDate() + 30);
-    const firstDay = new Date(`${selectedDate}T12:00:00`);
-    const occurrences: Workout[] = [];
-    for (const day = new Date(firstDay); day <= lastDay; day.setDate(day.getDate() + 1)) {
-      const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
-      const isDue = plan.repeatDays?.length
-        ? key >= plan.date && plan.repeatDays.includes(day.getDay())
-        : key === plan.date;
-      if (isDue && key !== selectedDate) {
-        occurrences.push({
-          id: plan.id,
-          date: key,
-          label: day.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }),
-          name: plan.title,
-          muscles: plan.description || "Personal day plan",
-          exercises: 0,
-          duration: "",
-          time: plan.time,
-          repeatDays: plan.repeatDays || [],
-          reminderEnabled: plan.reminderEnabled,
-          kind: "day",
-          icon: "calendar-outline",
-        });
-      }
-    }
-    return occurrences;
-  }), [dayPlans, selectedDate]);
-
   const selectedWorkouts = useMemo(
     () => workouts.filter(workout => workout.date === selectedDate),
     [selectedDate, workouts],
   );
-
-  /* =========================================================
-     Calendar Marked Dates
-  ========================================================= */
-
-  const markedDates = useMemo(() => {
-    const marks: Record<string, any> = {};
-
-    /*
-     * Add workout dots
-     */
-    [...workouts, ...dayPlans.map(plan => ({
-      date: plan.date,
-      repeatDays: plan.repeatDays || [],
-    }))].forEach((workout) => {
-      marks[workout.date] = {
-        marked: true,
-        dotColor: theme.colors.primary,
-      };
-      workout.repeatDays.forEach(day => {
-        const start = new Date(`${workout.date}T12:00:00`);
-        const end = new Date();
-        end.setDate(end.getDate() + 365);
-        for (let occurrence = new Date(start); occurrence <= end; occurrence.setDate(occurrence.getDate() + 1)) {
-          if (occurrence.getDay() === day) {
-            const key = dateAtOffset(Math.round((occurrence.getTime() - new Date(`${dateAtOffset(0)}T12:00:00`).getTime()) / 86400000));
-            marks[key] = { ...(marks[key] || {}), marked: true, dotColor: theme.colors.primary };
-          }
-        }
+  const selectedAgenda = useMemo(
+    () => [...selectedWorkouts, ...personalPlans].sort((a, b) => a.time.localeCompare(b.time)),
+    [personalPlans, selectedWorkouts],
+  );
+  const weekDates = useMemo(() => {
+    const weekStart = addDaysToDateKey(selectedDate, -((indiaWeekday(selectedDate) + 6) % 7));
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = addDaysToDateKey(weekStart, index);
+      const [year, month, day] = date.split("-").map(Number);
+      const weekday = new Date(Date.UTC(year, month - 1, day, 12)).toLocaleDateString(undefined, {
+        weekday: "short",
+        timeZone: "UTC",
       });
+      const hasPlan = scheduled.some(item => item.date === date)
+        || dayPlans.some(plan => plan.repeatDays.length
+          ? date >= plan.date && plan.repeatDays.includes(indiaWeekday(date))
+          : plan.date === date);
+      return { date, weekday, day: Number(date.slice(-2)), hasPlan };
     });
-
-    /*
-     * Selected date
-     */
-    marks[selectedDate] = {
-      ...(marks[selectedDate] || {}),
-
-      selected: true,
-
-      selectedColor:
-        theme.colors.primary,
-
-      selectedTextColor:
-        theme.colors.onPrimary,
-
-      marked: !!workouts.find(
-        (workout) =>
-          workout.date === selectedDate
-      ) || personalPlans.length > 0,
-
-      dotColor:
-        theme.colors.onPrimary,
-    };
-
-    return marks;
-  }, [
-    selectedDate,
-    workouts,
-    dayPlans,
-    personalPlans.length,
-    theme.colors,
-  ]);
+  }, [dayPlans, scheduled, selectedDate]);
 
   /* =========================================================
      Render
@@ -242,209 +172,136 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
         >
-
-          {/* =================================================
-              Calendar
-          ================================================= */}
-
-          <View style={styles.calendarContainer}>
-            <Calendar
-              current={selectedDate}
-              onDayPress={(day) => {
-                setSelectedDate(
-                  day.dateString
+          <View style={styles.weekCard}>
+            <View style={styles.weekHeader}>
+              <Pressable
+                onPress={() => setSelectedDate(addDaysToDateKey(selectedDate, -7))}
+                style={styles.weekArrow}
+                accessibilityRole="button"
+                accessibilityLabel="Previous week"
+              >
+                <Ionicons name="chevron-back" size={16} color={theme.colors.muted} />
+              </Pressable>
+              <View style={styles.weekHeaderCopy}>
+                <Text style={styles.weekTitle}>SELECT A DAY</Text>
+                <Text style={styles.weekMonth}>
+                  {new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setSelectedDate(addDaysToDateKey(selectedDate, 7))}
+                style={styles.weekArrow}
+                accessibilityRole="button"
+                accessibilityLabel="Next week"
+              >
+                <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
+              </Pressable>
+            </View>
+            <View style={styles.weekRow}>
+              {weekDates.map(item => {
+                const active = item.date === selectedDate;
+                return (
+                  <Pressable
+                    key={item.date}
+                    onPress={() => setSelectedDate(item.date)}
+                    style={styles.weekDateButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.weekday}, ${item.day}${item.hasPlan ? ", plans scheduled" : ""}`}
+                    accessibilityState={{ selected: active }}
+                  >
+                    <View style={[styles.weekDateCircle, active && styles.weekDateCircleActive]}>
+                      <Text style={[styles.weekdayText, active && styles.weekdayTextActive]}>{item.weekday}</Text>
+                      <Text style={[styles.weekDateText, active && styles.weekDateTextActive]}>{item.day}</Text>
+                      <View style={[styles.planDot, item.hasPlan && styles.planDotActive, active && item.hasPlan && styles.planDotSelected]} />
+                    </View>
+                  </Pressable>
                 );
-              }}
-              markedDates={markedDates}
-              enableSwipeMonths={true}
-              hideExtraDays={false}
-              firstDay={1}
-              showWeekNumbers={false}
-              hideArrows={false}
-              disableMonthChange={false}
-              theme={{
-                /*
-                 * Background
-                 */
-                backgroundColor:
-                  theme.colors.card,
-
-                calendarBackground:
-                  theme.colors.card,
-
-                /*
-                 * Header
-                 */
-                textSectionTitleColor:
-                  theme.colors.muted,
-
-                monthTextColor:
-                  theme.colors.text,
-
-                arrowColor:
-                  theme.colors.text,
-
-                /*
-                 * Dates
-                 */
-                dayTextColor:
-                  theme.colors.text,
-
-                textDisabledColor:
-                  theme.colors.muted,
-
-                /*
-                 * Selected
-                 */
-                selectedDayBackgroundColor:
-                  theme.colors.primary,
-
-                selectedDayTextColor:
-                  theme.colors.onPrimary,
-
-                /*
-                 * Today
-                 */
-                todayTextColor:
-                  theme.colors.primaryDark,
-
-                /*
-                 * Workout dots
-                 */
-                dotColor:
-                  theme.colors.primary,
-
-                selectedDotColor:
-                  theme.colors.onPrimary,
-
-                /*
-                 * Fonts
-                 */
-                textDayFontSize:
-                  rf(11),
-
-                textMonthFontSize:
-                  rf(14),
-
-                textDayHeaderFontSize:
-                  rf(9),
-
-                textDayFontWeight:
-                  "600",
-
-                textMonthFontWeight:
-                  "800",
-
-                textDayHeaderFontWeight:
-                  "600",
-              }}
-            />
+              })}
+            </View>
           </View>
 
-          {/* =================================================
-              Workouts Header
-          ================================================= */}
+          <View style={styles.dayOverview}>
+            <View style={styles.dayHeadingRow}>
+              <View style={styles.dayHeadingCopy}>
+                <View style={styles.dayEyebrowRow}>
+                  <View style={styles.dayStatusDot} />
+                  <Text style={styles.dayEyebrow}>{selectedDate === dateAtOffset(0) ? "TODAY" : "YOUR SELECTED DAY"}</Text>
+                </View>
+                <Text style={styles.dayDate}>{indiaLongDateLabel(selectedDate).split(", ").slice(1).join(", ")}</Text>
+                <Text style={styles.dayWeekday}>{indiaLongDateLabel(selectedDate).split(",")[0]}</Text>
+              </View>
+              <View style={styles.dayCountBadge}>
+                <Text style={styles.dayCount}>{loading ? "—" : selectedAgenda.length}</Text>
+                <Text style={styles.dayCountLabel}>{selectedAgenda.length === 1 ? "PLAN" : "PLANS"}</Text>
+              </View>
+            </View>
+            <View style={styles.dayOverviewFooter}>
+              <Ionicons name="time-outline" size={14} color={theme.colors.onPrimary} />
+              <Text style={styles.daySummary}>
+                {loading ? "Syncing your schedule" : selectedAgenda.length
+                  ? `${selectedAgenda.length} ${selectedAgenda.length === 1 ? "activity" : "activities"} planned`
+                  : "A fresh day. Make it count."}
+              </Text>
+            </View>
+          </View>
 
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              Workouts
-            </Text>
-
-            <Pressable hitSlop={10} onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE)}>
-              <Text style={styles.viewAll}>
-                View All
-              </Text>
+            <View style={styles.agendaHeading}>
+              <Text style={styles.sectionTitle}>Your day</Text>
+              <Text style={styles.agendaSubtitle}>Everything planned for this date</Text>
+            </View>
+            <Pressable
+              hitSlop={10}
+              onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE, { selectedDate })}
+              accessibilityRole="button"
+            >
+              <Text style={styles.viewAll}>Manage</Text>
             </Pressable>
           </View>
 
-          {/* =================================================
-              Selected Workout
-          ================================================= */}
-
-          <Pressable
-            onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE, { selectedDate })}
-            style={styles.planShortcut}
-            accessibilityRole="button"
-          >
-            <Ionicons name="add-circle-outline" size={18} color={theme.colors.primary} />
-            <Text style={styles.planShortcutText}>Plan for {selectedDate === dateAtOffset(0) ? "today" : new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "long" })}</Text>
-            <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
-          </Pressable>
           {loading ? <Text style={styles.workoutMuscles}>Loading your synced schedule…</Text> : null}
           {error ? (
             <Pressable onPress={refresh} style={styles.workoutCard}>
               <Text style={styles.workoutMuscles}>{error} · Tap to retry</Text>
             </Pressable>
           ) : null}
-          {!loading && selectedWorkouts.length === 0 ? (
+          {!loading && selectedAgenda.length === 0 ? (
             <EmptyWorkoutCard
               styles={styles}
-              onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE, { selectedDate })}
             />
           ) : null}
-          {selectedWorkouts.map(workout => (
+          {selectedAgenda.map(item => (
             <WorkoutCard
-              key={workout.id}
-              workout={workout}
-              selected
+              key={`${item.kind}-${item.id}-${item.date}`}
+              workout={item}
               styles={styles}
-              onRemove={() => remove(workout.id)}
-              onPress={() => workout.exerciseId
-                ? navigation.navigate(WORKOUT_ROUTES.LIBRARY_EXERCISE, { exerciseId: workout.exerciseId })
-                : navigation.navigate(WORKOUT_ROUTES.SCHEDULE)}
+              onRemove={() => item.kind === "workout" ? remove(item.id) : removeDayPlan(item.id)}
+              onPress={() => item.kind === "day"
+                ? navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: item.date })
+                : item.exerciseId
+                  ? navigation.navigate(WORKOUT_ROUTES.LIBRARY_EXERCISE, { exerciseId: item.exerciseId })
+                  : navigation.navigate(WORKOUT_ROUTES.SCHEDULE, { selectedDate: item.date })}
             />
           ))}
 
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Personal plans</Text>
+          <View style={styles.addPlanRow}>
             <Pressable
-              hitSlop={10}
-              onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: selectedDate })}
+              onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE, { selectedDate })}
+              style={styles.addPlanButton}
               accessibilityRole="button"
             >
-              <Text style={styles.viewAll}>+ Add plan</Text>
+              <Ionicons name="barbell-outline" size={16} color={theme.colors.primaryDark} />
+              <Text style={styles.addPlanButtonText}>Add workout</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: selectedDate })}
+              style={styles.addPlanButton}
+              accessibilityRole="button"
+            >
+              <Ionicons name="add-circle-outline" size={17} color={theme.colors.primaryDark} />
+              <Text style={styles.addPlanButtonText}>Add day plan</Text>
             </Pressable>
           </View>
-          {!loading && personalPlans.length === 0 ? (
-            <EmptyWorkoutCard
-              styles={styles}
-              personal
-              onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: selectedDate })}
-            />
-          ) : null}
-          {personalPlans.map(plan => (
-            <WorkoutCard
-              key={`${plan.id}-${plan.date}`}
-              workout={plan}
-              selected
-              styles={styles}
-              onRemove={() => removeDayPlan(plan.id)}
-              onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: plan.date })}
-            />
-          ))}
-
-          {/* =================================================
-              Upcoming
-          ================================================= */}
-
-          <Text style={styles.upcomingTitle}>
-            Upcoming
-          </Text>
-
-          {[...workouts, ...upcomingPersonalPlans]
-            .filter(workout => workout.date >= selectedDate)
-            .filter(workout => workout.date !== selectedDate)
-            .map((workout) => (
-              <WorkoutCard
-                key={`${workout.kind}-${workout.id}-${workout.date}`}
-                workout={workout}
-                selected={false}
-                styles={styles}
-                onPress={() => {
-                  setSelectedDate(workout.date);
-                }}
-              />
-            ))}
 
           <View style={styles.bottomSpacer} />
         </ScrollView>
@@ -459,13 +316,11 @@ export default function CalendarScreen({ selectedDate: initialDate }: { selected
 
 function WorkoutCard({
   workout,
-  selected,
   onPress,
   onRemove,
   styles,
 }: {
   workout: Workout;
-  selected: boolean;
   onPress: () => void;
   onRemove?: () => void;
   styles: any;
@@ -473,59 +328,52 @@ function WorkoutCard({
   return (
     <Pressable
       onPress={onPress}
-      style={[
-        styles.workoutCard,
-
-        selected &&
-          styles.selectedWorkoutCard,
-      ]}
+      style={styles.workoutCard}
+      accessibilityRole="button"
+      accessibilityLabel={`${workout.name}, ${formatScheduleTime(workout.time)} IST`}
     >
-      {/* Workout Icon */}
-
-      <View
-        style={[
-          styles.workoutIcon,
-
-          {
-            backgroundColor: selected
-              ? styles.colors.primary
-              : styles.colors.surface,
-          },
-        ]}
-      >
-        <Ionicons name={workout.icon} size={22} color={selected ? styles.colors.onPrimary : styles.colors.icon} />
+      <View style={styles.timeColumn}>
+        <Text style={styles.cardTime}>{formatScheduleTime(workout.time)}</Text>
+        <Text style={styles.timezone}>IST</Text>
       </View>
 
-      {/* Workout Content */}
+      <View style={styles.timeline}>
+        <View style={[styles.timelineDot, workout.kind === "day" && styles.timelineDotPersonal]} />
+      </View>
 
       <View style={styles.workoutContent}>
-        <Text style={styles.workoutLabel}>
-          {workout.label}
-        </Text>
-
-        <Text style={styles.workoutName}>
-          {workout.name}
-        </Text>
-
-        <Text
-          style={styles.workoutMuscles}
-          numberOfLines={1}
-        >
-          {workout.muscles}
-        </Text>
-
-        {/* Meta */}
-
-        <View style={styles.workoutMeta}>
-          <Text style={styles.metaText}>
-            {workout.kind === "workout"
-              ? `${workout.exercises} exercise${workout.exercises === 1 ? "" : "s"} · ${workout.duration}`
-              : `${workout.time}${workout.repeatDays.length ? ` · Every ${workout.repeatDays.map(weekdayName).join(", ")}` : ""}${workout.reminderEnabled ? " · Reminder on" : ""}`}
-          </Text>
+        <View style={styles.workoutTypeRow}>
+          <View style={[
+            styles.workoutTypeBadge,
+            workout.kind === "day" && styles.personalTypeBadge,
+          ]}>
+            <Ionicons
+              name={workout.icon}
+              size={12}
+              color={workout.kind === "day" ? styles.colors.accent : styles.colors.primaryDark}
+            />
+            <Text style={[
+              styles.workoutLabel,
+              workout.kind === "day" && styles.personalTypeText,
+            ]}>
+              {workout.kind === "day" ? "PERSONAL PLAN" : "WORKOUT"}
+            </Text>
+          </View>
+          {workout.reminderEnabled ? (
+            <Ionicons name="notifications-outline" size={14} color={styles.colors.muted} />
+          ) : null}
         </View>
-      </View>
 
-      {/* Arrow */}
+        <Text style={styles.workoutName} numberOfLines={1}>{workout.name}</Text>
+        <Text style={styles.workoutMuscles} numberOfLines={2}>{workout.muscles}</Text>
+        <Text style={styles.cardDetails}>
+          {workout.kind === "workout"
+            ? `${workout.duration} · ${workout.exercises} exercise`
+            : workout.repeatDays.length
+              ? `Repeats ${workout.repeatDays.map(weekdayName).join(", ")}`
+              : "One-time plan"}
+        </Text>
+      </View>
 
       <View style={styles.arrowContainer}>
         {onRemove ? (
@@ -538,7 +386,6 @@ function WorkoutCard({
             <Ionicons name="trash-outline" size={17} color={styles.colors.muted} />
           </Pressable>
         ) : null}
-        <Ionicons name="chevron-forward" size={19} color={styles.colors.icon} />
       </View>
     </Pressable>
   );
@@ -550,41 +397,19 @@ function WorkoutCard({
 
 function EmptyWorkoutCard({
   styles,
-  onPress,
-  personal = false,
 }: {
   styles: any;
-  onPress: () => void;
-  personal?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.emptyCard} accessibilityRole="button">
-      {/* Icon */}
-
+    <View style={styles.emptyCard}>
       <View style={styles.emptyIcon}>
-        <Ionicons name="add" size={22} color={styles.colors.icon} />
+        <Ionicons name="sparkles-outline" size={20} color={styles.colors.primaryDark} />
       </View>
-
-      {/* Content */}
-
       <View style={styles.emptyContent}>
-        <Text style={styles.emptyTitle}>
-          {personal ? "No personal plans" : "No workout planned"}
-        </Text>
-
-        <Text style={styles.emptyText}>
-          {personal ? "Add a reminder, activity, or note for this day" : "Add a workout for this day"}
-        </Text>
+        <Text style={styles.emptyTitle}>Nothing planned yet</Text>
+        <Text style={styles.emptyText}>Add a workout or a personal plan to shape your day.</Text>
       </View>
-
-      {/* Add */}
-
-      <View style={styles.addButton}>
-        <Text style={styles.addButtonText}>
-          Add
-        </Text>
-      </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -620,69 +445,105 @@ const createStyles = (theme: any) =>
       height: rh(30),
     },
 
-    /*
-    |--------------------------------------------------------------------------
-    | Header
-    |--------------------------------------------------------------------------
-    */
-    calendarButton: {
-      width:
-        rw(42),
-
-      height:
-        rh(42),
-
-      borderRadius:
-        rw(13),
-
-      backgroundColor:
-        theme.colors.card,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      borderWidth:
-        1,
-
-      borderColor:
-        theme.colors.border,
+    weekCard: {
+      paddingHorizontal: rw(10),
+      paddingVertical: rh(10),
+      borderRadius: rw(19),
+      backgroundColor: theme.colors.surface,
     },
 
-    calendarIcon: {
-      fontSize:
-        rf(17),
-
-      color:
-        theme.colors.icon,
+    weekHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: rh(8),
     },
 
-    /*
-    |--------------------------------------------------------------------------
-    | Calendar
-    |--------------------------------------------------------------------------
-    */
+    weekArrow: {
+      width: rw(28),
+      height: rw(28),
+      borderRadius: rw(9),
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.card,
+    },
 
-    calendarContainer: {
-      backgroundColor:
-        theme.colors.card,
+    weekHeaderCopy: {
+      flex: 1,
+      alignItems: "center",
+    },
 
-      borderRadius:
-        rw(20),
+    weekTitle: {
+      color: theme.colors.text,
+      fontSize: rf(8),
+      fontWeight: "800",
+      letterSpacing: 1,
+    },
 
-      padding:
-        rw(5),
+    weekMonth: {
+      color: theme.colors.muted,
+      fontSize: rf(9),
+      fontWeight: "600",
+    },
 
-      borderWidth:
-        1,
+    weekRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
 
-      borderColor:
-        theme.colors.border,
+    weekDateButton: {
+      flex: 1,
+      alignItems: "center",
+      gap: 0,
+    },
 
-      overflow:
-        "hidden",
+    weekdayText: {
+      color: theme.colors.muted,
+      fontSize: rf(8),
+      fontWeight: "700",
+      textTransform: "uppercase",
+    },
+
+    weekdayTextActive: {
+      color: theme.colors.onPrimary,
+    },
+
+    weekDateCircle: {
+      width: rw(38),
+      height: rw(54),
+      borderRadius: rw(14),
+      gap: rh(2),
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    weekDateCircleActive: {
+      backgroundColor: theme.colors.primary,
+    },
+
+    weekDateText: {
+      color: theme.colors.text,
+      fontSize: rf(11),
+      fontWeight: "700",
+    },
+
+    weekDateTextActive: {
+      color: theme.colors.onPrimary,
+    },
+
+    planDot: {
+      width: rw(4),
+      height: rw(4),
+      borderRadius: rw(2),
+      backgroundColor: "transparent",
+    },
+
+    planDotActive: {
+      backgroundColor: theme.colors.primary,
+    },
+
+    planDotSelected: {
+      backgroundColor: theme.colors.onPrimary,
     },
 
     /*
@@ -702,10 +563,20 @@ const createStyles = (theme: any) =>
         "space-between",
 
       marginTop:
-        rh(24),
+        rh(19),
 
       marginBottom:
         rh(11),
+    },
+
+    agendaHeading: {
+      flex: 1,
+    },
+
+    agendaSubtitle: {
+      marginTop: rh(3),
+      color: theme.colors.muted,
+      fontSize: rf(9),
     },
 
     sectionTitle: {
@@ -717,26 +588,6 @@ const createStyles = (theme: any) =>
 
       color:
         theme.colors.text,
-    },
-
-    planShortcut: {
-      minHeight: rh(43),
-      flexDirection: "row",
-      alignItems: "center",
-      gap: rw(8),
-      paddingHorizontal: rw(12),
-      marginTop: rh(10),
-      borderRadius: rw(12),
-      backgroundColor: theme.colors.card,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-
-    planShortcutText: {
-      flex: 1,
-      color: theme.colors.text,
-      fontSize: rf(10),
-      fontWeight: "700",
     },
 
     viewAll: {
@@ -757,114 +608,114 @@ const createStyles = (theme: any) =>
     */
 
     workoutCard: {
-      minHeight:
-        rh(92),
-
-      backgroundColor:
-        theme.colors.card,
-
-      borderRadius:
-        rw(17),
-
-      padding:
-        rw(12),
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      marginBottom:
-        rh(10),
-
-      borderWidth:
-        1,
-
-      borderColor:
-        theme.colors.border,
+      minHeight: rh(98),
+      backgroundColor: theme.colors.card,
+      borderRadius: rw(16),
+      paddingHorizontal: rw(12),
+      paddingVertical: rh(12),
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: rh(9),
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
 
-    selectedWorkoutCard: {
-      borderColor:
-        theme.colors.primary,
-
-      backgroundColor:
-        theme.colors.surface,
+    timeColumn: {
+      width: rw(61),
+      alignItems: "center",
+      justifyContent: "center",
     },
 
-    workoutIcon: {
-      width:
-        rw(52),
-
-      height:
-        rh(52),
-
-      borderRadius:
-        rw(15),
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      marginRight:
-        rw(12),
+    cardTime: {
+      color: theme.colors.text,
+      fontSize: rf(10),
+      fontWeight: "800",
     },
 
-    workoutEmoji: {
-      fontSize:
-        rf(21),
+    timezone: {
+      marginTop: rh(2),
+      color: theme.colors.muted,
+      fontSize: rf(7),
+      fontWeight: "700",
+      letterSpacing: 0.5,
+    },
+
+    timeline: {
+      width: rw(19),
+      alignSelf: "stretch",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    timelineDot: {
+      width: rw(9),
+      height: rw(9),
+      borderRadius: rw(5),
+      backgroundColor: theme.colors.primary,
+      borderWidth: 2,
+      borderColor: theme.colors.surface,
+    },
+
+    timelineDotPersonal: {
+      backgroundColor: theme.colors.accent,
     },
 
     workoutContent: {
       flex: 1,
+      paddingLeft: rw(11),
+      borderLeftWidth: 1,
+      borderLeftColor: theme.colors.border,
+    },
+
+    workoutTypeRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: rh(4),
+    },
+
+    workoutTypeBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: rw(4),
+      paddingHorizontal: rw(6),
+      paddingVertical: rh(3),
+      borderRadius: rw(6),
+      backgroundColor: theme.colors.surface,
+    },
+
+    personalTypeBadge: {
+      backgroundColor: theme.colors.panel,
     },
 
     workoutLabel: {
-      fontSize:
-        rf(8),
+      color: theme.colors.primaryDark,
+      fontSize: rf(7),
+      fontWeight: "800",
+      letterSpacing: 0.6,
+    },
 
-      fontWeight:
-        "700",
-
-      color:
-        theme.colors.muted,
-
-      textTransform:
-        "uppercase",
-
-      letterSpacing:
-        0.5,
-
-      marginBottom:
-        rh(2),
+    personalTypeText: {
+      color: theme.colors.accent,
     },
 
     workoutName: {
-      fontSize:
-        rf(13),
-
-      fontWeight:
-        "800",
-
-      color:
-        theme.colors.text,
-
-      marginBottom:
-        rh(3),
+      color: theme.colors.text,
+      fontSize: rf(12),
+      fontWeight: "800",
+      marginBottom: rh(2),
     },
 
     workoutMuscles: {
-      fontSize:
-        rf(9),
+      color: theme.colors.textSecondary,
+      fontSize: rf(9),
+      marginBottom: rh(4),
+    },
 
-      color:
-        theme.colors.textSecondary,
-
-      marginBottom:
-        rh(6),
+    cardDetails: {
+      color: theme.colors.muted,
+      fontSize: rf(8),
+      fontWeight: "600",
     },
 
     /*
@@ -873,82 +724,130 @@ const createStyles = (theme: any) =>
     |--------------------------------------------------------------------------
     */
 
-    workoutMeta: {
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
+    dayOverview: {
+      marginTop: rh(14),
+      padding: rw(17),
+      borderRadius: rw(20),
+      backgroundColor: theme.colors.primaryDark,
     },
 
-    metaText: {
-      fontSize:
-        rf(8),
-
-      color:
-        theme.colors.muted,
-
-      fontWeight:
-        "600",
+    dayEyebrow: {
+      color: theme.colors.onPrimary,
+      opacity: 0.75,
+      fontSize: rf(9),
+      fontWeight: "800",
+      letterSpacing: 1.2,
     },
 
-    metaDot: {
-      width:
-        rw(3),
-
-      height:
-        rh(3),
-
-      borderRadius:
-        rw(2),
-
-      backgroundColor:
-        theme.colors.muted,
-
-      marginHorizontal:
-        rw(6),
+    dayEyebrowRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: rw(6),
+      marginBottom: rh(4),
     },
 
-    /*
-    |--------------------------------------------------------------------------
-    | Arrow
-    |--------------------------------------------------------------------------
-    */
+    dayStatusDot: {
+      width: rw(6),
+      height: rw(6),
+      borderRadius: rw(3),
+      backgroundColor: theme.colors.onPrimary,
+    },
+
+    dayHeadingRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: rw(10),
+    },
+
+    dayHeadingCopy: {
+      flex: 1,
+    },
+
+    dayDate: {
+      color: theme.colors.onPrimary,
+      fontSize: rf(22),
+      fontWeight: "800",
+    },
+
+    dayWeekday: {
+      color: theme.colors.onPrimary,
+      opacity: 0.75,
+      fontSize: rf(10),
+      marginTop: rh(2),
+      fontWeight: "600",
+    },
+
+    daySummary: {
+      color: theme.colors.onPrimary,
+      opacity: 0.82,
+      fontSize: rf(9),
+      fontWeight: "600",
+    },
+
+    dayCountBadge: {
+      minWidth: rw(57),
+      height: rw(57),
+      borderRadius: rw(17),
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(255,255,255,0.14)",
+    },
+
+    dayCount: {
+      color: theme.colors.onPrimary,
+      fontSize: rf(19),
+      fontWeight: "800",
+    },
+
+    dayCountLabel: {
+      color: theme.colors.onPrimary,
+      opacity: 0.75,
+      fontSize: rf(7),
+      fontWeight: "800",
+      letterSpacing: 0.8,
+    },
+
+    dayOverviewFooter: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: rw(6),
+      marginTop: rh(13),
+      paddingTop: rh(10),
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: "rgba(255,255,255,0.28)",
+    },
+
+    addPlanRow: {
+      flexDirection: "row",
+      gap: rw(9),
+      marginTop: rh(5),
+      marginBottom: rh(10),
+    },
+
+    addPlanButton: {
+      flex: 1,
+      minHeight: rh(45),
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: rw(6),
+      paddingHorizontal: rw(8),
+      borderRadius: rw(13),
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+
+    addPlanButtonText: {
+      color: theme.colors.primaryDark,
+      fontSize: rf(9),
+      fontWeight: "800",
+    },
 
     arrowContainer: {
       marginLeft:
         rw(6),
-    },
-
-    cardArrow: {
-      fontSize:
-        rf(24),
-
-      color:
-        theme.colors.muted,
-    },
-
-    /*
-    |--------------------------------------------------------------------------
-    | Upcoming
-    |--------------------------------------------------------------------------
-    */
-
-    upcomingTitle: {
-      fontSize:
-        rf(16),
-
-      fontWeight:
-        "800",
-
-      color:
-        theme.colors.text,
-
-      marginTop:
-        rh(14),
-
-      marginBottom:
-        rh(11),
     },
 
     /*
@@ -1012,17 +911,6 @@ const createStyles = (theme: any) =>
         rw(12),
     },
 
-    emptyPlus: {
-      fontSize:
-        rf(23),
-
-      fontWeight:
-        "500",
-
-      color:
-        theme.colors.primaryDark,
-    },
-
     emptyContent: {
       flex: 1,
     },
@@ -1049,34 +937,4 @@ const createStyles = (theme: any) =>
         rh(3),
     },
 
-    addButton: {
-      paddingHorizontal:
-        rw(15),
-
-      height:
-        rh(34),
-
-      borderRadius:
-        rw(10),
-
-      backgroundColor:
-        theme.colors.primary,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-    },
-
-    addButtonText: {
-      color:
-        theme.colors.onPrimary,
-
-      fontSize:
-        rf(10),
-
-      fontWeight:
-        "800",
-    },
   });

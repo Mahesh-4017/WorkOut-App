@@ -8,6 +8,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { useTheme } from "../../../theme/ThemeProvider";
 import { ROUTES } from "../../../navigation/routes";
 import { useSession } from "../../../data/SessionProvider";
+import { useLiveStepCounter } from "../../../hooks/useLiveStepCounter";
 
 const DEFAULT_DAILY_GOAL = 10000;
 
@@ -20,15 +21,16 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 export default function Welcome() {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
-  const { stepEntries, goals, loading } = useSession();
+  const { stepEntries, goals, loading, addSteps } = useSession();
   const s = createStyles(theme);
 
   const [shown, setShown] = useState(0);
   const ring = useRef(new Animated.Value(0)).current;
   const todayKey = new Date().toISOString().slice(0, 10);
-  const value = stepEntries
+  const savedSteps = stepEntries
     .filter(entry => entry.recordedAt.slice(0, 10) === todayKey)
     .reduce((total, entry) => total + entry.steps, 0);
+  const { steps: value, error: stepError } = useLiveStepCounter(savedSteps, addSteps, !loading);
   const dailyGoal = goals?.dailySteps ?? DEFAULT_DAILY_GOAL;
 
   // Animate ring + count-up once the value is known
@@ -98,7 +100,7 @@ export default function Welcome() {
         <Text style={s.subtitle}>
           {loading
             ? "Loading your saved activity."
-            : `${value.toLocaleString()} steps recorded today. Step totals include saved entries only.`}
+            : stepError ?? `${value.toLocaleString()} steps today. Your phone counts steps while this screen is open.`}
         </Text>
 
         <Pressable onPress={onStart} style={s.button} accessibilityRole="button">

@@ -7,6 +7,8 @@ const dailyPlanSchema = new mongoose.Schema({
   date: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
   time: { type: String, required: true, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
   repeatDays: { type: [Number], default: [] },
+  reminderSoundUrl: { type: String, trim: true, maxlength: 500 },
+  reminderSoundTitle: { type: String, trim: true, maxlength: 100 },
   reminderEnabled: { type: Boolean, default: false }
 }, { timestamps: true });
 

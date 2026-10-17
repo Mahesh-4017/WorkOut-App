@@ -1,9 +1,8 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import {
-  responsiveScreenHeight,
-  responsiveWidth,
-} from "react-native-responsive-dimensions";
+import Ionicons from "@react-native-vector-icons/ionicons";
+import { Header } from "@codeherence/react-native-header";
+import { useSharedValue } from "react-native-reanimated";
 import {
   useNavigation,
   NavigationProp,
@@ -29,68 +28,96 @@ export default function AppHeader({
 }: AppHeaderProps) {
   const navigation = useNavigation<NavigationProp<any>>();
   const { theme } = useTheme();
+  const showNavBar = useSharedValue(1);
   const styles = StyleSheet.create({
-    header: { height: 86, flexDirection: "row", alignItems: "flex-end", paddingBottom: 7, paddingHorizontal: 15, backgroundColor: theme.colors.background },
-    backSlot: { width: showBack ? 40 : 0, alignItems: "flex-start", justifyContent: "center" },
-    backText: { fontFamily: theme.typography.fontFamily, fontSize: theme.typography.sizes.display, color: theme.colors.text, fontWeight: "400" },
-    titleGroup: { flex: 1, paddingLeft: showBack ? 10 : 0 },
-    title: { fontFamily: theme.typography.fontFamilyBold, fontSize: theme.typography.sizes.xl, fontWeight: theme.typography.weights.heavy, color: theme.colors.text },
-    description: { marginTop: 1, fontFamily: theme.typography.fontFamily, fontSize: theme.typography.sizes.xs, fontWeight: theme.typography.weights.regular, color: theme.colors.textSecondary },
-    rightSlot: { width: 45, alignItems: "flex-end" },
-    rightButton: { width: responsiveWidth(11), height: responsiveScreenHeight(5), borderRadius: 12, backgroundColor: theme.colors.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.colors.border },
-    rightText: { fontFamily: theme.typography.fontFamily, fontSize: theme.typography.sizes.lg, color: theme.colors.icon },
+    header: {
+      minHeight: 70,
+      backgroundColor: theme.colors.background,
+    },
+    headerContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      minHeight: 70,
+    },
+    backSlot: {
+      width: showBack ? 42 : 0,
+      alignItems: "flex-start",
+      justifyContent: "center",
+      overflow: "hidden",
+    },
+    iconButton: {
+      width: 38,
+      height: 38,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 19,
+      backgroundColor: theme.colors.surface,
+    },
+    titleGroup: { flex: 1, paddingLeft: showBack ? 9 : 0, minWidth: 0 },
+    title: {
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: theme.typography.sizes.lg,
+      fontWeight: theme.typography.weights.bold,
+      color: theme.colors.text,
+    },
+    description: {
+      marginTop: 2,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: theme.typography.sizes.xs,
+      fontWeight: theme.typography.weights.regular,
+      color: theme.colors.textSecondary,
+    },
+    rightIconButton: {
+      width: 38,
+      height: 38,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 19,
+      backgroundColor: theme.colors.card,
+    },
   });
 
   return (
-    <View style={styles.header}>
-      {/* Back Button */}
-      <View style={styles.backSlot}>
-        {showBack && (
-          <Pressable
-            onPress={() => navigation.goBack()}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Text style={styles.backText}>
-              ‹
-            </Text>
-          </Pressable>
-        )}
-      </View>
-
-      {/* Title + Description */}
-      <View style={styles.titleGroup}>
-        {/* Title */}
-        <Text style={styles.title} numberOfLines={1}>
-          {title}
-        </Text>
-
-        {/* Description */}
-        {description && (
-          <Text style={styles.description} numberOfLines={1}>
-            {description}
-          </Text>
-        )}
-      </View>
-
-      {/* Right Icon */}
-      <View style={styles.rightSlot}>
-        {rightIcon && (
-  <Pressable
-    onPress={onRightPress}
-    hitSlop={10}
-    accessibilityRole="button"
-    accessibilityLabel={rightAccessibilityLabel}
-  >
-    <View style={styles.rightButton}>
-      <Text style={styles.rightText}>
-        {rightIcon}
-      </Text>
-    </View>
-  </Pressable>
-)}
-      </View>
-    </View>
+    <Header
+      showNavBar={showNavBar}
+      ignoreTopSafeArea
+      headerStyle={styles.header}
+      initialBorderColor={theme.colors.border}
+      borderColor={theme.colors.border}
+      headerLeft={
+        <View style={styles.headerContent}>
+          <View style={styles.backSlot}>
+            {showBack ? (
+              <Pressable
+                onPress={() => navigation.goBack()}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+              >
+                <View style={styles.iconButton}>
+                  <Ionicons name="arrow-back" size={18} color={theme.colors.icon} />
+                </View>
+              </Pressable>
+            ) : null}
+          </View>
+          <View style={styles.titleGroup}>
+            <Text style={styles.title} numberOfLines={1}>{title}</Text>
+            {description ? (
+              <Text style={styles.description} numberOfLines={1}>{description}</Text>
+            ) : null}
+          </View>
+        </View>
+      }
+      headerRight={rightIcon ? (
+        <Pressable
+          onPress={onRightPress}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={rightAccessibilityLabel}
+        >
+          <View style={styles.rightIconButton}>{rightIcon}</View>
+        </Pressable>
+      ) : null}
+    />
   );
 }

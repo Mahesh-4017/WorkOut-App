@@ -6,19 +6,21 @@ import { useTheme } from "../../../theme/ThemeProvider";
 import { useSchedule } from "../../../data/ScheduleProvider";
 import { toKey } from "../../../data/classSchedule";
 import { useNotifications } from "../../../data/NotificationProvider";
+import { indiaDateKey, indiaWeekday } from "../../../utils/indiaTime";
 
 export function ScreenHeader({ title, onBell, onProfile, onBack }: { title: string; onBell?: () => void; onProfile?: () => void; onBack?: () => void }) {
   const { theme } = useTheme();
   const { scheduled, dayPlans } = useSchedule();
   const { readIds, ready: notificationsReady } = useNotifications();
   const todayKey = toKey(new Date());
+  const todayIndiaKey = indiaDateKey();
   const todayCount = scheduled.filter(item =>
     item.date === todayKey && !readIds.includes(`today-workout-${item.id}-${item.date}`),
   ).length + dayPlans.filter(plan => {
     const dueToday = plan.repeatDays.length
-      ? todayKey >= plan.date && plan.repeatDays.includes(new Date(`${todayKey}T12:00:00`).getDay())
-      : plan.date === todayKey;
-    return dueToday && !readIds.includes(`today-day-${plan.id}-${todayKey}`);
+      ? todayIndiaKey >= plan.date && plan.repeatDays.includes(indiaWeekday(todayIndiaKey))
+      : plan.date === todayIndiaKey;
+    return dueToday && !readIds.includes(`today-day-${plan.id}-${todayIndiaKey}`);
   }).length;
   const s = styles(theme);
   return (

@@ -12,18 +12,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import NotificationSounds, { playSampleSound, stopSampleSound, Sound } from "react-native-notification-sounds";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ExerciseBodyPart, getExerciseBodyParts } from "../../../api/exercises";
 import { useSchedule } from "../../../data/ScheduleProvider";
-import { openReminderNotificationSettings } from "../../../utils/scheduleReminders";
 import { useTheme } from "../../../theme/ThemeProvider";
 import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
 import { OnboardingHeader } from "../../../components/OnboardingUI";
 import { toKey } from "../../../data/classSchedule";
+import { indiaDateKey, indiaTimestamp } from "../../../utils/indiaTime";
 
 type RepeatMode = "once" | "daily" | "weekly" | "dates";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DURATION_OPTIONS = [15, 20, 30, 45, 60, 90];
+const REMINDER_SOUND_KEY = "@workout/preferred-reminder-sound";
 
 function dateValue(key: string) {
   const [year, month, day] = key.split("-").map(Number);
@@ -53,38 +54,38 @@ export default function DateClasses() {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { addBodyPartPlan, error: scheduleError } = useSchedule();
-  const [date, setDate] = useState<string>(() => params?.date >= toKey(new Date()) ? params.date : toKey(new Date()));
+  const [date, setDate] = useState<string>(() => params?.date >= indiaDateKey() ? params.date : indiaDateKey());
   const [bodyParts, setBodyParts] = useState<ExerciseBodyPart[]>([]);
   const [selectedBodyPart, setSelectedBodyPart] = useState<ExerciseBodyPart | null>(null);
-  const [time, setTime] = useState("18:00");
   const [reminderTime, setReminderTime] = useState("08:00");
-  const [duration, setDuration] = useState(30);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("once");
   const [repeatDays, setRepeatDays] = useState<number[]>([]);
   const [repeatDates, setRepeatDates] = useState<string[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
+    const [year, month] = (params?.date >= indiaDateKey() ? params.date : indiaDateKey()).split("-").map(Number);
+    return new Date(year, month - 1, 1);
   });
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [showDateCalendar, setShowDateCalendar] = useState(false);
-  const [timePickerTarget, setTimePickerTarget] = useState<"workout" | "reminder" | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [pickerHour, setPickerHour] = useState(18);
   const [pickerMinute, setPickerMinute] = useState(0);
   const [showSoundPicker, setShowSoundPicker] = useState(false);
   const [sounds, setSounds] = useState<Sound[]>([]);
   const [selectedSound, setSelectedSound] = useState<Sound | null>(null);
+  const [draftSound, setDraftSound] = useState<Sound | null>(null);
+  const [soundPreferenceLoaded, setSoundPreferenceLoaded] = useState(false);
   const [loadingSounds, setLoadingSounds] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const today = toKey(new Date());
+  const today = indiaDateKey();
 
   const calendarWeeks = useMemo(() => getMonthWeeks(calendarMonth), [calendarMonth]);
   const startDate = repeatMode === "dates" ? repeatDates[0] || date : date;
 
   useEffect(() => {
-    if (params?.date && params.date >= toKey(new Date())) setDate(params.date);
+    if (params?.date && params.date >= indiaDateKey()) setDate(params.date);
   }, [params?.date]);
 
   const loadLibrary = useCallback(async () => {
@@ -102,6 +103,25 @@ export default function DateClasses() {
   useEffect(() => {
     loadLibrary();
   }, [loadLibrary]);
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(REMINDER_SOUND_KEY)
+      .then(value => {
+        if (!active || !value) return;
+        const saved = JSON.parse(value) as Partial<Sound>;
+        if (typeof saved.soundID === "string" && typeof saved.url === "string" && typeof saved.title === "string") {
+          setSelectedSound({ soundID: saved.soundID, url: saved.url, title: saved.title });
+        }
+      })
+      .catch(loadError => {
+        if (active) setError(loadError instanceof Error ? `Unable to load your saved notification sound: ${loadError.message}` : "Unable to load your saved notification sound.");
+      })
+      .finally(() => {
+        if (active) setSoundPreferenceLoaded(true);
+      });
+    return () => { active = false; };
+  }, []);
 
   const changeRepeatMode = (mode: RepeatMode) => {
     setRepeatMode(mode);
@@ -139,19 +159,18 @@ export default function DateClasses() {
     setShowDateCalendar(true);
   };
 
-  const openTimePicker = (target: "workout" | "reminder") => {
-    const selected = target === "workout" ? time : reminderTime;
+  const openTimePicker = () => {
+    const selected = reminderTime;
     const [hour, minute] = selected.split(":").map(Number);
     setPickerHour(hour);
     setPickerMinute(minute);
-    setTimePickerTarget(target);
+    setShowTimePicker(true);
   };
 
   const saveSelectedTime = () => {
     const selected = `${String(pickerHour).padStart(2, "0")}:${String(pickerMinute).padStart(2, "0")}`;
-    if (timePickerTarget === "workout") setTime(selected);
-    if (timePickerTarget === "reminder") setReminderTime(selected);
-    setTimePickerTarget(null);
+    setReminderTime(selected);
+    setShowTimePicker(false);
   };
 
   const loadNotificationSounds = async () => {
@@ -168,6 +187,7 @@ export default function DateClasses() {
         return;
       }
       setSounds(available);
+      setDraftSound(selectedSound);
       setShowSoundPicker(true);
     } catch (soundError) {
       setError(soundError instanceof Error
@@ -175,6 +195,21 @@ export default function DateClasses() {
         : "Unable to load notification sound previews.");
     } finally {
       setLoadingSounds(false);
+    }
+  };
+
+  const savePreferredSound = async () => {
+    if (!draftSound) return;
+    try {
+      await AsyncStorage.setItem(REMINDER_SOUND_KEY, JSON.stringify(draftSound));
+      setSelectedSound(draftSound);
+      stopSampleSound();
+      setShowSoundPicker(false);
+      setError(null);
+    } catch (soundError) {
+      setError(soundError instanceof Error
+        ? `Unable to save your notification sound preference: ${soundError.message}`
+        : "Unable to save your notification sound preference.");
     }
   };
 
@@ -192,12 +227,13 @@ export default function DateClasses() {
       return;
     }
     if (reminderEnabled) {
-      const reminderDate = repeatMode === "dates" ? repeatDates[0] : date;
-      if (reminderDate === today && new Date(`${today}T${reminderTime}:00`).getTime() <= Date.now()) {
-        if (repeatMode === "once" || repeatMode === "dates") {
-          setError("Choose a future reminder time for today's workout.");
-          return;
-        }
+      const reminderDates = repeatMode === "dates" ? repeatDates : [date];
+      const hasFutureSelectedReminder = reminderDates.some(reminderDate =>
+        indiaTimestamp(reminderDate, reminderTime) > Date.now(),
+      );
+      if ((repeatMode === "once" || repeatMode === "dates") && !hasFutureSelectedReminder) {
+        setError("Choose a future reminder time for your workout.");
+        return;
       }
     }
 
@@ -207,8 +243,8 @@ export default function DateClasses() {
       const saved = await addBodyPartPlan(
         selectedBodyPart.name,
         startDate,
-        time,
-        duration,
+        reminderTime,
+        30,
         repeatDays,
         reminderEnabled,
         repeatDates,
@@ -332,47 +368,6 @@ export default function DateClasses() {
           </View>
         ) : null}
 
-        {repeatMode !== "dates" ? (
-          <View style={styles.detailsRow}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Start time</Text>
-              <Pressable onPress={() => openTimePicker("workout")} style={styles.pickerButton} accessibilityRole="button">
-                <Ionicons name="time-outline" size={18} color={theme.colors.primary} />
-                <Text style={styles.pickerButtonText}>{time}</Text>
-                <Ionicons name="chevron-down" size={16} color={theme.colors.muted} />
-              </Pressable>
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Duration</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.durationRow}>
-                {DURATION_OPTIONS.map(value => (
-                  <Pressable key={value} onPress={() => setDuration(value)} style={[styles.durationOption, duration === value && styles.repeatModeSelected]}>
-                    <Text style={[styles.durationText, duration === value && styles.repeatModeTextSelected]}>{value} min</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        ) : (
-          <>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Start time</Text>
-              <Pressable onPress={() => openTimePicker("workout")} style={styles.pickerButton} accessibilityRole="button">
-                <Ionicons name="time-outline" size={18} color={theme.colors.primary} />
-                <Text style={styles.pickerButtonText}>{time}</Text>
-                <Ionicons name="chevron-down" size={16} color={theme.colors.muted} />
-              </Pressable>
-            </View>
-            <Text style={styles.label}>Duration</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.durationRow}>
-              {DURATION_OPTIONS.map(value => (
-                <Pressable key={value} onPress={() => setDuration(value)} style={[styles.durationOption, duration === value && styles.repeatModeSelected]}>
-                  <Text style={[styles.durationText, duration === value && styles.repeatModeTextSelected]}>{value} min</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </>
-        )}
         <Text style={styles.summary}>{repeatSummary}</Text>
 
         <Text style={styles.sectionTitle}>3. Reminder</Text>
@@ -390,22 +385,58 @@ export default function DateClasses() {
         </Pressable>
         {reminderEnabled ? (
           <View style={styles.reminderOptions}>
-            <Text style={styles.label}>Reminder time</Text>
-            <Pressable onPress={() => openTimePicker("reminder")} style={styles.pickerButton} accessibilityRole="button">
+            <Text style={styles.label}>Reminder time · IST</Text>
+            <Pressable onPress={openTimePicker} style={styles.pickerButton} accessibilityRole="button">
               <Ionicons name="notifications-outline" size={18} color={theme.colors.primary} />
               <Text style={styles.pickerButtonText}>{reminderTime}</Text>
               <Ionicons name="chevron-down" size={16} color={theme.colors.muted} />
             </Pressable>
             {Platform.OS === "android" ? (
               <>
-                <Pressable onPress={() => loadNotificationSounds()} style={styles.soundButton} disabled={loadingSounds} accessibilityRole="button">
-                  <Ionicons name="volume-high-outline" size={17} color={theme.colors.primary} />
-                  <Text style={styles.soundButtonText}>
-                    {loadingSounds ? "Loading sounds…" : selectedSound ? `Selected: ${selectedSound.title}` : "Choose notification sound"}
-                  </Text>
-                </Pressable>
+                {selectedSound ? (
+                  <View style={styles.soundPreference}>
+                    <Text numberOfLines={1} style={styles.soundPreferenceTitle}>{selectedSound.title}</Text>
+                    <Pressable
+                      onPress={() => {
+                        try {
+                          playSampleSound(selectedSound);
+                        } catch (soundError) {
+                          setError(soundError instanceof Error ? soundError.message : "Unable to preview this sound.");
+                        }
+                      }}
+                      style={styles.soundActionButton}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Preview ${selectedSound.title}`}
+                    >
+                      <Ionicons name="play" size={15} color={theme.colors.primary} />
+                      <Text style={styles.soundActionText}>Preview</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={loadNotificationSounds}
+                      style={styles.soundActionButton}
+                      disabled={loadingSounds}
+                      accessibilityRole="button"
+                      accessibilityLabel="Edit notification sound"
+                    >
+                      <Ionicons name="create-outline" size={15} color={theme.colors.primary} />
+                      <Text style={styles.soundActionText}>{loadingSounds ? "Loading…" : "Edit"}</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={loadNotificationSounds}
+                    style={styles.soundButton}
+                    disabled={loadingSounds || !soundPreferenceLoaded}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="volume-high-outline" size={17} color={theme.colors.primary} />
+                    <Text style={styles.soundButtonText}>
+                      {loadingSounds ? "Loading sounds…" : "Choose & preview notification sound"}
+                    </Text>
+                  </Pressable>
+                )}
                 <Text style={styles.note}>
-                  A custom sound is optional. Without one, this reminder uses your default notification sound.
+                  {selectedSound ? "This sound will be used for new workout reminders. Edit it any time." : "Choose a sound to preview and use it for this and future workout reminders."}
                 </Text>
               </>
             ) : (
@@ -416,21 +447,7 @@ export default function DateClasses() {
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {scheduleError ? <Text style={styles.errorText}>{scheduleError}</Text> : null}
-        {reminderEnabled && scheduleError ? (
-          <Pressable
-            onPress={() => {
-              openReminderNotificationSettings().catch(settingsError => {
-                setError(settingsError instanceof Error ? settingsError.message : "Unable to open phone notification settings.");
-              });
-            }}
-            style={styles.soundButton}
-            accessibilityRole="button"
-          >
-            <Ionicons name="settings-outline" size={17} color={theme.colors.primary} />
-            <Text style={styles.soundButtonText}>Open alarm & notification settings</Text>
-          </Pressable>
-        ) : null}
-        <Pressable onPress={() => scheduleSelected()} disabled={saving || loading} style={[styles.saveButton, (saving || loading) && styles.disabled]} accessibilityRole="button">
+        <Pressable onPress={() => scheduleSelected()} disabled={saving || loading || !soundPreferenceLoaded} style={[styles.saveButton, (saving || loading || !soundPreferenceLoaded) && styles.disabled]} accessibilityRole="button">
           <Text style={styles.saveText}>{saving ? "Saving to your account…" : "Save my workout plan"}</Text>
           <Ionicons name="checkmark" size={18} color={theme.colors.onPrimary} />
         </Pressable>
@@ -490,15 +507,15 @@ export default function DateClasses() {
         </View>
       </Modal>
 
-      <Modal visible={timePickerTarget !== null} transparent animationType="fade" onRequestClose={() => setTimePickerTarget(null)}>
+      <Modal visible={showTimePicker} transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.timeModal}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>{timePickerTarget === "reminder" ? "Reminder time" : "Workout start time"}</Text>
-                <Text style={styles.modalSubtitle}>Choose a time using 24-hour format.</Text>
+                <Text style={styles.modalTitle}>Reminder time · IST</Text>
+                <Text style={styles.modalSubtitle}>Choose a time using 24-hour India Standard Time.</Text>
               </View>
-              <Pressable onPress={() => setTimePickerTarget(null)} accessibilityRole="button" accessibilityLabel="Close time selector">
+              <Pressable onPress={() => setShowTimePicker(false)} accessibilityRole="button" accessibilityLabel="Close time selector">
                 <Ionicons name="close" size={24} color={theme.colors.text} />
               </Pressable>
             </View>
@@ -569,32 +586,32 @@ export default function DateClasses() {
                   onPress={() => {
                     try {
                       playSampleSound(sound);
-                      setSelectedSound(sound);
+                      setDraftSound(sound);
                     } catch (soundError) {
                       setError(soundError instanceof Error ? soundError.message : "Unable to preview this sound.");
                     }
                   }}
-                  style={[styles.soundItem, selectedSound?.soundID === sound.soundID && styles.soundItemSelected]}
+                  style={[styles.soundItem, draftSound?.soundID === sound.soundID && styles.soundItemSelected]}
                   accessibilityRole="button"
-                  accessibilityState={{ selected: selectedSound?.soundID === sound.soundID }}
+                  accessibilityState={{ selected: draftSound?.soundID === sound.soundID }}
                 >
                   <Ionicons
-                    name={selectedSound?.soundID === sound.soundID ? "checkmark-circle" : "play-circle-outline"}
+                    name={draftSound?.soundID === sound.soundID ? "checkmark-circle" : "play-circle-outline"}
                     size={22}
                     color={theme.colors.primary}
                   />
                   <Text style={styles.soundTitle}>{sound.title}</Text>
-                  <Text style={styles.soundAction}>{selectedSound?.soundID === sound.soundID ? "Selected" : "Preview & select"}</Text>
+                  <Text style={styles.soundAction}>{draftSound?.soundID === sound.soundID ? "Selected" : "Preview & select"}</Text>
                 </Pressable>
               ))}
             </ScrollView>
             <Pressable
-              onPress={() => { stopSampleSound(); setShowSoundPicker(false); }}
-              disabled={!selectedSound}
-              style={[styles.modalDone, !selectedSound && styles.disabled]}
+              onPress={savePreferredSound}
+              disabled={!draftSound}
+              style={[styles.modalDone, !draftSound && styles.disabled]}
               accessibilityRole="button"
             >
-              <Text style={styles.saveText}>{selectedSound ? `Use ${selectedSound.title}` : "Select a sound to continue"}</Text>
+              <Text style={styles.saveText}>{draftSound ? `Use ${draftSound.title}` : "Preview and select a sound"}</Text>
             </Pressable>
           </View>
         </View>
@@ -622,19 +639,19 @@ const createStyles = (theme: any) => StyleSheet.create({
   weekdayButton: { flex: 1, minHeight: 37, alignItems: "center", justifyContent: "center", borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.card },
   weekdayText: { color: theme.colors.text, fontSize: 9, fontFamily: theme.typography.fontFamilyMedium },
   inputGroup: { flex: 1, minWidth: 0, marginTop: 13 },
-  detailsRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   pickerButton: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 11, borderRadius: 11, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.card },
   pickerButtonText: { flex: 1, color: theme.colors.text, fontSize: 12, fontVariant: ["tabular-nums"], fontFamily: theme.typography.fontFamilyBold },
-  durationRow: { gap: 6, paddingBottom: 4 },
-  durationOption: { minHeight: 38, alignItems: "center", justifyContent: "center", paddingHorizontal: 9, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.card },
-  durationText: { color: theme.colors.text, fontSize: 10, fontFamily: theme.typography.fontFamilyMedium },
   summary: { color: theme.colors.primaryDark, fontSize: 11, marginTop: 10, fontFamily: theme.typography.fontFamilyBold },
   reminderToggle: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.card },
   reminderCopy: { flex: 1, gap: 3 },
   reminderTitle: { color: theme.colors.text, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
   reminderOptions: { marginTop: 12, padding: 12, borderRadius: 13, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
+  soundPreference: { minHeight: 42, flexDirection: "row", alignItems: "center", gap: 9, marginTop: 9, paddingHorizontal: 10, borderRadius: 10, backgroundColor: theme.colors.card },
+  soundPreferenceTitle: { flex: 1, color: theme.colors.primaryDark, fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
   soundButton: { minHeight: 40, flexDirection: "row", alignItems: "center", gap: 8, marginTop: 9 },
   soundButtonText: { color: theme.colors.primaryDark, fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
+  soundActionButton: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 8 },
+  soundActionText: { color: theme.colors.primary, fontSize: 10, fontFamily: theme.typography.fontFamilyBold },
   note: { color: theme.colors.muted, fontSize: 10, lineHeight: 15, marginTop: 5, fontFamily: theme.typography.fontFamily },
   errorText: { color: theme.colors.danger, fontSize: 11, lineHeight: 16, marginTop: 10, fontFamily: theme.typography.fontFamilyMedium },
   saveButton: { minHeight: 49, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 18, borderRadius: 13, backgroundColor: theme.colors.primary },

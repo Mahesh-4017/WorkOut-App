@@ -29,14 +29,16 @@ export type DailyPlan = {
   time: string;
   repeatDays: number[];
   reminderEnabled: boolean;
+  reminderSoundUrl?: string;
+  reminderSoundTitle?: string;
 };
 
 type DailyPlanInput = Omit<DailyPlan, "id">;
 
-export async function getPlannedWorkouts(timezoneOffsetMinutes = new Date().getTimezoneOffset()) {
+export async function getPlannedWorkouts() {
   try {
     const response = await apiClient.get<ScheduleResponse<{ items: PlannedWorkout[] }>>(
-      `/app/schedule?timezoneOffsetMinutes=${timezoneOffsetMinutes}`,
+      "/app/schedule",
     );
     return response.data.data.items;
   } catch (error) {
@@ -50,7 +52,6 @@ export async function createPlannedWorkout(
   try {
     const response = await apiClient.post<ScheduleResponse<{ item: PlannedWorkout }>>("/app/schedule", {
       ...plan,
-      timezoneOffsetMinutes: new Date().getTimezoneOffset(),
     });
     return response.data.data.item;
   } catch (error) {
@@ -66,10 +67,10 @@ export async function deletePlannedWorkout(id: string) {
   }
 }
 
-export async function getDailyPlans(timezoneOffsetMinutes = new Date().getTimezoneOffset()) {
+export async function getDailyPlans() {
   try {
     const response = await apiClient.get<ScheduleResponse<{ items: DailyPlan[] }>>(
-      `/app/daily-plans?timezoneOffsetMinutes=${timezoneOffsetMinutes}`,
+      "/app/daily-plans",
     );
     return response.data.data.items;
   } catch (error) {
@@ -81,7 +82,6 @@ export async function createDailyPlan(plan: DailyPlanInput) {
   try {
     const response = await apiClient.post<ScheduleResponse<{ item: DailyPlan }>>("/app/daily-plans", {
       ...plan,
-      timezoneOffsetMinutes: new Date().getTimezoneOffset(),
     });
     return response.data.data.item;
   } catch (error) {

@@ -2,9 +2,11 @@ const mongoose = require('mongoose');
 const PlannedWorkout = require('../models/PlannedWorkout');
 const { sendSuccess } = require('../utils/apiResponse');
 
-function currentDateForOffset(offsetMinutes = 0) {
-  const localNow = new Date(Date.now() - offsetMinutes * 60 * 1000);
-  return localNow.toISOString().slice(0, 10);
+const INDIA_TIMEZONE_OFFSET_MINUTES = 330;
+
+function currentIndiaDate() {
+  const indiaNow = new Date(Date.now() + INDIA_TIMEZONE_OFFSET_MINUTES * 60 * 1000);
+  return indiaNow.toISOString().slice(0, 10);
 }
 
 function publicPlan(plan) {
@@ -20,8 +22,7 @@ function publicPlan(plan) {
 }
 
 async function list(req, res) {
-  const offset = Number(req.query.timezoneOffsetMinutes || 0);
-  const today = currentDateForOffset(offset);
+  const today = currentIndiaDate();
   const plans = await PlannedWorkout.find({
     user: req.appUser._id,
     $or: [
@@ -41,7 +42,7 @@ async function create(req, res) {
   if (!exerciseId && !classId && !bodyPart?.trim()) {
     return res.status(400).json({ success: false, message: 'Choose a body part to schedule' });
   }
-  const today = currentDateForOffset(Number(req.body.timezoneOffsetMinutes || 0));
+  const today = currentIndiaDate();
   if (date < today || (repeatDates || []).some(selectedDate => selectedDate < today)) {
     return res.status(400).json({ success: false, message: 'Workouts can only be scheduled for today or a future date' });
   }

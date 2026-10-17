@@ -25,6 +25,7 @@ import { resolveApiMediaUrl } from "../../api/client";
 import { FOOD_ROUTES } from "../../navigation/foodRoutes";
 import { useSchedule } from "../../data/ScheduleProvider";
 import { toKey } from "../../data/classSchedule";
+import { indiaDateKey, indiaWeekday } from "../../utils/indiaTime";
 import { useNotifications } from "../../data/NotificationProvider";
 
 const DEFAULT_WEEKLY_GOAL = 5;
@@ -42,10 +43,11 @@ export default function Home() {
 
   const [today] = React.useState(() => new Date());
   const todayKey = toKey(today);
+  const todayIndiaKey = indiaDateKey();
   const todayWorkouts = scheduled.filter(item => item.date === todayKey);
   const todayPersonalPlans = dayPlans.filter(plan => plan.repeatDays.length
-    ? todayKey >= plan.date && plan.repeatDays.includes(today.getDay())
-    : plan.date === todayKey);
+    ? todayIndiaKey >= plan.date && plan.repeatDays.includes(indiaWeekday(todayIndiaKey))
+    : plan.date === todayIndiaKey);
   const todayWorkoutGroups = Array.from(
     todayWorkouts.reduce((groups, plan) => {
       const key = (plan.bodyPart || plan.title).trim().toLocaleLowerCase();
@@ -56,10 +58,12 @@ export default function Home() {
     }, new Map<string, typeof todayWorkouts>()),
     ([, plans]) => plans,
   );
+  const todayWorkoutNames = todayWorkoutGroups.map(plans => plans[0].bodyPart || plans[0].title);
+  const todayWorkoutTimes = [...new Set(todayWorkouts.map(item => item.time))].sort();
   const unreadNotifications = todayWorkouts.filter(item =>
     !readIds.includes(`today-workout-${item.id}-${item.date}`),
   ).length + todayPersonalPlans.filter(plan =>
-    !readIds.includes(`today-day-${plan.id}-${todayKey}`),
+    !readIds.includes(`today-day-${plan.id}-${todayIndiaKey}`),
   ).length;
   const [cardsState, setCardsState] = React.useState<{ items: ApiCard[]; error: string | null }>({
     items: [],
@@ -146,10 +150,6 @@ export default function Home() {
   const goWorkoutSchedule = () => navigation.navigate(WORKOUT_ROUTES.SCHEDULE);
   const goFood = () => navigation.navigate(FOOD_ROUTES.WELCOME);
   const goYoga = () => navigation.navigate(ROUTES.YOGA);
-  const openTodayWorkout = (bodyPart: string) => navigation.navigate(WORKOUT_ROUTES.SEARCH, {
-    bodyPart,
-    title: bodyPart,
-  });
 
   useFocusEffect(
     React.useCallback(() => {
@@ -196,51 +196,43 @@ export default function Home() {
           </View>
         </View>
 
-        {todayWorkouts.length > 0 ? (
+        {todayWorkouts.length > 1 ? (
           <View style={s.todayPlanSection}>
-            {todayWorkoutGroups.map(plans => {
-              const plan = plans[0];
-              const workoutName = plan.bodyPart || plan.title;
-              const times = [...new Set(plans.map(item => item.time))].sort();
-              return (
-                <Pressable
-                  key={workoutName}
-                  onPress={() => openTodayWorkout(plan.bodyPart)}
-                  style={s.todayPlanCard}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Today, do your ${workoutName} workout. Open workout details.`}
-                >
-                  <View style={s.todayPlanTop}>
-                    <View style={s.todayPlanEyebrow}>
-                      <Ionicons name="sunny-outline" size={13} color={theme.colors.onPrimary} />
-                      <Text style={s.todayPlanEyebrowText}>TODAY’S WORKOUT</Text>
-                    </View>
-                    <View style={s.todayPlanTime}>
-                      <Ionicons name="time-outline" size={13} color={theme.colors.onPrimary} />
-                      <Text style={s.todayPlanTimeText}>{times.length === 1 ? times[0] : `${plans.length} sessions`}</Text>
-                    </View>
-                  </View>
-                  <View style={s.todayPlanMiddle}>
-                    <View style={s.todayPlanIcon}>
-                      <Ionicons name="barbell-outline" size={23} color={theme.colors.primaryDark} />
-                    </View>
-                    <View style={s.todayPlanCopy}>
-                      <Text style={s.todayPlanKicker}>YOUR TRAINING PLAN</Text>
-                      <Text numberOfLines={1} style={s.todayPlanTitle}>{workoutName}</Text>
-                      <Text style={s.todayPlanMeta}>
-                        {plans.length === 1
-                          ? `${plan.durationMinutes} min planned · Tap to explore exercises`
-                          : `${plans.length} plans today · Tap to explore exercises`}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={s.todayPlanAction}>
-                    <Text style={s.todayPlanActionText}>View workout</Text>
-                    <Ionicons name="arrow-forward" size={16} color={theme.colors.onPrimary} />
-                  </View>
-                </Pressable>
-              );
-            })}
+            <Pressable
+              onPress={() => goCalendar(todayIndiaKey)}
+              style={s.todayPlanCard}
+              accessibilityRole="button"
+              accessibilityLabel={`Today's workouts: ${todayWorkoutNames.join(", ")}. Open calendar.`}
+            >
+              <View style={s.todayPlanTop}>
+                <View style={s.todayPlanEyebrow}>
+                  <Ionicons name="sunny-outline" size={13} color={theme.colors.onPrimary} />
+                  <Text style={s.todayPlanEyebrowText}>TODAY’S WORKOUT</Text>
+                </View>
+                <View style={s.todayPlanTime}>
+                  <Ionicons name="time-outline" size={13} color={theme.colors.onPrimary} />
+                  <Text style={s.todayPlanTimeText}>
+                    {todayWorkoutTimes.length === 1 ? todayWorkoutTimes[0] : `${todayWorkouts.length} plans`}
+                  </Text>
+                </View>
+              </View>
+              <View style={s.todayPlanMiddle}>
+                <View style={s.todayPlanIcon}>
+                  <Ionicons name="barbell-outline" size={23} color={theme.colors.primaryDark} />
+                </View>
+                <View style={s.todayPlanCopy}>
+                  <Text style={s.todayPlanKicker}>YOUR TRAINING PLAN</Text>
+                  <Text numberOfLines={2} style={s.todayPlanTitle}>{todayWorkoutNames.join(", ")}</Text>
+                  <Text numberOfLines={1} style={s.todayPlanMeta}>
+                    {todayWorkouts.length} workouts planned · Tap to explore
+                  </Text>
+                </View>
+              </View>
+              <View style={s.todayPlanAction}>
+                <Text style={s.todayPlanActionText}>View calendar</Text>
+                <Ionicons name="arrow-forward" size={16} color={theme.colors.onPrimary} />
+              </View>
+            </Pressable>
           </View>
         ) : null}
 
@@ -510,11 +502,10 @@ const createStyles = (theme: any) =>
     avatarText: { color: theme.colors.onPrimary, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
     greetTitle: { color: theme.colors.text, fontSize: 16, fontFamily: theme.typography.fontFamilyBold },
     greetSub: { color: theme.colors.muted, fontSize: 12, marginTop: 2, fontFamily: theme.typography.fontFamily },
-    todayPlanSection: { marginBottom: 4 },
     todayPlanCopy: { flex: 1 },
+    todayPlanSection: { marginBottom: 12 },
     todayPlanCard: {
       padding: 15,
-      marginBottom: 7,
       borderRadius: 19,
       backgroundColor: theme.colors.primary,
     },

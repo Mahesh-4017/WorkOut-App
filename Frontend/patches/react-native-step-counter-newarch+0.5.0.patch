@@ -1,0 +1,153 @@
+diff --git a/node_modules/react-native-step-counter-newarch/android/src/main/java/com/stepcounter/StepCounterModule.kt b/node_modules/react-native-step-counter-newarch/android/src/main/java/com/stepcounter/StepCounterModule.kt
+index d2b1eff..9d46663 100644
+--- a/node_modules/react-native-step-counter-newarch/android/src/main/java/com/stepcounter/StepCounterModule.kt
++++ b/node_modules/react-native-step-counter-newarch/android/src/main/java/com/stepcounter/StepCounterModule.kt
+@@ -50,7 +50,9 @@ class StepCounterModule(
+   private val accelOK: Boolean
+     get() = AndroidVersionHelper.isHardwareAccelerometerEnabled(appContext)
+   private val supported: Boolean
+-    get() = AndroidVersionHelper.isHardwareStepCounterEnabled(appContext)
++    get() =
++      sensorManager.getDefaultSensor(android.hardware.Sensor.TYPE_STEP_COUNTER) != null ||
++        sensorManager.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER) != null
+   private val walkingStatus: Boolean
+     get() = stepCounterListener !== null
+
+@@ -65,18 +67,31 @@ class StepCounterModule(
+    */
+   private var stepCounterListener: SensorListenService? = null
+
++  private fun createStepCounterListener(): SensorListenService? {
++    if (!stepsOK) return null
++
++    val hardwareCounter = StepCounterService(this, sensorManager)
++    if (hardwareCounter.detectedSensor != null) return hardwareCounter
++
++    val accelerometer = AccelerometerService(this, sensorManager)
++    return accelerometer.takeIf { accelOK && it.detectedSensor != null }
++  }
++
++  private fun ensureStepCounterListener(): SensorListenService? {
++    stepCounterListener?.let { return it }
++
++    val listener = createStepCounterListener() ?: return null
++    appContext.addLifecycleEventListener(listener)
++    stepCounterListener = listener
++    return listener
++  }
++
+   /**
+    * The method that is called when the module is initialized.
+    * It checks the permission and the availability for the step counter sensor and initializes the step counter service.
+    */
+   init {
+-    stepCounterListener =
+-      if (stepsOK) {
+-        StepCounterService(this, sensorManager)
+-      } else {
+-        AccelerometerService(this, sensorManager)
+-      }
+-    appContext.addLifecycleEventListener(stepCounterListener)
++    ensureStepCounterListener()
+   }
+
+   /**
+@@ -89,14 +104,14 @@ class StepCounterModule(
+    */
+   @ReactMethod
+   override fun isStepCountingSupported(promise: Promise) {
+-    Log.d(TAG_NAME, "hardware_step_counter? $supported")
++    Log.d(TAG_NAME, "step sensor available? $supported")
+     Log.d(TAG_NAME, "step_counter granted? $stepsOK")
+     Log.d(TAG_NAME, "accelerometer granted? $accelOK")
+     sendDeviceEvent("stepDetected", walkingStatus)
+     promise.resolve(
+       Arguments.createMap().apply {
+         putBoolean("supported", supported)
+-        putBoolean("granted", stepsOK || accelOK)
++        putBoolean("granted", stepsOK)
+         putBoolean("working", walkingStatus)
+       },
+     )
+@@ -109,13 +124,12 @@ class StepCounterModule(
+   @ReactMethod
+   override fun startStepCounterUpdate(from: Double) {
+     val sessionStartMillis = normalizeStartTimestampToMillis(from)
+-    stepCounterListener = stepCounterListener ?: if (stepsOK) {
+-      StepCounterService(this, sensorManager)
+-    } else {
+-      AccelerometerService(this, sensorManager)
+-    }
+     Log.d(TAG_NAME, "startStepCounterUpdate")
+-    stepCounterListener!!.startService(sessionStartMillis)
++    val listener = ensureStepCounterListener() ?: run {
++      Log.w(TAG_NAME, "No permitted step-counting sensor is available.")
++      return
++    }
++    listener.startService(sessionStartMillis)
+   }
+
+   /**
+@@ -125,7 +139,7 @@ class StepCounterModule(
+   @ReactMethod
+   override fun stopStepCounterUpdate() {
+     Log.d(TAG_NAME, "stopStepCounterUpdate")
+-    stepCounterListener!!.stopService()
++    stepCounterListener?.stopService()
+   }
+
+   /**
+diff --git a/node_modules/react-native-step-counter-newarch/android/src/main/java/com/stepcounter/services/SensorListenService.kt b/node_modules/react-native-step-counter-newarch/android/src/main/java/com/stepcounter/services/SensorListenService.kt
+index f676783..9a4cdfb 100644
+--- a/node_modules/react-native-step-counter-newarch/android/src/main/java/com/stepcounter/services/SensorListenService.kt
++++ b/node_modules/react-native-step-counter-newarch/android/src/main/java/com/stepcounter/services/SensorListenService.kt
+@@ -109,19 +109,6 @@ abstract class SensorListenService(
+         putNumber("calories", calories)
+       }
+
+-  val stepsSensorInfo: WritableMap
+-    get() =
+-      Arguments.createMap().apply {
+-        putNumber("minDelay", detectedSensor!!.minDelay)
+-        putNumber("maxDelay", detectedSensor!!.maxDelay)
+-        putString("name", detectedSensor!!.name)
+-        putString("vendor", detectedSensor!!.vendor)
+-        putNumber("power", detectedSensor!!.power)
+-        putNumber("resolution", detectedSensor!!.resolution)
+-        putBoolean("wakeUpSensor", detectedSensor!!.isWakeUpSensor)
+-        putBoolean("additionalInfoSupported", detectedSensor!!.isAdditionalInfoSupported)
+-      }
+-
+   /**
+    * Number of in-database-saved calories.
+    * 0.045 is the average calories burned per step.
+@@ -177,12 +164,26 @@ abstract class SensorListenService(
+    * @see SensorManager.registerListener
+    */
+   fun startService(startDateMillis: Long? = null) {
++    val sensor = detectedSensor ?: run {
++      Log.w(TAG_NAME, "No $sensorTypeString sensor is available.")
++      return
++    }
+     startDate =
+       startDateMillis?.takeIf { it > 0 } ?: System.currentTimeMillis()
+     resetSessionState()
+-    counterModule.sendDeviceEvent("stepsSensorInfo", stepsSensorInfo)
+-    Log.d(TAG_NAME, "SensorManager.stepsSensorInfo: $stepsSensorInfo")
+-    sensorManager.registerListener(this, detectedSensor, samplingPeriodUs)
++    val sensorInfo = Arguments.createMap().apply {
++      putNumber("minDelay", sensor.minDelay)
++      putNumber("maxDelay", sensor.maxDelay)
++      putString("name", sensor.name)
++      putString("vendor", sensor.vendor)
++      putNumber("power", sensor.power)
++      putNumber("resolution", sensor.resolution)
++      putBoolean("wakeUpSensor", sensor.isWakeUpSensor)
++      putBoolean("additionalInfoSupported", sensor.isAdditionalInfoSupported)
++    }
++    Log.d(TAG_NAME, "Starting $sensorTypeString updates with ${sensor.name}")
++    counterModule.sendDeviceEvent("stepsSensorInfo", sensorInfo)
++    sensorManager.registerListener(this, sensor, samplingPeriodUs)
+   }
+
+   /**

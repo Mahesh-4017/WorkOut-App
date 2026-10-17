@@ -30,7 +30,7 @@ export function AppFeatures() {
       <div className="app-features-visual">
         <Image
           className="app-features-image"
-          src="/workout-feature.jpg"
+          src="/Blue-Gold.png"
           alt="Athlete training with a push-up in a gym"
           fill
           sizes="(max-width: 900px) 100vw, 48vw"

@@ -6,18 +6,23 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { useSession, fmtClock } from "../../../data/SessionProvider";
 import { useTheme } from "../../../theme/ThemeProvider";
-import { useUser } from "../../../data/UserProvider";
 import { ROUTES } from "../../../navigation/routes";
 import { ScreenHeader } from "../data/Movementui";
+import { useLiveStepCounter } from "../../../hooks/useLiveStepCounter";
 
 type Metric = "move" | "steps" | "energy";
 const utcDateKey = (date: Date) => date.toISOString().slice(0, 10);
 
-export default function MovementDashboard({ onViewAll }: { onViewAll?: () => void }) {
+export default function MovementDashboard({
+  onViewAll,
+  onOpenMap,
+}: {
+  onViewAll?: () => void;
+  onOpenMap?: () => void;
+}) {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
-  const { name } = useUser();
-  const { history, goals, stepEntries, active, startSession, pause, resume, endSession, elapsedSeconds, error } = useSession();
+  const { history, goals, stepEntries, active, startSession, pause, resume, endSession, elapsedSeconds, error, addSteps, loading } = useSession();
   const s = createStyles(theme);
   const [metric, setMetric] = useState<Metric>("move");
   const [, setTick] = useState(0);
@@ -36,13 +41,13 @@ export default function MovementDashboard({ onViewAll }: { onViewAll?: () => voi
   const todaySteps = stepEntries
     .filter(item => utcDateKey(new Date(item.recordedAt)) === todayKey)
     .reduce((total, item) => total + item.steps, 0);
+  const { steps: liveStepsToday, error: stepCounterError } = useLiveStepCounter(todaySteps, addSteps, !loading);
   const metrics = {
     move: { value: Math.round(todaySeconds / 60), goal: 60, caption: "active minutes recorded" },
-    steps: { value: todaySteps, goal: goals?.dailySteps ?? 10000, caption: "steps logged" },
+    steps: { value: liveStepsToday, goal: goals?.dailySteps ?? 10000, caption: "steps today" },
     energy: { value: todayCalories, goal: goals?.dailyCalories ?? 2000, caption: "workout kcal recorded" },
   };
   const current = metrics[metric];
-  const initials = (name || "?").trim().split(/\s+/).slice(0, 2).map(word => word[0]?.toUpperCase()).join("");
   const recent = useMemo(() => history.slice(0, 3), [history]);
   const manualActive = active?.workoutId.startsWith("manual-") ? active : null;
   const elapsed = manualActive ? Math.floor(elapsedSeconds()) : 0;
@@ -85,10 +90,6 @@ export default function MovementDashboard({ onViewAll }: { onViewAll?: () => voi
           }}
           onProfile={() => navigation.navigate(ROUTES.PROFILE)}
         />
-        <View style={s.userRow}>
-          <View style={s.avatar}><Text style={s.avatarText}>{initials}</Text></View>
-          <View><Text style={s.hello}>Hello</Text><Text style={s.name}>{name || "Fitness member"}</Text></View>
-        </View>
 
         <View style={s.panel}>
           <View style={s.metricTabs}>
@@ -108,6 +109,15 @@ export default function MovementDashboard({ onViewAll }: { onViewAll?: () => voi
 
         <View style={s.sectionRow}>
           <Text style={s.sectionTitle}>Log a walk or run</Text>
+          <Pressable
+            onPress={onOpenMap}
+            accessibilityRole="button"
+            accessibilityLabel="Open running map"
+            style={s.mapLink}
+          >
+            <Ionicons name="map-outline" size={15} color={theme.colors.primary} />
+            <Text style={s.viewAll}>Map</Text>
+          </Pressable>
         </View>
         <View style={s.timerCard}>
           <View style={s.activityChoices}>
@@ -119,7 +129,8 @@ export default function MovementDashboard({ onViewAll }: { onViewAll?: () => voi
             ))}
           </View>
           <Text style={s.timer}>{fmtClock(elapsed)}</Text>
-          <Text style={s.timerNote}>Timer only records duration; steps, distance and calories are not estimated.</Text>
+          <Text style={s.timerNote}>Your phone counts steps while this screen is open. The timer records activity duration only.</Text>
+          {stepCounterError ? <Text style={s.error}>{stepCounterError}</Text> : null}
           {manualActive ? (
             <View style={s.timerActions}>
               <Pressable onPress={manualActive.status === "running" ? pause : resume} style={s.secondaryButton}>
@@ -154,11 +165,6 @@ export default function MovementDashboard({ onViewAll }: { onViewAll?: () => voi
 const createStyles = (theme: any) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
   scroll: { paddingHorizontal: 18, paddingBottom: 28 },
-  userRow: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 8 },
-  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: "#fff", fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
-  hello: { color: theme.colors.muted, fontSize: 11, fontFamily: theme.typography.fontFamily },
-  name: { color: theme.colors.text, fontSize: 15, fontFamily: theme.typography.fontFamilyBold },
   panel: { backgroundColor: theme.colors.card, borderRadius: 20, padding: 14, marginTop: 10, borderWidth: 1, borderColor: theme.colors.border },
   metricTabs: { flexDirection: "row", padding: 3, backgroundColor: theme.colors.surface, borderRadius: 18 },
   metricTab: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 15 },
@@ -188,6 +194,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   secondaryButton: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.border },
   secondaryButtonText: { color: theme.colors.text, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
   error: { color: theme.colors.danger, fontSize: 12, marginTop: 9, fontFamily: theme.typography.fontFamily },
+  mapLink: { flexDirection: "row", alignItems: "center", gap: 5 },
   empty: { alignItems: "center", gap: 8, padding: 20, borderRadius: 14, backgroundColor: theme.colors.card },
   emptyText: { color: theme.colors.muted, fontSize: 12, textAlign: "center", fontFamily: theme.typography.fontFamily },
   activityRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, marginBottom: 8, borderRadius: 13, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },

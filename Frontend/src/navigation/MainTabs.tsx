@@ -9,16 +9,13 @@ import CalendarScreen from "../pages/Calendar/WorkoutCalendar";
 import ProfileScreen from "../pages/profile/Profile";
 import ExploreWorkouts from "../pages/workout/Explore/Explore";
 import { useTheme } from "../theme/ThemeProvider";
-import { WORKOUT_ROUTES } from "./workoutRoutes";
 
 export type MainTabName = "home" | "workout" | "calendar" | "analysis" | "profile";
 
 export default function MainTabs({
   route,
-  navigation,
 }: {
   route?: { params?: { tab?: MainTabName; selectedDate?: string } };
-  navigation?: { navigate: (route: string) => void };
 }) {
   const { theme } = useTheme();
   const styles = StyleSheet.create({
@@ -39,12 +36,9 @@ export default function MainTabs({
       case "calendar":
         return (
           <AppHeader
-            title="Your calendar"
-            description="Workouts and plans for your day"
+            title="Calendar"
+            description="Your workouts and daily plans"
             showBack={false}
-            rightIcon="+"
-            onRightPress={() => navigation?.navigate(WORKOUT_ROUTES.SCHEDULE)}
-            rightAccessibilityLabel="Plan your day"
           />
         );
       case "analysis":

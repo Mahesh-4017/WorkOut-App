@@ -11,9 +11,10 @@ import {
   PlannedWorkout,
 } from "../api/schedule";
 import { useAuth } from "../context/AuthContext";
-import { addDays, CLASSES, toKey } from "./classSchedule";
+import { CLASSES } from "./classSchedule";
 import { PublicExercise } from "../api/exercises";
 import { cancelPlanReminder, schedulePlanReminder } from "../utils/scheduleReminders";
+import { addDaysToDateKey, indiaDateKey, indiaWeekday } from "../utils/indiaTime";
 
 type ScheduleContextValue = {
   scheduled: PlannedWorkout[];
@@ -55,9 +56,7 @@ const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 const dateKeyOffset = 365;
 
 function expandWorkoutPlans(plans: PlannedWorkout[]) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayKey = toKey(today);
+  const todayKey = indiaDateKey();
   const instances: PlannedWorkout[] = [];
 
   for (const plan of plans) {
@@ -72,9 +71,8 @@ function expandWorkoutPlans(plans: PlannedWorkout[]) {
       continue;
     }
     for (let offset = 0; offset <= dateKeyOffset; offset += 1) {
-      const date = addDays(today, offset);
-      const key = toKey(date);
-      if (key >= plan.date && plan.repeatDays.includes(date.getDay())) {
+      const key = addDaysToDateKey(todayKey, offset);
+      if (key >= plan.date && plan.repeatDays.includes(indiaWeekday(key))) {
         instances.push({ ...plan, date: key });
       }
     }
@@ -102,15 +100,27 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       const [workouts, activities] = await Promise.all([getPlannedWorkouts(), getDailyPlans()]);
       setWorkoutPlans(workouts);
       setDayPlans(activities);
-      const reminderResults = await Promise.allSettled([
-        ...workouts.filter(plan => plan.reminderEnabled).map(plan => schedulePlanReminder(plan, "workout")),
-        ...activities.filter(plan => plan.reminderEnabled).map(plan => schedulePlanReminder(plan, "day")),
-      ]);
-      if (reminderResults.some(result => result.status === "rejected" || !result.value)) {
-        setError("Your schedule loaded, but one or more phone reminders could not be restored. Check notification settings and save the reminder again.");
-      } else {
-        setError(null);
-      }
+      const remindersToRestore = [
+        ...workouts.filter(plan => plan.reminderEnabled).map(plan => ({
+          label: plan.bodyPart || plan.title,
+          restore: () => schedulePlanReminder(plan, "workout"),
+        })),
+        ...activities.filter(plan => plan.reminderEnabled).map(plan => ({
+          label: plan.title,
+          restore: () => schedulePlanReminder(plan, "day"),
+        })),
+      ];
+      const reminderResults = await Promise.allSettled(remindersToRestore.map(reminder => reminder.restore()));
+      const reminderFailures = reminderResults.flatMap((result, index) => {
+        if (result.status === "fulfilled" && result.value) return [];
+        const reason = result.status === "rejected"
+          ? result.reason instanceof Error ? result.reason.message : String(result.reason)
+          : "the phone did not confirm the reminder";
+        return [`${remindersToRestore[index].label}: ${reason}`];
+      });
+      setError(reminderFailures.length
+        ? `Your schedule loaded, but these reminders could not be restored: ${reminderFailures.slice(0, 3).join("; ")}${reminderFailures.length > 3 ? `; and ${reminderFailures.length - 3} more` : ""}`
+        : null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load your workout schedule.");
     } finally {

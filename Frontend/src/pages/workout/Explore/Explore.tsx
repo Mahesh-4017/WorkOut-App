@@ -12,6 +12,8 @@ import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
 import { returnToMainHome } from "../../../navigation/workoutNavigation";
 import BottomTabBar from "../../../components/BottomTabBar";
 import { ScreenHeader } from "../../../components/MovementUI";
+import { useSchedule } from "../../../data/ScheduleProvider";
+import { toKey } from "../../../data/classSchedule";
 
 export default function ExploreWorkouts({
   showBottomTabBar = true,
@@ -30,6 +32,7 @@ export default function ExploreWorkouts({
         : "explore";
   const { theme } = useTheme();
   const s = createStyles(theme);
+  const { scheduled } = useSchedule();
   const [query, setQuery] = React.useState("");
   const [bodyParts, setBodyParts] = React.useState<ExerciseBodyPart[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -64,6 +67,9 @@ export default function ExploreWorkouts({
     bodyPart.categories.some(category => category.name.toLocaleLowerCase().includes(normalizedQuery)),
   );
   const exerciseCount = bodyParts.reduce((total, part) => total + part.count, 0);
+  const todayKey = toKey(new Date());
+  const todayWorkouts = scheduled.filter(item => item.date === todayKey);
+  const todayWorkoutTimes = [...new Set(todayWorkouts.map(workout => workout.time))].sort();
 
   const openBodyPart = (bodyPart: string, category?: string) =>
     navigation.navigate(WORKOUT_ROUTES.SEARCH, { bodyPart, category, title: category || bodyPart });
@@ -86,6 +92,45 @@ export default function ExploreWorkouts({
           <Text style={s.title}>What do you want{"\n"}to train today?</Text>
           <Text style={s.subtitle}>Choose a body part to find focused exercises, coaching details, and videos.</Text>
         </View>
+
+        {todayWorkouts.length > 1 ? (
+          <View style={s.todayPlanSection}>
+            <Pressable
+              onPress={() => navigation.navigate(WORKOUT_ROUTES.SEARCH, { title: "Today's workouts" })}
+              style={s.todayPlanCard}
+              accessibilityRole="button"
+              accessibilityLabel="Open today's workout list"
+            >
+              <View style={s.todayPlanTop}>
+                <View style={s.todayPlanEyebrow}>
+                  <Ionicons name="sunny-outline" size={13} color={theme.colors.onPrimary} />
+                  <Text style={s.todayPlanEyebrowText}>TODAY’S WORKOUT</Text>
+                </View>
+                <View style={s.todayPlanTime}>
+                  <Ionicons name="time-outline" size={13} color={theme.colors.onPrimary} />
+                  <Text style={s.todayPlanTimeText}>
+                    {todayWorkoutTimes.length === 1 ? todayWorkoutTimes[0] : `${todayWorkouts.length} plans`}
+                  </Text>
+                </View>
+              </View>
+              <View style={s.todayPlanMiddle}>
+                <View style={s.todayPlanIcon}>
+                  <Ionicons name="barbell-outline" size={23} color={theme.colors.primaryDark} />
+                </View>
+                <View style={s.todayPlanCopy}>
+                  <Text style={s.todayPlanKicker}>YOUR TRAINING PLAN</Text>
+                  <Text numberOfLines={1} style={s.todayPlanMeta}>
+                    {todayWorkouts.length} workouts planned · Tap to explore
+                  </Text>
+                </View>
+              </View>
+              <View style={s.todayPlanAction}>
+                <Text style={s.todayPlanActionText}>View workout list</Text>
+                <Ionicons name="arrow-forward" size={16} color={theme.colors.onPrimary} />
+              </View>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={s.search}>
           <Ionicons name="search-outline" size={18} color={theme.colors.muted} />
@@ -214,6 +259,20 @@ const createStyles = (theme: any) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
   scroll: { paddingHorizontal: 18, paddingBottom: 130 },
   intro: { marginTop: 9, marginBottom: 18 },
+  todayPlanSection: { marginBottom: 12 },
+  todayPlanCard: { padding: 15, borderRadius: 19, backgroundColor: theme.colors.primary },
+  todayPlanTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  todayPlanEyebrow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  todayPlanEyebrowText: { color: theme.colors.onPrimary, fontSize: 10, letterSpacing: 1, fontFamily: theme.typography.fontFamilyBold },
+  todayPlanTime: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 12, backgroundColor: "rgba(0,0,0,0.12)" },
+  todayPlanTimeText: { color: theme.colors.onPrimary, fontSize: 10, fontFamily: theme.typography.fontFamilyMedium },
+  todayPlanMiddle: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16, marginBottom: 14 },
+  todayPlanIcon: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.onPrimary },
+  todayPlanCopy: { flex: 1 },
+  todayPlanKicker: { color: theme.colors.onPrimary, opacity: 0.75, fontSize: 9, letterSpacing: 0.8, fontFamily: theme.typography.fontFamilyMedium },
+  todayPlanMeta: { color: theme.colors.onPrimary, opacity: 0.82, fontSize: 10, marginTop: 4, fontFamily: theme.typography.fontFamily },
+  todayPlanAction: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.35)" },
+  todayPlanActionText: { color: theme.colors.onPrimary, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
   eyebrow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 9 },
   eyebrowText: { color: theme.colors.primary, fontSize: 10, letterSpacing: 1.2, fontFamily: theme.typography.fontFamilyBold },
   title: { color: theme.colors.text, fontSize: 27, lineHeight: 33, fontFamily: theme.typography.fontFamilyBold },

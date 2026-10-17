@@ -7,8 +7,9 @@ import { useTheme } from "../../theme/ThemeProvider";
 import MovementDashboard from "./home/Home";
 import ActivityOverview from "./activity/Activity";
 import HealthTrends from "./progress/Progress";
+import RunningMap from "./map/RunningMap";
 
-type RunningTab = "dashboard" | "activity" | "trends";
+type RunningTab = "dashboard" | "map" | "activity" | "trends";
 type TabItem = {
   key: RunningTab;
   label: string;
@@ -18,6 +19,7 @@ type TabItem = {
 
 const TABS: TabItem[] = [
   { key: "dashboard", label: "Run", icon: "walk-outline", activeIcon: "walk" },
+  { key: "map", label: "Map", icon: "map-outline", activeIcon: "map" },
   { key: "activity", label: "Activity", icon: "calendar-outline", activeIcon: "calendar" },
   { key: "trends", label: "Trends", icon: "stats-chart-outline", activeIcon: "stats-chart" },
 ];
@@ -27,23 +29,43 @@ export default function RunningTabs() {
   const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
   const [activeTab, setActiveTab] = useState<RunningTab>("dashboard");
+  const [mapMounted, setMapMounted] = useState(false);
+  const openMap = () => {
+    setMapMounted(true);
+    setActiveTab("map");
+  };
 
   const screen = activeTab === "activity"
     ? <ActivityOverview />
     : activeTab === "trends"
       ? <HealthTrends />
-      : <MovementDashboard onViewAll={() => setActiveTab("activity")} />;
+      : activeTab === "map"
+        ? null
+        : <MovementDashboard
+          onViewAll={() => setActiveTab("activity")}
+          onOpenMap={openMap}
+        />;
 
   return (
     <View style={styles.screen}>
-      <View style={styles.content}>{screen}</View>
+      <View style={styles.content}>
+        {screen}
+        {mapMounted ? (
+          <View style={[styles.mapScreen, activeTab !== "map" && styles.hiddenScreen]}>
+            <RunningMap />
+          </View>
+        ) : null}
+      </View>
       <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         {TABS.map(tab => {
           const selected = activeTab === tab.key;
           return (
             <Pressable
               key={tab.key}
-              onPress={() => setActiveTab(tab.key)}
+              onPress={() => {
+                if (tab.key === "map") openMap();
+                else setActiveTab(tab.key);
+              }}
               accessibilityRole="tab"
               accessibilityState={{ selected }}
               accessibilityLabel={tab.label}
@@ -69,10 +91,12 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.background },
     content: { flex: 1 },
+    mapScreen: { ...StyleSheet.absoluteFill },
+    hiddenScreen: { display: "none" },
     bar: {
       flexDirection: "row",
       paddingTop: 8,
-      paddingHorizontal: 24,
+      paddingHorizontal: 12,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
       backgroundColor: theme.colors.surface,

@@ -49,16 +49,16 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.content}
       >
         <View style={styles.pageHeading}>
-          <Text style={styles.eyebrow}>YOUR SPACE</Text>
-          <Text style={styles.pageTitle}>More</Text>
-          <Text style={styles.pageSubtitle}>Your profile, progress, and app preferences.</Text>
+          <Text style={styles.eyebrow}>ACCOUNT</Text>
+          <Text style={styles.pageTitle}>Your space</Text>
+          <Text style={styles.pageSubtitle}>Profile, progress, and preferences</Text>
         </View>
 
         <Pressable
           onPress={() => navigation.navigate(ROUTES.SETTINGS)}
           style={styles.profileHeader}
           accessibilityRole="button"
-          accessibilityLabel="Open profile settings"
+          accessibilityLabel="Edit profile details"
         >
           <View style={styles.profileGroup}>
             <View style={styles.avatar}>
@@ -72,8 +72,7 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View style={styles.profileAction}>
-            <Ionicons name="create-outline" size={18} color={theme.colors.primaryDark} />
-            <Text style={styles.profileActionText}>Edit</Text>
+            <Ionicons name="chevron-forward" size={19} color={theme.colors.onPrimary} />
           </View>
         </Pressable>
 
@@ -94,7 +93,12 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        <Text style={styles.sectionTitle}>Quick access</Text>
+        <View style={styles.sectionHeading}>
+          <View style={styles.sectionCopy}>
+            <Text style={styles.sectionTitle}>Quick access</Text>
+            <Text style={styles.sectionSubtitle}>Your most-used tools</Text>
+          </View>
+        </View>
         <View style={styles.dashboardLinks}>
           {[
             { label: "Calendar", icon: "calendar-outline" as const, route: ROUTES.WORKOUTCALENDAR, tint: theme.colors.panelWarm },
@@ -112,25 +116,25 @@ export default function ProfileScreen() {
                 <Ionicons name={item.icon} size={19} color={theme.colors.primaryDark} />
               </View>
               <Text style={styles.dashboardLinkText}>{item.label}</Text>
+              <Ionicons name="arrow-forward" size={15} color={theme.colors.muted} style={styles.quickArrow} />
             </Pressable>
           ))}
         </View>
 
         {/* Weekly milestone */}
         <View style={styles.milestoneCard}>
-          <View style={styles.milestoneHeader}>
-            <View style={styles.milestoneIcon}>
-              <Ionicons name="trophy-outline" size={17} color={theme.colors.icon} />
+          <View style={styles.milestoneTop}>
+            <View style={styles.milestoneHeader}>
+              <View style={styles.milestoneIcon}>
+                <Ionicons name="trophy-outline" size={18} color={theme.colors.onPrimary} />
+              </View>
+              <View>
+                <Text style={styles.milestoneTitle}>Weekly goal</Text>
+                <Text style={styles.milestoneCopy}>{thisWeekCount} of {weeklyGoal} sessions completed</Text>
+              </View>
             </View>
-            <Text style={styles.milestoneTitle}>
-              Keep Going!
-            </Text>
+            <Text style={styles.milestonePercent}>{Math.round(goal.progress * 100)}%</Text>
           </View>
-
-          <Text style={styles.milestoneCopy}>
-            {thisWeekCount} of {weeklyGoal} saved sessions completed this week.
-          </Text>
-
           <View style={styles.milestoneTrack}>
             <View style={[styles.milestoneFill, { width: `${goal.progress * 100}%` }]} />
           </View>
@@ -151,21 +155,25 @@ export default function ProfileScreen() {
         {loading ? <Text style={styles.emptyText}>Loading account workout history…</Text> : null}
         {error ? <Text style={styles.emptyText}>{error}</Text> : null}
         {!loading && history.length === 0 ? (
-          <Text style={styles.emptyText}>
-            Workouts saved to your account will appear here.
-          </Text>
+          <View style={styles.historyEmpty}>
+            <Ionicons name="barbell-outline" size={22} color={theme.colors.muted} />
+            <Text style={styles.emptyText}>Completed workouts will appear here.</Text>
+          </View>
         ) : (
-          history.slice(0, 8).map(item => {
-            return (
+          <View style={styles.historyList}>
+            {history.slice(0, 8).map(item => (
               <View key={item.id} style={styles.historyRow}>
-                <Ionicons name="checkmark-circle" size={20} color={theme.colors.success} />
+                <View style={styles.historyIcon}>
+                  <Ionicons name="checkmark" size={15} color={theme.colors.primaryDark} />
+                </View>
                 <View style={styles.historyCopy}>
-                  <Text style={styles.historyName}>{item.title}</Text>
+                  <Text numberOfLines={1} style={styles.historyName}>{item.title}</Text>
                   <Text style={styles.historyDetail}>{new Date(item.startedAt).toLocaleDateString()} · {Math.floor(item.seconds / 60)} min</Text>
                 </View>
+                <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
               </View>
-            );
-          })
+            ))}
+          </View>
         )}
 
         {/* Goals */}
@@ -243,54 +251,105 @@ export default function ProfileScreen() {
 const createStyles = (theme: any) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
   content: { paddingHorizontal: responsiveWidth(5), paddingTop: 18, paddingBottom: 100 },
-  pageHeading: { marginBottom: 16 },
-  eyebrow: { color: theme.colors.primaryDark, fontSize: responsiveFontSize(1.1), fontWeight: "800", letterSpacing: 1.2 },
+  pageHeading: { marginBottom: 18 },
+  eyebrow: { color: theme.colors.primaryDark, fontSize: responsiveFontSize(1.05), fontWeight: "800", letterSpacing: 1.4 },
   pageTitle: { color: theme.colors.text, fontSize: responsiveFontSize(3.2), fontWeight: "900", marginTop: 3 },
-  pageSubtitle: { color: theme.colors.textSecondary, fontSize: responsiveFontSize(1.35), marginTop: 3 },
-  profileHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14, borderRadius: 16, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+  pageSubtitle: { color: theme.colors.textSecondary, fontSize: responsiveFontSize(1.3), marginTop: 4 },
+  profileHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 17,
+    minHeight: 94,
+    borderRadius: 20,
+    backgroundColor: theme.colors.primaryDark,
+  },
   profileGroup: { flex: 1, flexDirection: "row", alignItems: "center", minWidth: 0 },
-  avatar: { width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.primary },
-  avatarText: { fontSize: responsiveFontSize(2.3), fontWeight: "900", color: theme.colors.onPrimary },
-  profileCopy: { flex: 1, marginLeft: 12, minWidth: 0 },
-  profileName: { fontSize: responsiveFontSize(2.1), fontWeight: "800", color: theme.colors.text },
-  profileEmail: { marginTop: 2, fontSize: responsiveFontSize(1.4), color: theme.colors.textSecondary },
-  profileAction: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 10, backgroundColor: theme.colors.surface },
-  profileActionText: { color: theme.colors.primaryDark, fontSize: responsiveFontSize(1.25), fontWeight: "700" },
-  statsCard: { flexDirection: "row", marginTop: 12, padding: 15, borderRadius: 16, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
-  statItem: { flex: 1, alignItems: "center" },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.28)",
+  },
+  avatarText: { fontSize: responsiveFontSize(2.5), fontWeight: "900", color: theme.colors.onPrimary },
+  profileCopy: { flex: 1, marginLeft: 13, minWidth: 0 },
+  profileName: { fontSize: responsiveFontSize(2), fontWeight: "800", color: theme.colors.onPrimary },
+  profileEmail: { marginTop: 4, fontSize: responsiveFontSize(1.3), color: theme.colors.onPrimary, opacity: 0.78 },
+  profileAction: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.16)",
+  },
+  statsCard: {
+    flexDirection: "row",
+    marginTop: 12,
+    paddingVertical: 16,
+    borderRadius: 17,
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  statItem: { flex: 1, alignItems: "center", justifyContent: "center" },
   statDivider: { borderLeftWidth: 1, borderLeftColor: theme.colors.border },
-  statValue: { fontSize: responsiveFontSize(1.9), fontWeight: "800", color: theme.colors.text },
-  statLabel: { marginTop: 3, fontSize: responsiveFontSize(1.25), color: theme.colors.textSecondary },
-  milestoneCard: { marginTop: 16, padding: 16, borderRadius: 16, backgroundColor: theme.colors.panelWarm, borderWidth: 1, borderColor: theme.colors.border },
-  milestoneHeader: { flexDirection: "row", alignItems: "center" },
-  milestoneIcon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background },
-  milestoneTitle: { marginLeft: 10, fontSize: responsiveFontSize(1.65), fontWeight: "700", color: theme.colors.text },
-  milestoneCopy: { marginTop: 8, fontSize: responsiveFontSize(1.4), color: theme.colors.textSecondary },
-  milestoneTrack: { height: 6, marginTop: 12, borderRadius: 3, backgroundColor: theme.colors.border, overflow: "hidden" },
-  milestoneFill: { height: "100%", borderRadius: 3, backgroundColor: theme.colors.primary },
-  sectionTitle: { marginTop: 22, marginBottom: 10, fontSize: responsiveFontSize(1.9), fontWeight: "800", color: theme.colors.text },
-  sectionHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6, marginBottom: 4 },
+  statValue: { fontSize: responsiveFontSize(2), fontWeight: "800", color: theme.colors.text },
+  statLabel: { marginTop: 4, fontSize: responsiveFontSize(1.15), color: theme.colors.textSecondary, textAlign: "center" },
+  milestoneCard: {
+    marginTop: 18,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: theme.colors.panelWarm,
+  },
+  milestoneTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  milestoneHeader: { flexDirection: "row", alignItems: "center", flex: 1 },
+  milestoneIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.primary },
+  milestoneTitle: { marginLeft: 10, fontSize: responsiveFontSize(1.6), fontWeight: "800", color: theme.colors.text },
+  milestoneCopy: { marginLeft: 10, marginTop: 3, fontSize: responsiveFontSize(1.2), color: theme.colors.textSecondary },
+  milestonePercent: { color: theme.colors.primaryDark, fontSize: responsiveFontSize(1.7), fontWeight: "800" },
+  milestoneTrack: { height: 7, marginTop: 14, borderRadius: 4, backgroundColor: theme.colors.border, overflow: "hidden" },
+  milestoneFill: { height: "100%", borderRadius: 4, backgroundColor: theme.colors.primary },
+  sectionTitle: { marginTop: 22, marginBottom: 4, fontSize: responsiveFontSize(1.9), fontWeight: "800", color: theme.colors.text },
+  sectionHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8, marginBottom: 9 },
   sectionCopy: { flex: 1 },
   sectionSubtitle: { color: theme.colors.textSecondary, fontSize: responsiveFontSize(1.2), marginTop: 3 },
   linkText: { color: theme.colors.primaryDark, fontSize: responsiveFontSize(1.25), fontWeight: "800" },
-  dashboardLinks: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  dashboardLink: { width: "47%", minHeight: 82, justifyContent: "center", padding: 12, borderRadius: 14, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
-  quickIcon: { width: 34, height: 34, alignItems: "center", justifyContent: "center", borderRadius: 11 },
-  dashboardLinkText: { marginTop: 7, fontSize: responsiveFontSize(1.35), fontWeight: "700", color: theme.colors.text },
-  emptyText: { color: theme.colors.textSecondary },
-  historyRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  historyCopy: { marginLeft: 10 },
+  dashboardLinks: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  dashboardLink: {
+    width: "47%",
+    minHeight: 91,
+    justifyContent: "center",
+    padding: 13,
+    borderRadius: 16,
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  quickIcon: { width: 35, height: 35, alignItems: "center", justifyContent: "center", borderRadius: 12 },
+  dashboardLinkText: { marginTop: 8, fontSize: responsiveFontSize(1.35), fontWeight: "700", color: theme.colors.text },
+  quickArrow: { position: "absolute", right: 12, top: 15 },
+  emptyText: { color: theme.colors.textSecondary, fontSize: responsiveFontSize(1.3) },
+  historyList: { paddingHorizontal: 13, borderRadius: 16, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+  historyEmpty: { minHeight: 74, flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 16, backgroundColor: theme.colors.card },
+  historyRow: { flexDirection: "row", alignItems: "center", minHeight: 60, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  historyIcon: { width: 30, height: 30, alignItems: "center", justifyContent: "center", borderRadius: 10, backgroundColor: theme.colors.surface },
+  historyCopy: { flex: 1, marginLeft: 10 },
   historyName: { fontWeight: "700", color: theme.colors.text },
-  historyDetail: { marginTop: 2, fontSize: responsiveFontSize(1.25), color: theme.colors.textSecondary },
-  goalsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 26, marginBottom: 12 },
-  editText: { fontSize: responsiveFontSize(1.4), fontWeight: "700", color: theme.colors.icon },
-  goalCard: { flexDirection: "row", alignItems: "center", padding: 14, borderRadius: 14, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
-  goalIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background },
+  historyDetail: { marginTop: 3, fontSize: responsiveFontSize(1.2), color: theme.colors.textSecondary },
+  goalsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8, marginBottom: 9 },
+  editText: { fontSize: responsiveFontSize(1.4), fontWeight: "700", color: theme.colors.primaryDark },
+  goalCard: { flexDirection: "row", alignItems: "center", padding: 14, borderRadius: 16, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+  goalIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.surface },
   goalCopy: { flex: 1, marginLeft: 12 },
   goalName: { fontSize: responsiveFontSize(1.65), fontWeight: "700", color: theme.colors.text },
-  goalProgress: { marginTop: 2, fontSize: responsiveFontSize(1.3), color: theme.colors.textSecondary },
-  settingsList: { marginTop: 2, paddingHorizontal: 12, borderRadius: 14, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
-  settingsRow: { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  settingsLabel: { flex: 1, marginLeft: 12, fontSize: responsiveFontSize(1.65), fontWeight: "600", color: theme.colors.text },
+  goalProgress: { marginTop: 3, fontSize: responsiveFontSize(1.3), color: theme.colors.textSecondary },
+  settingsList: { marginTop: 2, paddingHorizontal: 13, borderRadius: 16, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+  settingsRow: { flexDirection: "row", alignItems: "center", minHeight: 53, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  settingsLabel: { flex: 1, marginLeft: 12, fontSize: responsiveFontSize(1.5), fontWeight: "600", color: theme.colors.text },
   destructiveLabel: { color: theme.colors.danger },
 });

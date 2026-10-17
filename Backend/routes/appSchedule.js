@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { body, param, query } = require('express-validator');
+const { body, param } = require('express-validator');
 const { requireUserAuth } = require('../middleware/appAuth');
 const validate = require('../middleware/validate');
 const controller = require('../controllers/appScheduleController');
@@ -8,7 +8,7 @@ const asyncRoute = handler => (req, res, next) =>
   Promise.resolve(handler(req, res, next)).catch(next);
 
 router.use(requireUserAuth);
-router.get('/', query('timezoneOffsetMinutes').optional().isInt({ min: -720, max: 840 }), validate, asyncRoute(controller.list));
+router.get('/', asyncRoute(controller.list));
 router.post('/', [
   body('exerciseId').optional().isMongoId(),
   body('classId').optional().isString().trim().isLength({ min: 1, max: 100 }),
@@ -28,8 +28,7 @@ router.post('/', [
   body('reminderTime').optional().matches(/^([01]\d|2[0-3]):[0-5]\d$/),
   body('reminderSoundUrl').optional().isString().trim().isLength({ min: 1, max: 500 }),
   body('reminderSoundTitle').optional().isString().trim().isLength({ min: 1, max: 100 }),
-  body('reminderEnabled').optional().isBoolean(),
-  body('timezoneOffsetMinutes').optional().isInt({ min: -720, max: 840 })
+  body('reminderEnabled').optional().isBoolean()
 ], validate, asyncRoute(controller.create));
 router.delete('/:id', param('id').isMongoId(), validate, asyncRoute(controller.remove));
 

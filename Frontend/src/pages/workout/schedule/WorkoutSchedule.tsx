@@ -9,7 +9,6 @@ import { addDays, toKey } from "../../../data/classSchedule";
 import { useSchedule } from "../../../data/ScheduleProvider";
 import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
 import { useTheme } from "../../../theme/ThemeProvider";
-import { weekdayName } from "../../../utils/scheduleReminders";
 
 function formatDate(date: string) {
   const value = new Date(`${date}T12:00:00`);
@@ -30,6 +29,20 @@ export default function WorkoutSchedule() {
     () => scheduled.filter(item => item.date >= today && item.date <= nextWeek),
     [scheduled, today, nextWeek],
   );
+  const upcomingGroups = useMemo(() => {
+    const groups = new Map<string, typeof upcoming>();
+    for (const workout of upcoming) {
+      const bodyPart = (workout.bodyPart || workout.category || workout.title).trim();
+      const key = bodyPart.toLocaleLowerCase();
+      const group = groups.get(key);
+      if (group) group.push(workout);
+      else groups.set(key, [workout]);
+    }
+    return Array.from(groups.values()).map(group => group.sort((a, b) =>
+      `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`),
+    ));
+  }, [upcoming]);
+  const visibleUpcoming = upcomingGroups.slice(0, 3);
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
@@ -52,6 +65,16 @@ export default function WorkoutSchedule() {
             <Text style={styles.primaryButtonText}>Plan a workout</Text>
             <Ionicons name="arrow-forward" size={16} color={theme.colors.onPrimary} />
           </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: today })}
+            style={styles.fullScheduleButton}
+            accessibilityRole="button"
+            accessibilityLabel="Open personal day plan"
+          >
+            <Ionicons name="calendar-clear-outline" size={17} color={theme.colors.primary} />
+            <Text style={styles.fullScheduleText}>Open full day schedule</Text>
+            <Ionicons name="arrow-forward" size={15} color={theme.colors.primary} />
+          </Pressable>
         </View>
 
         {error ? (
@@ -66,7 +89,7 @@ export default function WorkoutSchedule() {
             <Text style={styles.sectionTitle}>Coming up</Text>
             <Text style={styles.sectionSubtitle}>Your workouts for the next 7 days.</Text>
           </View>
-          <Text style={styles.count}>{upcoming.length}</Text>
+          <Text style={styles.count}>{upcomingGroups.length}</Text>
         </View>
 
         {loading ? <Text style={styles.empty}>Loading your saved workouts…</Text> : null}
@@ -76,36 +99,53 @@ export default function WorkoutSchedule() {
             <Text style={styles.emptyTitle}>Nothing planned yet</Text>
             <Text style={styles.empty}>Your saved workout plans will appear here.</Text>
           </View>
-        ) : upcoming.map(item => (
-          <View key={`${item.id}-${item.date}`} style={styles.workoutCard}>
-            <View style={styles.workoutIcon}>
-              <Ionicons name="barbell-outline" size={18} color={theme.colors.primary} />
+        ) : visibleUpcoming.map(group => {
+          const item = group[0];
+          const bodyPart = (item.bodyPart || item.category || item.title).trim();
+          const repeatedWeekdays = [...new Set(group.flatMap(workout => workout.repeatDays ?? []))].sort((a, b) => a - b);
+          const singleDateLabels = [...new Set(group
+            .filter(workout => !workout.repeatDays?.length)
+            .map(workout => formatDate(workout.date)))];
+          const scheduleLabels = [
+            ...(repeatedWeekdays.length === 7
+              ? ["Every day"]
+              : repeatedWeekdays.length
+                ? [repeatedWeekdays.map(day => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day]).join(", ")]
+                : []),
+            ...singleDateLabels,
+          ];
+          return (
+            <View key={bodyPart.toLocaleLowerCase()} style={styles.workoutCard}>
+              <View style={styles.workoutIcon}>
+                <Ionicons name="barbell-outline" size={18} color={theme.colors.primary} />
+              </View>
+              <View style={styles.workoutCopy}>
+                <Text style={styles.workoutTitle}>{bodyPart}</Text>
+                <Text style={styles.workoutMeta}>{scheduleLabels.join(", ")}</Text>
+              </View>
+              <Pressable
+                onPress={() => group.forEach(workout => remove(workout.id))}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove all upcoming ${bodyPart} workouts`}
+              >
+                <Ionicons name="trash-outline" size={17} color={theme.colors.muted} />
+              </Pressable>
             </View>
-            <View style={styles.workoutCopy}>
-              <Text style={styles.workoutTitle}>{item.title}</Text>
-              <Text style={styles.workoutMeta}>
-                {formatDate(item.date)} · {item.time} · {item.durationMinutes} min
-              </Text>
-              <Text style={styles.workoutMeta}>
-                {item.bodyPart || item.category || "Workout"}
-                {item.repeatDates?.length
-                  ? " · Selected dates"
-                  : item.repeatDays?.length
-                    ? ` · Every ${item.repeatDays.map(weekdayName).join(", ")}`
-                    : ""}
-                {item.reminderEnabled ? ` · Reminder ${item.reminderTime || item.time}` : ""}
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => remove(item.id)}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel={`Remove ${item.title} from your schedule`}
-            >
-              <Ionicons name="trash-outline" size={17} color={theme.colors.muted} />
-            </Pressable>
-          </View>
-        ))}
+          );
+        })}
+        {!loading && upcomingGroups.length > visibleUpcoming.length ? (
+          <Pressable
+            onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: today })}
+            style={styles.moreScheduleButton}
+            accessibilityRole="button"
+          >
+            <Text style={styles.moreScheduleText}>
+              View full schedule · {upcomingGroups.length} body parts
+            </Text>
+            <Ionicons name="arrow-forward" size={15} color={theme.colors.primary} />
+          </Pressable>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -120,6 +160,8 @@ const createStyles = (theme: any) => StyleSheet.create({
   subtitle: { color: theme.colors.muted, fontSize: 12, lineHeight: 18, marginTop: 6, fontFamily: theme.typography.fontFamily },
   primaryButton: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 17, borderRadius: 13, backgroundColor: theme.colors.primary },
   primaryButtonText: { color: theme.colors.onPrimary, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
+  fullScheduleButton: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 9, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+  fullScheduleText: { color: theme.colors.primary, fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
   errorCard: { marginTop: 13, padding: 13, borderRadius: 12, backgroundColor: theme.colors.panelWarm },
   errorText: { color: theme.colors.danger, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
   errorHint: { color: theme.colors.muted, fontSize: 10, marginTop: 4, fontFamily: theme.typography.fontFamily },
@@ -135,4 +177,6 @@ const createStyles = (theme: any) => StyleSheet.create({
   workoutCopy: { flex: 1, gap: 3 },
   workoutTitle: { color: theme.colors.text, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
   workoutMeta: { color: theme.colors.muted, fontSize: 10, fontFamily: theme.typography.fontFamily },
+  moreScheduleButton: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 2, marginBottom: 8, borderRadius: 11, backgroundColor: theme.colors.card },
+  moreScheduleText: { color: theme.colors.primary, fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
 });

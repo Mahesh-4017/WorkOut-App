@@ -2,9 +2,11 @@ const mongoose = require('mongoose');
 const DailyPlan = require('../models/DailyPlan');
 const { sendSuccess } = require('../utils/apiResponse');
 
-function currentDateForOffset(offsetMinutes = 0) {
-  const localNow = new Date(Date.now() - offsetMinutes * 60 * 1000);
-  return localNow.toISOString().slice(0, 10);
+const INDIA_TIMEZONE_OFFSET_MINUTES = 330;
+
+function currentIndiaDate() {
+  const indiaNow = new Date(Date.now() + INDIA_TIMEZONE_OFFSET_MINUTES * 60 * 1000);
+  return indiaNow.toISOString().slice(0, 10);
 }
 
 function publicPlan(plan) {
@@ -18,8 +20,7 @@ function publicPlan(plan) {
 }
 
 async function list(req, res) {
-  const offset = Number(req.query.timezoneOffsetMinutes || 0);
-  const today = currentDateForOffset(offset);
+  const today = currentIndiaDate();
   const plans = await DailyPlan.find({
     user: req.appUser._id,
     $or: [
@@ -31,8 +32,17 @@ async function list(req, res) {
 }
 
 async function create(req, res) {
-  const { title, description, date, time, repeatDays, reminderEnabled } = req.body;
-  const today = currentDateForOffset(Number(req.body.timezoneOffsetMinutes || 0));
+  const {
+    title,
+    description,
+    date,
+    time,
+    repeatDays,
+    reminderEnabled,
+    reminderSoundUrl,
+    reminderSoundTitle
+  } = req.body;
+  const today = currentIndiaDate();
   if (date < today) {
     return res.status(400).json({ success: false, message: 'Plans can only be scheduled for today or a future date' });
   }
@@ -43,6 +53,8 @@ async function create(req, res) {
     date,
     time,
     repeatDays: repeatDays || [],
+    reminderSoundUrl,
+    reminderSoundTitle,
     reminderEnabled: Boolean(reminderEnabled)
   });
   return sendSuccess(res, 201, { item: publicPlan(plan.toObject()) }, 'Day plan saved');

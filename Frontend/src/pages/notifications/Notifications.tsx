@@ -10,8 +10,8 @@ import { useNotifications } from "../../data/NotificationProvider";
 import { toKey } from "../../data/classSchedule";
 import { WORKOUT_ROUTES } from "../../navigation/workoutRoutes";
 import { useTheme } from "../../theme/ThemeProvider";
-import { sendTestNotification } from "../../utils/scheduleReminders";
 import { useSession } from "../../data/SessionProvider";
+import { addDaysToDateKey, indiaDateKey, indiaDateLabel, indiaWeekday } from "../../utils/indiaTime";
 
 export default function NotificationsScreen() {
   const navigation = useNavigation<any>();
@@ -26,15 +26,37 @@ export default function NotificationsScreen() {
     markAllRead,
   } = useNotifications();
   const styles = createStyles(theme);
-  const [sendingTest, setSendingTest] = React.useState(false);
-  const [testMessage, setTestMessage] = React.useState<string | null>(null);
   const [stepReminderTime, setStepReminderTime] = React.useState(goals?.dailyStepsReminderTime ?? "20:00");
   const [savingStepReminder, setSavingStepReminder] = React.useState(false);
   const todayKey = toKey(new Date());
+  const todayIndiaKey = indiaDateKey();
   const todayWorkouts = scheduled.filter(item => item.date === todayKey);
-  const todayPersonalPlans = dayPlans.filter(plan => plan.repeatDays.length
-    ? todayKey >= plan.date && plan.repeatDays.includes(new Date(`${todayKey}T12:00:00`).getDay())
-    : plan.date === todayKey);
+  const upcomingPersonalNotifications = dayPlans.flatMap(plan => {
+    const occurrenceDates = Array.from({ length: 7 }, (_, offset) => addDaysToDateKey(todayIndiaKey, offset))
+      .filter(dateKey => plan.repeatDays.length
+        ? dateKey >= plan.date && plan.repeatDays.includes(indiaWeekday(dateKey))
+        : dateKey === plan.date);
+    if (!occurrenceDates.length) return [];
+
+    const occursToday = occurrenceDates[0] === todayIndiaKey;
+    const schedule = plan.repeatDays.length === 7
+      ? "Every day"
+      : plan.repeatDays.length
+        ? `Every ${plan.repeatDays.map(day => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day]).join(", ")}`
+        : indiaDateLabel(plan.date, todayIndiaKey);
+    return [{
+      id: occursToday
+        ? `today-day-${plan.id}-${todayIndiaKey}`
+        : `day-reminder-${plan.id}-${occurrenceDates[0]}`,
+      title: plan.title,
+      message: plan.description,
+      schedule,
+      time: occursToday ? "Today" : indiaDateLabel(occurrenceDates[0], todayIndiaKey),
+      icon: "calendar-outline",
+      route: WORKOUT_ROUTES.PLANNER,
+      params: { mode: "day", date: occurrenceDates[0] },
+    }];
+  });
   const notifications = [
     ...todayWorkouts.map(item => ({
       id: `today-workout-${item.id}-${item.date}`,
@@ -45,15 +67,7 @@ export default function NotificationsScreen() {
       route: item.bodyPart ? WORKOUT_ROUTES.SEARCH : WORKOUT_ROUTES.HUB,
       params: item.bodyPart ? { bodyPart: item.bodyPart, title: item.bodyPart } : undefined,
     })),
-    ...todayPersonalPlans.map(plan => ({
-      id: `today-day-${plan.id}-${todayKey}`,
-      title: plan.title,
-      message: `${plan.description ? `${plan.description} · ` : ""}Today at ${plan.time}.`,
-      time: "Today",
-      icon: "calendar-outline",
-      route: WORKOUT_ROUTES.PLANNER,
-      params: { mode: "day", date: todayKey },
-    })),
+    ...upcomingPersonalNotifications,
   ];
   const unreadCount = notifications.filter(notification => !readIds.includes(notification.id)).length;
 
@@ -83,22 +97,6 @@ export default function NotificationsScreen() {
         "Unable to mark notification as read",
         saveError instanceof Error ? saveError.message : "Please try again.",
       );
-    }
-  };
-
-  const handleSendTest = async () => {
-    setSendingTest(true);
-    setTestMessage(null);
-    try {
-      await sendTestNotification();
-      setTestMessage("Test sent. Check your phone’s notification shade.");
-    } catch (sendError) {
-      Alert.alert(
-        "Test notification failed",
-        sendError instanceof Error ? sendError.message : "Unable to send a test notification.",
-      );
-    } finally {
-      setSendingTest(false);
     }
   };
 
@@ -143,48 +141,45 @@ export default function NotificationsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable
-          onPress={handleSendTest}
-          disabled={sendingTest}
-          style={[styles.testButton, sendingTest && styles.disabledButton]}
-          accessibilityRole="button"
-        >
-          <Ionicons name="notifications-outline" size={18} color={theme.colors.onPrimary} />
-          <Text style={styles.testButtonText}>{sendingTest ? "Sending test…" : "Send test notification"}</Text>
-        </Pressable>
-        {testMessage ? <Text style={styles.testMessage}>{testMessage}</Text> : null}
-        <View style={styles.stepsReminder}>
-          <View style={styles.stepsReminderTitleRow}>
+        <View style={styles.card}>
+          <View style={styles.iconWrap}>
             <Ionicons name="footsteps-outline" size={19} color={theme.colors.primary} />
-            <Text style={styles.stepsReminderTitle}>Daily steps notification</Text>
           </View>
-          <Text style={styles.stepsReminderDescription}>Get your latest synced phone step total once a day.</Text>
-          <View style={styles.stepsReminderActions}>
-            <TextInput
-              value={stepReminderTime}
-              onChangeText={setStepReminderTime}
-              style={styles.timeInput}
-              keyboardType="numbers-and-punctuation"
-              maxLength={5}
-              accessibilityLabel="Daily steps reminder time"
-            />
-            <Pressable
-              onPress={saveStepReminder}
-              disabled={savingStepReminder}
-              style={[styles.saveReminderButton, savingStepReminder && styles.disabledButton]}
-              accessibilityRole="button"
-            >
-              <Text style={styles.saveReminderText}>{savingStepReminder ? "Saving…" : "Save time"}</Text>
-            </Pressable>
+          <View style={styles.copy}>
+            <Text style={styles.title}>Daily steps notification</Text>
+            <Text style={styles.message}>Get your latest synced phone step total once a day.</Text>
+            <View style={styles.stepsReminderActions}>
+              <TextInput
+                value={stepReminderTime}
+                onChangeText={setStepReminderTime}
+                style={styles.timeInput}
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+                accessibilityLabel="Daily steps reminder time"
+              />
+              <Pressable
+                onPress={saveStepReminder}
+                disabled={savingStepReminder}
+                style={[styles.saveReminderButton, savingStepReminder && styles.disabledButton]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.saveReminderText}>{savingStepReminder ? "Saving…" : "Save time"}</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
         <Pressable
           onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day" })}
-          style={styles.personalPlanButton}
+          style={styles.card}
           accessibilityRole="button"
         >
-          <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
-          <Text style={styles.personalPlanText}>Add a personal day plan</Text>
+          <View style={styles.iconWrap}>
+            <Ionicons name="calendar-outline" size={19} color={theme.colors.primary} />
+          </View>
+          <View style={styles.copy}>
+            <Text style={styles.title}>Personal day plan</Text>
+            <Text style={styles.message}>Add a personal plan and choose when you’d like a reminder.</Text>
+          </View>
           <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
         </Pressable>
         <Text style={styles.subtitle}>
@@ -226,7 +221,8 @@ export default function NotificationsScreen() {
                   <Text style={styles.title}>{notification.title}</Text>
                   {!isRead ? <View style={styles.unreadDot} /> : null}
                 </View>
-                <Text style={styles.message}>{notification.message}</Text>
+                {notification.message ? <Text style={styles.message}>{notification.message}</Text> : null}
+                {"schedule" in notification ? <Text style={styles.time}>{notification.schedule}</Text> : null}
                 <Text style={styles.time}>{notification.time}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
@@ -254,28 +250,19 @@ const createStyles = (theme: any) =>
     emptyTitle: { color: theme.colors.text, fontSize: 14, marginTop: 14, fontFamily: theme.typography.fontFamilyBold },
     emptyMessage: { color: theme.colors.muted, fontSize: 11, lineHeight: 16, textAlign: "center", marginTop: 6, fontFamily: theme.typography.fontFamily },
     subtitle: { color: theme.colors.muted, fontSize: 12, marginBottom: 12, fontFamily: theme.typography.fontFamily },
-    testButton: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8, borderRadius: 12, backgroundColor: theme.colors.primary },
-    testButtonText: { color: theme.colors.onPrimary, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
     disabledButton: { opacity: 0.6 },
-    testMessage: { color: theme.colors.primary, fontSize: 11, marginBottom: 10, fontFamily: theme.typography.fontFamilyMedium },
-    stepsReminder: { padding: 13, marginBottom: 12, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.card },
-    stepsReminderTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-    stepsReminderTitle: { color: theme.colors.text, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
-    stepsReminderDescription: { color: theme.colors.muted, fontSize: 10, marginTop: 5, fontFamily: theme.typography.fontFamily },
-    stepsReminderActions: { flexDirection: "row", gap: 8, marginTop: 10 },
+    stepsReminderActions: { flexDirection: "row", gap: 8, marginTop: 9 },
     timeInput: { flex: 1, minHeight: 40, paddingHorizontal: 10, borderRadius: 9, borderWidth: 1, borderColor: theme.colors.border, color: theme.colors.text, backgroundColor: theme.colors.surface, fontSize: 12, fontFamily: theme.typography.fontFamily },
     saveReminderButton: { minWidth: 88, alignItems: "center", justifyContent: "center", paddingHorizontal: 12, borderRadius: 9, backgroundColor: theme.colors.primary },
     saveReminderText: { color: theme.colors.onPrimary, fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
-    personalPlanButton: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12, marginBottom: 12, borderRadius: 11, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
-    personalPlanText: { flex: 1, color: theme.colors.text, fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
     error: { color: "#B42318", fontSize: 11, marginBottom: 10, fontFamily: theme.typography.fontFamily },
-    card: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, marginBottom: 10, borderRadius: 14, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
-    unreadCard: { backgroundColor: theme.colors.surface, borderColor: theme.colors.primary },
-    iconWrap: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.surfaceAlt ?? theme.colors.border },
+    card: { flexDirection: "row", alignItems: "center", gap: 11, padding: 12, marginBottom: 9, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+    unreadCard: { borderColor: theme.colors.primary },
+    iconWrap: { width: 39, height: 39, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: theme.colors.card },
     copy: { flex: 1 },
     titleRow: { flexDirection: "row", alignItems: "center", gap: 7 },
     title: { flex: 1, color: theme.colors.text, fontSize: 13, fontFamily: theme.typography.fontFamilyBold },
     unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: theme.colors.primary },
-    message: { color: theme.colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3, fontFamily: theme.typography.fontFamily },
-    time: { color: theme.colors.muted, fontSize: 10, marginTop: 6, fontFamily: theme.typography.fontFamilyMedium },
+    message: { color: theme.colors.muted, fontSize: 10, lineHeight: 15, marginTop: 3, fontFamily: theme.typography.fontFamily },
+    time: { color: theme.colors.muted, fontSize: 10, marginTop: 4, fontFamily: theme.typography.fontFamilyMedium },
   });

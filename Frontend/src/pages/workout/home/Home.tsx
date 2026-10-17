@@ -12,11 +12,12 @@ import { ROUTES } from "../../../navigation/routes";
 import { WORKOUT_ROUTES } from "../../../navigation/workoutRoutes";
 import { useTheme } from "../../../theme/ThemeProvider";
 import { returnToMainHome } from "../../../navigation/workoutNavigation";
+import { indiaDateKey, indiaWeekday } from "../../../utils/indiaTime";
 
 export default function WorkoutHub() {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
-  const { scheduled, loading, error, refresh } = useSchedule();
+  const { scheduled, dayPlans, loading, error, refresh } = useSchedule();
   const styles = createStyles(theme);
   const orange = theme.colors.primary;
   const orangeSurface = theme.colors.panelWarm;
@@ -30,13 +31,20 @@ export default function WorkoutHub() {
 
   const today = new Date();
   const todayKey = toKey(today);
+  const todayIndiaKey = indiaDateKey();
   const weekEnd = toKey(addDays(today, 6));
   const todayWorkouts = scheduled
     .filter(item => item.date === todayKey)
     .sort((a, b) => a.time.localeCompare(b.time));
+  const todayPersonalPlans = dayPlans
+    .filter(plan => plan.date <= todayIndiaKey && (plan.repeatDays.length === 0
+      ? plan.date === todayIndiaKey
+      : plan.repeatDays.includes(indiaWeekday(todayIndiaKey))))
+    .sort((a, b) => a.time.localeCompare(b.time));
   const upcoming = scheduled
     .filter(item => item.date > todayKey && item.date <= weekEnd)
     .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+  const visibleUpcoming = upcoming.slice(0, 3);
 
   const dateLabel = (dateKey: string, time: string) => {
     if (dateKey === todayKey) return `Today · ${time}`;
@@ -128,6 +136,38 @@ export default function WorkoutHub() {
               </Pressable>
             </View>
           ) : null}
+          {!loading && !error ? (
+            <View style={styles.personalPlans}>
+              <View style={styles.personalPlansHeading}>
+                <View style={styles.personalPlansIcon}>
+                  <Ionicons name="sunny-outline" size={15} color={orange} />
+                </View>
+                <Text style={styles.personalPlansTitle}>Personal plans</Text>
+                <Pressable
+                  onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: todayIndiaKey })}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.viewAll, { color: orange }]}>
+                    {todayPersonalPlans.length ? "View all" : "Add plan"}
+                  </Text>
+                </Pressable>
+              </View>
+              {todayPersonalPlans.length ? todayPersonalPlans.slice(0, 2).map(plan => (
+                <Pressable
+                  key={plan.id}
+                  onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: todayIndiaKey })}
+                  style={styles.personalPlanRow}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open personal plan ${plan.title} at ${plan.time} India time`}
+                >
+                  <Text numberOfLines={1} style={styles.personalPlanName}>{plan.title}</Text>
+                  <Text style={styles.personalPlanTime}>{plan.time} IST</Text>
+                </Pressable>
+              )) : (
+                <Text style={styles.personalPlanEmpty}>Add a personal reminder alongside your workout.</Text>
+              )}
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.sectionHeading}>
@@ -151,6 +191,16 @@ export default function WorkoutHub() {
         >
           <Ionicons name="calendar-outline" size={17} color={orange} />
           <Text style={[styles.plannerShortcutText, { color: orange }]}>Plan your day</Text>
+          <Ionicons name="arrow-forward" size={15} color={orange} />
+        </Pressable>
+        <Pressable
+          onPress={() => navigation.navigate(WORKOUT_ROUTES.PLANNER, { mode: "day", date: todayIndiaKey })}
+          style={styles.plannerShortcut}
+          accessibilityRole="button"
+          accessibilityLabel="Open full day schedule"
+        >
+          <Ionicons name="calendar-clear-outline" size={17} color={orange} />
+          <Text style={[styles.plannerShortcutText, { color: orange }]}>Full day schedule</Text>
           <Ionicons name="arrow-forward" size={15} color={orange} />
         </Pressable>
 
@@ -182,7 +232,7 @@ export default function WorkoutHub() {
           <Text style={styles.message}>No more workouts planned this week.</Text>
         ) : null}
 
-        {upcoming.map(item => {
+        {visibleUpcoming.map(item => {
           const classSession = CLASSES.find(entry => entry.id === item.classId);
           return (
             <Pressable
@@ -206,6 +256,19 @@ export default function WorkoutHub() {
             </Pressable>
           );
         })}
+        {!loading && !error && upcoming.length > visibleUpcoming.length ? (
+          <Pressable
+            onPress={() => navigation.navigate(WORKOUT_ROUTES.SCHEDULE)}
+            style={styles.scheduleButton}
+            accessibilityRole="button"
+            accessibilityLabel={`View all ${upcoming.length} upcoming workouts`}
+          >
+            <Text style={[styles.scheduleButtonText, { color: orange }]}>
+              View all {upcoming.length} upcoming workouts
+            </Text>
+            <Ionicons name="arrow-forward" size={15} color={orange} />
+          </Pressable>
+        ) : null}
       </ScrollView>
       <BottomTabBar activeTab="workout" variant="workout" workoutActiveTab="hub" />
     </SafeAreaView>
@@ -298,6 +361,14 @@ const createStyles = (theme: any) =>
     todayMeta: { color: theme.colors.muted, fontSize: 10, marginTop: 3, fontFamily: theme.typography.fontFamily },
     todayEmpty: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
     todayEmptyText: { color: theme.colors.muted, fontSize: 10, fontFamily: theme.typography.fontFamily },
+    personalPlans: { padding: 11, marginTop: 10, borderRadius: 13, backgroundColor: theme.colors.panelWarm, borderWidth: 1, borderColor: theme.colors.border },
+    personalPlansHeading: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
+    personalPlansIcon: { width: 27, height: 27, alignItems: "center", justifyContent: "center", borderRadius: 9, backgroundColor: theme.colors.card },
+    personalPlansTitle: { flex: 1, color: theme.colors.text, fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
+    personalPlanRow: { minHeight: 31, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingLeft: 35 },
+    personalPlanName: { flex: 1, color: theme.colors.text, fontSize: 10, fontFamily: theme.typography.fontFamilyMedium },
+    personalPlanTime: { color: theme.colors.primary, fontSize: 10, fontFamily: theme.typography.fontFamilyBold },
+    personalPlanEmpty: { color: theme.colors.muted, fontSize: 9, lineHeight: 14, paddingLeft: 35, paddingTop: 2, fontFamily: theme.typography.fontFamily },
     sectionTitle: { color: theme.colors.text, fontSize: 17, fontFamily: theme.typography.fontFamilyBold },
     sectionSubtitle: { color: theme.colors.muted, fontSize: 10, marginTop: 4, fontFamily: theme.typography.fontFamily },
     viewAll: { color: theme.colors.primary, fontSize: 10, fontFamily: theme.typography.fontFamilyBold },

@@ -39,6 +39,8 @@
 	<string>Camera access lets you photograph meals for nutrition estimates.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>WorkOut reads your daily step count from Apple Health to show your progress and step reminders.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>WorkOut uses motion activity to count your steps on the Running screens.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose a meal photo from your library for nutrition estimates.</string>
 	<key>RCTNewArchEnabled</key>

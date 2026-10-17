@@ -1,12 +1,21 @@
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import NotificationSounds from "react-native-notification-sounds";
 import { DailyPlan, PlannedWorkout } from "../api/schedule";
+import {
+  addDaysToDateKey,
+  indiaDateKey,
+  indiaTimestamp,
+  indiaWeekday,
+} from "./indiaTime";
 
 type ReminderPlan = Pick<DailyPlan, "id" | "title" | "description" | "date" | "time" | "repeatDays">
+  & Partial<Pick<DailyPlan, "reminderSoundUrl" | "reminderSoundTitle">>
   & Partial<Pick<PlannedWorkout, "bodyPart">>;
 
 const CHANNEL_ID = "schedule-reminders";
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const ALARM_SETTINGS_PROMPTED_KEY = "@workout/alarm-settings-prompted";
 
 export async function schedulePlanReminder(
   plan: ReminderPlan | PlannedWorkout,
@@ -23,11 +32,16 @@ export async function schedulePlanReminder(
     throw new Error("phone notifications are turned off. Enable notifications for WorkOut in your phone settings; the saved reminder will be retried when you return.");
   }
   if (Platform.OS === "android" && settings.android.alarm === notifeeTypes.AndroidNotificationSetting.DISABLED) {
-    if (requestPermission) await notifee.openAlarmPermissionSettings();
-    throw new Error("Android's Alarms & reminders access is off for WorkOut. Allow it in the settings that opened, then return to WorkOut; your saved reminder will be scheduled automatically.");
+    const alreadyPrompted = await AsyncStorage.getItem(ALARM_SETTINGS_PROMPTED_KEY);
+    if (requestPermission && alreadyPrompted !== "true") {
+      await AsyncStorage.setItem(ALARM_SETTINGS_PROMPTED_KEY, "true");
+      await notifee.openAlarmPermissionSettings();
+      throw new Error("Allow WorkOut under Alarms & reminders, then return to the app. Your saved reminder will be scheduled automatically.");
+    }
+    throw new Error("Alarms & reminders access is still off for WorkOut. Enable it in your phone’s app settings to receive scheduled reminders.");
   }
 
-  const soundUrl = "reminderSoundUrl" in plan ? plan.reminderSoundUrl : undefined;
+  const soundUrl = plan.reminderSoundUrl;
   const channelId = Platform.OS === "android" && soundUrl
     ? await NotificationSounds.createSoundChannel(soundUrl)
     : await notifee.createChannel({
@@ -47,7 +61,7 @@ export async function schedulePlanReminder(
   const schedule = repeatDates.length
     ? repeatDates.map(date => ({
         id: `${kind}-${plan.id}-${date}`,
-        timestamp: new Date(`${date}T${reminderTime}:00`).getTime(),
+        timestamp: indiaTimestamp(date, reminderTime),
         repeatFrequency: undefined,
         body: kind === "workout"
           ? workoutMessage
@@ -56,7 +70,7 @@ export async function schedulePlanReminder(
     : repeatDays.length
     ? repeatDays.map(day => ({
         id: `${kind}-${plan.id}-${day}`,
-        timestamp: nextWeekdayTimestamp(plan.date, reminderTime, day),
+        timestamp: nextIndiaWeekdayTimestamp(plan.date, reminderTime, day),
         repeatFrequency: notifeeTypes.RepeatFrequency.WEEKLY,
         body: kind === "workout"
           ? workoutMessage
@@ -64,7 +78,7 @@ export async function schedulePlanReminder(
       }))
     : [{
         id: `${kind}-${plan.id}`,
-        timestamp: new Date(`${plan.date}T${reminderTime}:00`).getTime(),
+        timestamp: indiaTimestamp(plan.date, reminderTime),
         repeatFrequency: undefined,
         body: kind === "workout"
           ? workoutMessage
@@ -98,18 +112,6 @@ export async function schedulePlanReminder(
     throw new Error("the phone did not keep the scheduled reminder. Check notification settings and try again.");
   }
   return true;
-}
-
-export async function openReminderNotificationSettings() {
-  const { default: notifee, ...notifeeTypes } = await import("@notifee/react-native");
-  if (Platform.OS === "android") {
-    const settings = await notifee.getNotificationSettings();
-    if (settings.android.alarm === notifeeTypes.AndroidNotificationSetting.DISABLED) {
-      await notifee.openAlarmPermissionSettings();
-      return;
-    }
-  }
-  await notifee.openNotificationSettings();
 }
 
 export async function sendTestNotification() {
@@ -281,14 +283,17 @@ export async function cancelPlanReminder(
   await Promise.all(ids.map(id => notifee.cancelNotification(id)));
 }
 
-function nextWeekdayTimestamp(startDate: string, time: string, weekday: number) {
-  const [year, month, day] = startDate.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  const [hour, minute] = time.split(":").map(Number);
-  date.setHours(hour, minute, 0, 0);
-  date.setDate(date.getDate() + ((weekday - date.getDay() + 7) % 7));
-  if (date.getTime() <= Date.now()) date.setDate(date.getDate() + 7);
-  return date.getTime();
+function nextIndiaWeekdayTimestamp(startDate: string, time: string, weekday: number) {
+  const today = indiaDateKey();
+  const baseDate = startDate > today ? startDate : today;
+  const offset = (weekday - indiaWeekday(baseDate) + 7) % 7;
+  let date = addDaysToDateKey(baseDate, offset);
+  let timestamp = indiaTimestamp(date, time);
+  if (timestamp <= Date.now()) {
+    date = addDaysToDateKey(date, 7);
+    timestamp = indiaTimestamp(date, time);
+  }
+  return timestamp;
 }
 
 export function weekdayName(day: number) {
