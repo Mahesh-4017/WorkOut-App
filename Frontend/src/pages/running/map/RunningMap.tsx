@@ -28,6 +28,12 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 20,
 };
 const EMPTY_ROUTE: { lat: number; lng: number }[] = [];
+type CompletedRun = {
+  startedAt: number;
+  seconds: number;
+  distanceM: number;
+  points: { lat: number; lng: number }[];
+};
 const mapTileUrl = MAPBOX_ACCESS_TOKEN
   ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token=${MAPBOX_ACCESS_TOKEN}`
   : "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -54,7 +60,17 @@ const RUNNING_MAP_HTML = `<!doctype html>
       let routeLine;
       let startMarker;
       let currentMarker;
-      window.updateWorkoutMap = ({ points, center, tracking }) => {
+      let routeKey;
+      window.updateWorkoutMap = ({ points, center, tracking, completed, nextRouteKey }) => {
+        if (routeKey !== nextRouteKey) {
+          routeKey = nextRouteKey;
+          [routeLine, startMarker, currentMarker].forEach(layer => {
+            if (layer) map.removeLayer(layer);
+          });
+          routeLine = undefined;
+          startMarker = undefined;
+          currentMarker = undefined;
+        }
         const latLngs = points.map(({ latitude, longitude }) => [latitude, longitude]);
         if (routeLine) routeLine.setLatLngs(latLngs);
         else if (latLngs.length) routeLine = L.polyline(latLngs, { color: '#6c4bd3', weight: 5 }).addTo(map);
@@ -63,7 +79,8 @@ const RUNNING_MAP_HTML = `<!doctype html>
           else startMarker = L.circleMarker(latLngs[0], { color: '#fff', fillColor: '#36a269', fillOpacity: 1, radius: 7 }).addTo(map);
           const current = latLngs[latLngs.length - 1];
           if (currentMarker) currentMarker.setLatLng(current);
-          else currentMarker = L.circleMarker(current, { color: '#fff', fillColor: '#6c4bd3', fillOpacity: 1, radius: 7 }).addTo(map);
+          else currentMarker = L.circleMarker(current, { color: '#fff', fillColor: completed ? '#d84a4a' : '#6c4bd3', fillOpacity: 1, radius: 7 }).addTo(map);
+          currentMarker.setStyle({ fillColor: completed ? '#d84a4a' : '#6c4bd3' });
         }
         if (center) map.setView([center.latitude, center.longitude], tracking ? 16 : 15);
       };
@@ -82,10 +99,14 @@ export default function RunningMap() {
   const [region, setRegion] = useState(DEFAULT_REGION);
   const [mapReady, setMapReady] = useState(false);
   const [tracking, setTracking] = useState(false);
+  const [completedRun, setCompletedRun] = useState<CompletedRun | null>(null);
   const [error, setError] = useState<string | null>(null);
   const running = active?.status === "running";
-  const route = active?.points ?? EMPTY_ROUTE;
-  const distanceKm = (active?.distanceM ?? 0) / 1000;
+  const route = active?.points ?? completedRun?.points ?? EMPTY_ROUTE;
+  const distanceKm = (active?.distanceM ?? completedRun?.distanceM ?? 0) / 1000;
+  const durationSeconds = active ? elapsed : completedRun?.seconds ?? elapsed;
+  const runCompleted = !active && completedRun !== null;
+  const routeKey = active?.startedAt ?? completedRun?.startedAt ?? "none";
   const coordinates = route.map(point => ({ latitude: point.lat, longitude: point.lng }));
 
   useEffect(() => {
@@ -94,9 +115,11 @@ export default function RunningMap() {
       points: coordinates,
       center: region,
       tracking,
+      completed: runCompleted,
+      nextRouteKey: routeKey,
     });
     mapRef.current?.injectJavaScript(`window.updateWorkoutMap?.(${mapState}); true;`);
-  }, [coordinates, mapReady, region, tracking]);
+  }, [coordinates, mapReady, region, routeKey, runCompleted, tracking]);
 
   const requestLocationAccess = useCallback(async () => {
     const permission = Platform.OS === "ios"
@@ -176,6 +199,7 @@ export default function RunningMap() {
         setError("Finish your current workout before starting a mapped run.");
         return;
       }
+      setCompletedRun(null);
       if (!active) {
         startSession({
           workoutId: "manual-run",
@@ -195,9 +219,17 @@ export default function RunningMap() {
   };
 
   const finishRoute = async () => {
+    if (!active) return;
+    const finishedRun: CompletedRun = {
+      startedAt: active.startedAt,
+      seconds: Math.max(0, Math.round(elapsed)),
+      distanceM: active.distanceM,
+      points: [...active.points],
+    };
     setTracking(false);
     try {
       await endSession();
+      setCompletedRun(finishedRun);
       setError(null);
     } catch (saveError) {
       console.error("Unable to save the mapped running session.", saveError);
@@ -269,13 +301,15 @@ export default function RunningMap() {
         />
         <View style={styles.mapBadge}>
           <Ionicons name={tracking ? "navigate" : "map-outline"} size={15} color={theme.colors.primary} />
-          <Text style={styles.mapBadgeText}>{tracking ? "GPS route recording" : "Ready to map your run"}</Text>
+          <Text style={styles.mapBadgeText}>
+            {runCompleted ? "Run complete" : tracking ? "GPS route recording" : "Ready to map your run"}
+          </Text>
         </View>
         <View style={styles.bottomCard}>
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={styles.statLabel}>DURATION</Text>
-              <Text style={styles.statValue}>{fmtClock(elapsed)}</Text>
+              <Text style={styles.statValue}>{fmtClock(durationSeconds)}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
@@ -311,7 +345,7 @@ export default function RunningMap() {
           ) : (
             <Pressable onPress={startRoute} style={styles.primaryButton}>
               <Ionicons name="play" size={17} color={theme.colors.onPrimary} />
-              <Text style={styles.primaryText}>Start mapped run</Text>
+              <Text style={styles.primaryText}>{runCompleted ? "Start another run" : "Start mapped run"}</Text>
             </Pressable>
           )}
           <Text style={styles.attribution}>
