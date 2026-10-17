@@ -1,15 +1,26 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MapView, { Marker, Polyline, Region, UrlTile } from "react-native-maps";
+import type { Region } from "react-native-maps";
 import Geolocation from "@react-native-community/geolocation";
 import { check, PERMISSIONS, request, RESULTS } from "react-native-permissions";
+import WebView from "react-native-webview";
+import type {
+  AndroidWebViewProps,
+  WebViewErrorEvent,
+  WebViewMessageEvent,
+} from "react-native-webview/lib/WebViewTypes";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { ScreenHeader } from "../data/Movementui";
 import { fmtClock, useElapsed, useSession } from "../../../data/SessionProvider";
 import { useTheme } from "../../../theme/ThemeProvider";
 import { MAPBOX_ACCESS_TOKEN } from "../../../config/mapbox";
+
+type RunningMapWebViewHandle = { injectJavaScript: (script: string) => void };
+const RunningMapWebView = WebView as React.ComponentType<
+  AndroidWebViewProps & React.RefAttributes<RunningMapWebViewHandle>
+>;
 
 const DEFAULT_REGION: Region = {
   latitude: 20.5937,
@@ -21,20 +32,71 @@ const EMPTY_ROUTE: { lat: number; lng: number }[] = [];
 const mapTileUrl = MAPBOX_ACCESS_TOKEN
   ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token=${MAPBOX_ACCESS_TOKEN}`
   : "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const mapAttribution = MAPBOX_ACCESS_TOKEN
+  ? "&copy; <a href='https://www.mapbox.com/about/maps/'>Mapbox</a> &copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>"
+  : "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>";
+const RUNNING_MAP_HTML = `<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>html,body,#map{height:100%;width:100%;margin:0;background:#e8e8e8}</style>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script>
+      const map = L.map('map', { zoomControl: false }).setView([20.5937, 78.9629], 5);
+      L.tileLayer(${JSON.stringify(mapTileUrl)}, {
+        maxZoom: 19,
+        tileSize: 256,
+        attribution: ${JSON.stringify(mapAttribution)}
+      }).addTo(map);
+      let routeLine;
+      let startMarker;
+      let currentMarker;
+      window.updateWorkoutMap = ({ points, center, tracking }) => {
+        const latLngs = points.map(({ latitude, longitude }) => [latitude, longitude]);
+        if (routeLine) routeLine.setLatLngs(latLngs);
+        else if (latLngs.length) routeLine = L.polyline(latLngs, { color: '#6c4bd3', weight: 5 }).addTo(map);
+        if (latLngs.length) {
+          if (startMarker) startMarker.setLatLng(latLngs[0]);
+          else startMarker = L.circleMarker(latLngs[0], { color: '#fff', fillColor: '#36a269', fillOpacity: 1, radius: 7 }).addTo(map);
+          const current = latLngs[latLngs.length - 1];
+          if (currentMarker) currentMarker.setLatLng(current);
+          else currentMarker = L.circleMarker(current, { color: '#fff', fillColor: '#6c4bd3', fillOpacity: 1, radius: 7 }).addTo(map);
+        }
+        if (center) map.setView([center.latitude, center.longitude], tracking ? 16 : 15);
+      };
+      window.ReactNativeWebView?.postMessage('ready');
+    </script>
+  </body>
+</html>`;
 
 export default function RunningMap() {
   const { theme } = useTheme();
   const { active, startSession, pause, resume, endSession, addPoint } = useSession();
   const styles = createStyles(theme);
   const elapsed = useElapsed();
+  const mapRef = useRef<RunningMapWebViewHandle>(null);
   const [region, setRegion] = useState(DEFAULT_REGION);
-  const [locationPermission, setLocationPermission] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const [tracking, setTracking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const running = active?.status === "running";
   const route = active?.points ?? EMPTY_ROUTE;
   const distanceKm = (active?.distanceM ?? 0) / 1000;
   const coordinates = route.map(point => ({ latitude: point.lat, longitude: point.lng }));
+
+  useEffect(() => {
+    if (!mapReady) return;
+    const mapState = JSON.stringify({
+      points: coordinates,
+      center: region,
+      tracking,
+    });
+    mapRef.current?.injectJavaScript(`window.updateWorkoutMap?.(${mapState}); true;`);
+  }, [coordinates, mapReady, region, tracking]);
 
   const requestLocationAccess = async () => {
     const permission = Platform.OS === "ios"
@@ -46,7 +108,6 @@ export default function RunningMap() {
       setError("Allow location access to use the running map.");
       return false;
     }
-    setLocationPermission(true);
     return true;
   };
 
@@ -70,7 +131,6 @@ export default function RunningMap() {
           return;
         }
         if (cancelled) return;
-        setLocationPermission(true);
         watchId = Geolocation.watchPosition(
           position => {
             const { latitude, longitude, accuracy } = position.coords;
@@ -184,32 +244,20 @@ export default function RunningMap() {
         </Pressable>
       </View>
       <View style={styles.mapContainer}>
-        <MapView
+        <RunningMapWebView
+          ref={mapRef}
           style={StyleSheet.absoluteFill}
-          mapType="none"
-          initialRegion={region}
-          region={region}
-          onRegionChangeComplete={setRegion}
-          showsUserLocation={locationPermission}
-          showsMyLocationButton={Platform.OS === "android" && locationPermission}
-          followsUserLocation={tracking}
-          toolbarEnabled={false}
-        >
-          <UrlTile
-            urlTemplate={mapTileUrl}
-            maximumZ={19}
-            tileSize={256}
-          />
-          {coordinates.length > 0 ? (
-            <>
-              <Polyline coordinates={coordinates} strokeColor={theme.colors.primary} strokeWidth={5} />
-              <Marker coordinate={coordinates[0]} title="Start" pinColor={theme.colors.accent} />
-              {coordinates.length > 1 ? (
-                <Marker coordinate={coordinates[coordinates.length - 1]} title="Current position" />
-              ) : null}
-            </>
-          ) : null}
-        </MapView>
+          source={{ html: RUNNING_MAP_HTML }}
+          javaScriptEnabled
+          originWhitelist={["*"]}
+          onMessage={(event: WebViewMessageEvent) => {
+            if (event.nativeEvent.data === "ready") setMapReady(true);
+          }}
+          onError={(event: WebViewErrorEvent) => {
+            console.error("Running map failed to load.", event.nativeEvent);
+            setError("The map could not load. Check your internet connection and try again.");
+          }}
+        />
         <View style={styles.mapBadge}>
           <Ionicons name={tracking ? "navigate" : "map-outline"} size={15} color={theme.colors.primary} />
           <Text style={styles.mapBadgeText}>{tracking ? "GPS route recording" : "Ready to map your run"}</Text>

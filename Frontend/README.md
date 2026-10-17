@@ -70,7 +70,7 @@ Scheduled workouts, personal day plans, and daily step reminder times are stored
 
 ## Android running map
 
-The running map uses Mapbox Streets raster tiles. Add a Mapbox public access token as the `MAPBOX_ACCESS_TOKEN` Actions secret in the GitHub repository settings; the Android release workflow injects it into the app bundle without committing it. Restrict the token to the minimum required public scopes (including `styles:tiles`). Local development falls back to OpenStreetMap tiles unless a token is configured in `Frontend/src/config/mapbox.ts`.
+The running map uses an embedded web map to avoid requiring a native Google Maps API key. It uses Mapbox Streets raster tiles when the `MAPBOX_ACCESS_TOKEN` Actions secret is configured; otherwise it falls back to OpenStreetMap tiles. Local development can configure a public token in `Frontend/src/config/mapbox.ts`.
 
 ## Step 3: Modify your app
 

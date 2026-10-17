@@ -31,7 +31,7 @@ export default function RunningTabs() {
   const [activeTab, setActiveTab] = useState<RunningTab>("dashboard");
   const [mapMounted, setMapMounted] = useState(false);
   const openMap = () => {
-    setMapMounted(true);
+    if (!mapMounted) setMapMounted(true);
     setActiveTab("map");
   };
 
