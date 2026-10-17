@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Region } from "react-native-maps";
@@ -12,7 +12,6 @@ import type {
 } from "react-native-webview/lib/WebViewTypes";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
-import { ScreenHeader } from "../data/Movementui";
 import { fmtClock, useElapsed, useSession } from "../../../data/SessionProvider";
 import { useTheme } from "../../../theme/ThemeProvider";
 import { MAPBOX_ACCESS_TOKEN } from "../../../config/mapbox";
@@ -79,6 +78,7 @@ export default function RunningMap() {
   const styles = createStyles(theme);
   const elapsed = useElapsed();
   const mapRef = useRef<RunningMapWebViewHandle>(null);
+  const initialLocateRequested = useRef(false);
   const [region, setRegion] = useState(DEFAULT_REGION);
   const [mapReady, setMapReady] = useState(false);
   const [tracking, setTracking] = useState(false);
@@ -98,7 +98,7 @@ export default function RunningMap() {
     mapRef.current?.injectJavaScript(`window.updateWorkoutMap?.(${mapState}); true;`);
   }, [coordinates, mapReady, region, tracking]);
 
-  const requestLocationAccess = async () => {
+  const requestLocationAccess = useCallback(async () => {
     const permission = Platform.OS === "ios"
       ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
       : PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION;
@@ -109,7 +109,7 @@ export default function RunningMap() {
       return false;
     }
     return true;
-  };
+  }, []);
 
   useEffect(() => {
     if (!tracking || !running) return;
@@ -205,7 +205,7 @@ export default function RunningMap() {
     }
   };
 
-  const centerOnLocation = async () => {
+  const centerOnLocation = useCallback(async () => {
     setError(null);
     try {
       if (!(await requestLocationAccess())) return;
@@ -228,12 +228,21 @@ export default function RunningMap() {
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
     );
-  };
+  }, [requestLocationAccess]);
+
+  useEffect(() => {
+    if (!mapReady || initialLocateRequested.current) return;
+    initialLocateRequested.current = true;
+    centerOnLocation().catch(locationError => {
+      console.error("Unable to center the running map on the user.", locationError);
+      setError("Could not get your current location.");
+    });
+  }, [centerOnLocation, mapReady]);
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <ScreenHeader title="Running Map" />
+        <Text accessibilityRole="header" style={styles.headerTitle}>Running Map</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Center map on my location"
@@ -316,7 +325,13 @@ export default function RunningMap() {
 
 const createStyles = (theme: any) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 18 },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingVertical: 8 },
+  headerTitle: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: 22,
+    fontFamily: theme.typography.fontFamilyBold,
+  },
   locateButton: {
     width: 40,
     height: 40,
