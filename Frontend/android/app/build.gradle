@@ -75,17 +75,9 @@ def releaseStoreFile = findProperty("MYAPP_UPLOAD_STORE_FILE") ?: System.getenv(
 def releaseKeyAlias = findProperty("MYAPP_UPLOAD_KEY_ALIAS") ?: System.getenv("MYAPP_UPLOAD_KEY_ALIAS")
 def releaseStorePassword = findProperty("MYAPP_UPLOAD_STORE_PASSWORD") ?: System.getenv("MYAPP_UPLOAD_STORE_PASSWORD")
 def releaseKeyPassword = findProperty("MYAPP_UPLOAD_KEY_PASSWORD") ?: System.getenv("MYAPP_UPLOAD_KEY_PASSWORD")
-def mapsApiKey = (System.getenv("ANDROID_MAPS_API_KEY") ?: findProperty("ANDROID_MAPS_API_KEY") ?: "").trim()
 def requestingRelease = gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") }
 def allowDebugReleaseSigning = findProperty("allowDebugReleaseSigning") == "true"
 def hasReleaseSigning = releaseStoreFile && releaseKeyAlias && releaseStorePassword && releaseKeyPassword
-
-if (requestingRelease && !mapsApiKey) {
-    throw new GradleException(
-        "Android Maps is not configured. Set ANDROID_MAPS_API_KEY in the environment or " +
-            "gradle.properties before building a release."
-    )
-}
 
 if (requestingRelease && !hasReleaseSigning && !allowDebugReleaseSigning) {
     throw new GradleException(
@@ -108,7 +100,6 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()
         versionName = System.getenv("ANDROID_VERSION_NAME") ?: "1.0"
-        manifestPlaceholders = [MAPS_API_KEY: mapsApiKey]
     }
     signingConfigs {
         debug {

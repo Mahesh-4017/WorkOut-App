@@ -9,6 +9,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { ScreenHeader } from "../data/Movementui";
 import { fmtClock, useElapsed, useSession } from "../../../data/SessionProvider";
 import { useTheme } from "../../../theme/ThemeProvider";
+import { MAPBOX_ACCESS_TOKEN } from "../../../config/mapbox";
 
 const DEFAULT_REGION: Region = {
   latitude: 20.5937,
@@ -17,6 +18,9 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 20,
 };
 const EMPTY_ROUTE: { lat: number; lng: number }[] = [];
+const mapTileUrl = MAPBOX_ACCESS_TOKEN
+  ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token=${MAPBOX_ACCESS_TOKEN}`
+  : "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 export default function RunningMap() {
   const { theme } = useTheme();
@@ -192,7 +196,7 @@ export default function RunningMap() {
           toolbarEnabled={false}
         >
           <UrlTile
-            urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            urlTemplate={mapTileUrl}
             maximumZ={19}
             tileSize={256}
           />
@@ -253,7 +257,9 @@ export default function RunningMap() {
               <Text style={styles.primaryText}>Start mapped run</Text>
             </Pressable>
           )}
-          <Text style={styles.attribution}>Map data © OpenStreetMap contributors</Text>
+          <Text style={styles.attribution}>
+            {MAPBOX_ACCESS_TOKEN ? "© Mapbox · © OpenStreetMap contributors" : "Map data © OpenStreetMap contributors"}
+          </Text>
         </View>
       </View>
     </SafeAreaView>

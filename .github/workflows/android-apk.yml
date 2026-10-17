@@ -46,8 +46,10 @@ jobs:
       - name: Build release APK
         working-directory: Frontend/android
         env:
-          ANDROID_MAPS_API_KEY: ${{ secrets.ANDROID_MAPS_API_KEY }}
-        run: ./gradlew --no-daemon -PallowDebugReleaseSigning=true assembleRelease
+          MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
+        run: |
+          node -e 'const fs = require("node:fs"); const token = process.env.MAPBOX_ACCESS_TOKEN; if (!token) { console.error("Missing MAPBOX_ACCESS_TOKEN GitHub Actions secret."); process.exit(1); } fs.writeFileSync("../src/config/mapbox.ts", `export const MAPBOX_ACCESS_TOKEN = ${JSON.stringify(token)};\n`);'
+          ./gradlew --no-daemon -PallowDebugReleaseSigning=true assembleRelease
 
       - name: Stage APK
         run: |

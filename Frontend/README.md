@@ -70,7 +70,7 @@ Scheduled workouts, personal day plans, and daily step reminder times are stored
 
 ## Android running map
 
-The Android running map uses Google Maps and requires an API key with the Maps SDK for Android enabled. Add the key as the `ANDROID_MAPS_API_KEY` Actions secret in the GitHub repository settings so the APK release workflow can inject it into the app manifest. For local release builds, set `ANDROID_MAPS_API_KEY` in the environment or `Frontend/android/gradle.properties`. Restrict the key to the Android app package `com.workoutapp.fitness` and the signing certificate fingerprints used by the build.
+The running map uses Mapbox Streets raster tiles. Add a Mapbox public access token as the `MAPBOX_ACCESS_TOKEN` Actions secret in the GitHub repository settings; the Android release workflow injects it into the app bundle without committing it. Restrict the token to the minimum required public scopes (including `styles:tiles`). Local development falls back to OpenStreetMap tiles unless a token is configured in `Frontend/src/config/mapbox.ts`.
 
 ## Step 3: Modify your app
 
