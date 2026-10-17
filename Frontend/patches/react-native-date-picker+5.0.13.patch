@@ -11,3 +11,15 @@ index b2803c4..ea10692 100644
          }
      }
  }
+diff --git a/node_modules/react-native-date-picker/tsconfig.json b/node_modules/react-native-date-picker/tsconfig.json
+index a6901f6..c43329a 100644
+--- a/node_modules/react-native-date-picker/tsconfig.json
++++ b/node_modules/react-native-date-picker/tsconfig.json
+@@ -4,6 +4,7 @@
+     "noEmit": true,
+     "checkJs": true,
+     "moduleResolution": "node",
++    "ignoreDeprecations": "6.0",
+     "skipLibCheck": true,
+     "strictNullChecks": true,
+     "jsx": "react",
