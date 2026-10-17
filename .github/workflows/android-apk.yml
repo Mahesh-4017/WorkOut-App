@@ -48,7 +48,7 @@ jobs:
         env:
           MAPBOX_ACCESS_TOKEN: ${{ secrets.MAPBOX_ACCESS_TOKEN }}
         run: |
-          node -e 'const fs = require("node:fs"); const token = process.env.MAPBOX_ACCESS_TOKEN; if (!token) { console.error("Missing MAPBOX_ACCESS_TOKEN GitHub Actions secret."); process.exit(1); } fs.writeFileSync("../src/config/mapbox.ts", `export const MAPBOX_ACCESS_TOKEN = ${JSON.stringify(token)};\n`);'
+          node -e 'const fs = require("node:fs"); const token = process.env.MAPBOX_ACCESS_TOKEN; if (!token || !token.startsWith("pk.")) { console.error("Missing or invalid MAPBOX_ACCESS_TOKEN GitHub Actions secret; expected a Mapbox public token."); process.exit(1); } fs.writeFileSync("../src/config/mapbox.ts", `export const MAPBOX_ACCESS_TOKEN = ${JSON.stringify(token)};\n`);'
           ./gradlew --no-daemon -PallowDebugReleaseSigning=true assembleRelease
 
       - name: Stage APK
