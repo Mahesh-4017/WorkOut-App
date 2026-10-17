@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PermissionsAndroid, Platform } from "react-native";
+import { AppState, PermissionsAndroid, Platform } from "react-native";
 import {
   createStepCountFilter,
   isStepCountingSupported,
@@ -43,6 +43,8 @@ export function useLiveStepCounter(
     let savedSteps = 0;
     let saveQueue = Promise.resolve();
     let subscription: ReturnType<typeof startStepCounterUpdate> | undefined;
+    let launchTimer: ReturnType<typeof setTimeout> | undefined;
+    let startRequested = false;
 
     const saveTotal = (count: number) => {
       if (count <= queuedSteps) return;
@@ -62,9 +64,10 @@ export function useLiveStepCounter(
         });
     };
 
-    const start = async () => {
-      if (Platform.OS === "android" && Number(Platform.Version) >= 29) {
-        const permission = await PermissionsAndroid.request(
+    const requestActivityRecognitionPermission = async (attempt = 0): Promise<string | null> => {
+      if (!mounted || AppState.currentState !== "active") return null;
+      try {
+        return await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
           {
             title: "Allow step counting",
@@ -73,11 +76,30 @@ export function useLiveStepCounter(
             buttonNegative: "Not now",
           },
         );
+      } catch (permissionError) {
+        const activityUnavailable =
+          permissionError instanceof Error &&
+          /not attached to an Activity/i.test(permissionError.message);
+        if (!activityUnavailable || attempt >= 2 || AppState.currentState !== "active") {
+          throw permissionError;
+        }
+
+        await new Promise<void>(resolve => setTimeout(resolve, 300));
+        if (AppState.currentState !== "active") return null;
+        return requestActivityRecognitionPermission(attempt + 1);
+      }
+    };
+
+    const start = async () => {
+      if (Platform.OS === "android" && Number(Platform.Version) >= 29) {
+        const permission = await requestActivityRecognitionPermission();
+        if (!mounted || permission === null) {
+          if (mounted && AppState.currentState !== "active") startRequested = false;
+          return;
+        }
         if (permission !== PermissionsAndroid.RESULTS.GRANTED) {
-          if (mounted) {
-            setStatus("permission-denied");
-            setError("Allow physical activity access to count steps.");
-          }
+          setStatus("permission-denied");
+          setError("Allow physical activity access to count steps.");
           return;
         }
       }
@@ -123,17 +145,35 @@ export function useLiveStepCounter(
 
     };
 
-    start()
-      .catch(startError => {
-        console.error("Unable to start the live step counter.", startError);
-        if (mounted) {
+    const scheduleStart = () => {
+      if (!mounted || startRequested || launchTimer || AppState.currentState !== "active") return;
+      launchTimer = setTimeout(() => {
+        launchTimer = undefined;
+        if (!mounted || AppState.currentState !== "active") return;
+        startRequested = true;
+        start().catch(startError => {
+          if (!mounted) return;
+          console.error("Unable to start the live step counter.", startError);
           setStatus("error");
           setError(startError instanceof Error ? startError.message : "Unable to start step counting.");
-        }
-      });
+        });
+      }, 300);
+    };
+
+    const appStateSubscription = AppState.addEventListener("change", state => {
+      if (state === "active") {
+        scheduleStart();
+      } else if (launchTimer) {
+        clearTimeout(launchTimer);
+        launchTimer = undefined;
+      }
+    });
+    scheduleStart();
 
     return () => {
       mounted = false;
+      appStateSubscription.remove();
+      if (launchTimer) clearTimeout(launchTimer);
       subscription?.remove();
       stopStepCounterUpdate();
       if (liveSteps > savedSteps) saveTotal(liveSteps);

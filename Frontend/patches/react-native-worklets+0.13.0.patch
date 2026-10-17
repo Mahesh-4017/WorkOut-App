@@ -1,0 +1,11 @@
+diff --git a/node_modules/react-native-worklets/src/runtimes.native.ts b/node_modules/react-native-worklets/src/runtimes.native.ts
+--- a/node_modules/react-native-worklets/src/runtimes.native.ts
++++ b/node_modules/react-native-worklets/src/runtimes.native.ts
+@@ -26,6 +26,6 @@
+ import { WorkletsModule } from './WorkletsModule/NativeWorklets';
+ 
+ const SHOULD_CAPTURE_SCHEDULE_STACK =
+-```  __DEV__ && getStaticFeatureFlag('ENABLE_CROSS_RUNTIME_STACK_TRACES');
++  __DEV__ && getStaticFeatureFlag('ENABLE_CROSS_RUNTIME_STACK_TRACES');
+ 
+ /**
