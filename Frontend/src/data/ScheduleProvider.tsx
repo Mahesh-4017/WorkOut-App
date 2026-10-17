@@ -118,9 +118,10 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
           : "the phone did not confirm the reminder";
         return [`${remindersToRestore[index].label}: ${reason}`];
       });
-      setError(reminderFailures.length
-        ? `Your schedule loaded, but these reminders could not be restored: ${reminderFailures.slice(0, 3).join("; ")}${reminderFailures.length > 3 ? `; and ${reminderFailures.length - 3} more` : ""}`
-        : null);
+      if (reminderFailures.length) {
+        console.warn("Some scheduled reminders could not be restored.", reminderFailures);
+      }
+      setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load your workout schedule.");
     } finally {
