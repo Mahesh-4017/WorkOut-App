@@ -229,7 +229,7 @@ export default function CalendarPage() {
 
   return (
     <main className="page-content calendar-page">
-      <section className="page-intro"><Link className="back-link" href="/">← Home</Link><span className="eyebrow">YOUR WORKOUT PLAN</span><h1>Make time<br /><em>for movement.</em></h1><p>Your account calendar syncs planned workouts with the WorkOut app.</p></section>
+      <section className="page-intro"><span className="eyebrow">YOUR WORKOUT PLAN</span><h1>Make time<br /><em>for movement.</em></h1><p>Your account calendar syncs planned workouts with the WorkOut app.</p></section>
       {!user && <div className="notice auth-notice">Sign in to save workouts and sync this calendar with the mobile app. <Link className="text-link" href="/profile">Sign in →</Link></div>}
       {error && <div className="notice notice-error" role="alert"><span>{error}</span><button className="text-button" onClick={() => void refresh()}>Try again</button></div>}
       <div className="calendar-layout">

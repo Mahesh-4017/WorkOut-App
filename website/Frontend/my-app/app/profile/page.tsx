@@ -53,7 +53,6 @@ export default function ProfilePage() {
       <main className="page-content profile-page">
         <section className="profile-auth-layout">
           <div className="page-intro profile-auth-intro">
-            <Link className="back-link" href="/">← Home</Link>
             <span className="eyebrow">YOUR WORKOUT ACCOUNT</span>
             <h1>Make your progress<br /><em>personal.</em></h1>
             <p>Sign in with the same WorkOut app account to see your progress and keep your calendar in sync.</p>

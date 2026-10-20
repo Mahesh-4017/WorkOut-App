@@ -236,7 +236,6 @@ export default function WorkoutsBrowser({ collections = false }: { collections?:
   return (
     <main className={collections ? "collections-page" : ""}>
       <section className="page-intro">
-        <Link className="back-link" href="/">← Home</Link>
         <span className="eyebrow">{collections ? "BUILT FROM YOUR WORKOUT LIBRARY" : "WORKOUT LIBRARY"}</span>
         <h1>{collections ? <>A collection for<br /><em>every kind of strong.</em></> : <>What do you want<br /><em>to train today?</em></>}</h1>
         <p>{collections ? "Explore workouts by body part, find the right focus, and open a collection to see its published exercises." : "Choose a body part to find focused exercises, coaching details, and videos."}</p>

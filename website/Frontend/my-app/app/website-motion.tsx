@@ -55,12 +55,19 @@ export function WebsiteMotion({ children }: { children: React.ReactNode }) {
         ".auth-card",
         ".app-feature-item",
         ".app-features-visual",
+        ".feature-hero",
+        ".feature-metrics > article",
+        ".feature-grid > *",
+        ".feature-panel",
+        ".support-card",
+        ".app-promo-section",
+        ".app-promo-benefit",
       ].join(",");
 
       const startContentMotion = () => {
         if (contentStarted) return;
         contentStarted = true;
-        const introTargets = scope.querySelectorAll("main .page-intro > *, main .hero-copy > *, main .welcome-copy > *");
+        const introTargets = scope.querySelectorAll("main .page-intro > *, main .hero-copy > *, main .welcome-copy > *, main .app-promo-copy > *");
         if (introTargets.length) {
           gsap.fromTo(introTargets, { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: 0.55, stagger: 0.07, ease: "power3.out" });
         }
@@ -93,9 +100,11 @@ export function WebsiteMotion({ children }: { children: React.ReactNode }) {
         const sun = scope.querySelector(".hero-sun, .welcome-sun");
         const orbit = scope.querySelector(".hero-orbit");
         const secondOrbit = scope.querySelector(".hero-orbit-two");
+        const appOrbits = scope.querySelectorAll(".app-promo-orbit");
         if (sun) gsap.to(sun, { y: -12, duration: 3.2, ease: "sine.inOut", repeat: -1, yoyo: true });
         if (orbit) gsap.to(orbit, { rotate: "-=3", duration: 8, ease: "sine.inOut", repeat: -1, yoyo: true });
         if (secondOrbit) gsap.to(secondOrbit, { rotate: "+=3", duration: 10, ease: "sine.inOut", repeat: -1, yoyo: true });
+        if (appOrbits.length) gsap.to(appOrbits, { rotate: 360, duration: 36, ease: "none", repeat: -1, transformOrigin: "50% 50%" });
       };
 
       onMainHydrated = () => startContentMotion();

@@ -35,7 +35,6 @@ export default function YogaLibrary() {
   return (
     <main className="yoga-page">
       <section className="page-intro">
-        <Link className="back-link" href="/">← Home</Link>
         <span className="eyebrow">MOVE WITH INTENTION</span>
         <h1>Make room for<br /><em>your next reset.</em></h1>
         <p>Explore published Yoga sessions from your workout library.</p>
