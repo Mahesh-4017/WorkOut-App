@@ -9,9 +9,9 @@ import { useTheme } from "../../../theme/ThemeProvider";
 import { ROUTES } from "../../../navigation/routes";
 import { ScreenHeader } from "../data/Movementui";
 import { useLiveStepCounter } from "../../../hooks/useLiveStepCounter";
+import { toKey } from "../../../data/classSchedule";
 
 type Metric = "move" | "steps" | "energy";
-const utcDateKey = (date: Date) => date.toISOString().slice(0, 10);
 
 export default function MovementDashboard({
   onViewAll,
@@ -24,7 +24,7 @@ export default function MovementDashboard({
   const { theme } = useTheme();
   const { history, goals, stepEntries, active, startSession, pause, resume, endSession, elapsedSeconds, error, addSteps, loading } = useSession();
   const s = createStyles(theme);
-  const [metric, setMetric] = useState<Metric>("move");
+  const [metric, setMetric] = useState<Metric>("steps");
   const [, setTick] = useState(0);
   const [activityType, setActivityType] = useState<"Walk" | "Run">("Walk");
 
@@ -34,12 +34,12 @@ export default function MovementDashboard({
     return () => clearInterval(interval);
   }, [active?.workoutId, active?.status]);
 
-  const todayKey = utcDateKey(new Date());
-  const todaySessions = history.filter(item => utcDateKey(new Date(item.startedAt)) === todayKey);
+  const todayKey = toKey(new Date());
+  const todaySessions = history.filter(item => toKey(new Date(item.startedAt)) === todayKey);
   const todaySeconds = todaySessions.reduce((total, item) => total + item.seconds, 0);
   const todayCalories = todaySessions.reduce((total, item) => total + item.calories, 0);
   const todaySteps = stepEntries
-    .filter(item => utcDateKey(new Date(item.recordedAt)) === todayKey)
+    .filter(item => toKey(new Date(item.recordedAt)) === todayKey)
     .reduce((total, item) => total + item.steps, 0);
   const { steps: liveStepsToday, error: stepCounterError } = useLiveStepCounter(todaySteps, addSteps, !loading);
   const metrics = {

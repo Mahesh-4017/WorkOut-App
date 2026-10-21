@@ -5,7 +5,12 @@ export type MealResult = FoodItem & {
   description?: string;
   healthScore: number;
   confidence?: "low" | "medium" | "high";
-  items?: { name: string; grams: number; kcal: number }[];
+  nutrientDescriptions?: {
+    protein: string | null;
+    carbs: string | null;
+    fat: string | null;
+  } | null;
+  visionLabels?: string[];
 };
 
 export async function analyzeMealImage(uri: string, mimeType?: string): Promise<MealResult> {

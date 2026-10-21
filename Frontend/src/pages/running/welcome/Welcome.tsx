@@ -9,6 +9,7 @@ import { useTheme } from "../../../theme/ThemeProvider";
 import { ROUTES } from "../../../navigation/routes";
 import { useSession } from "../../../data/SessionProvider";
 import { useLiveStepCounter } from "../../../hooks/useLiveStepCounter";
+import { toKey } from "../../../data/classSchedule";
 
 const DEFAULT_DAILY_GOAL = 10000;
 
@@ -26,9 +27,9 @@ export default function Welcome() {
 
   const [shown, setShown] = useState(0);
   const ring = useRef(new Animated.Value(0)).current;
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = toKey(new Date());
   const savedSteps = stepEntries
-    .filter(entry => entry.recordedAt.slice(0, 10) === todayKey)
+    .filter(entry => toKey(new Date(entry.recordedAt)) === todayKey)
     .reduce((total, entry) => total + entry.steps, 0);
   const { steps: value, error: stepError } = useLiveStepCounter(savedSteps, addSteps, !loading);
   const dailyGoal = goals?.dailySteps ?? DEFAULT_DAILY_GOAL;

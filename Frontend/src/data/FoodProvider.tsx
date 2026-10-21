@@ -11,7 +11,20 @@ export type FoodItem = {
   description?: string;
   healthScore?: number;
   confidence?: "low" | "medium" | "high";
-  items?: { name: string; grams: number; kcal: number }[];
+  items?: {
+    name: string;
+    grams: number;
+    kcal: number;
+    ifctReference?: {
+      source: string;
+      foodName: string;
+      portionGrams: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      kcal: number;
+    } | null;
+  }[];
 };
 
 export type MealType = "Breakfast" | "Lunch" | "Dinner" | "Snack";

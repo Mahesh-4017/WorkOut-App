@@ -163,7 +163,7 @@ user's record owner.
 
 ## Meal photo nutrition
 
-The mobile app posts meal photos to `POST /api/nutrition/analyze` as multipart form data with the `image` field. Set `ANTHROPIC_API_KEY` in the backend environment; optionally set `ANTHROPIC_MODEL` to override the default model. Keep the key on the server and never add it to the React Native app. The route accepts JPEG, PNG, and WebP images up to 8 MB.
+The mobile app posts meal photos to `POST /api/nutrition/analyze` as multipart form data with the `image` field. Set `GOOGLE_CLOUD_VISION_API_KEY` in the backend environment for image-label detection and `ANTHROPIC_API_KEY` for portion and nutrition estimation; optionally set `ANTHROPIC_MODEL` to override the default model. Cloud Vision labels are passed as identification hints to the estimator. Keep both credentials on the server and never add them to the React Native app. The route accepts JPEG, PNG, and WebP images up to 8 MB.
 
 ## Deployment
 

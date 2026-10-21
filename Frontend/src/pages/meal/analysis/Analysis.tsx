@@ -21,6 +21,7 @@ export default function MealAnalysis() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MealResult | null>(null);
+  const [showNutritionNotes, setShowNutritionNotes] = useState(false);
 
   const run = useCallback(async () => {
     setLoading(true);
@@ -40,7 +41,9 @@ export default function MealAnalysis() {
 
   const addMeal = () => {
     if (!result) return;
-    addEntry({ ...result, meal: defaultMeal(), qty: 1 });
+    const mealEntry = { ...result };
+    delete mealEntry.nutrientDescriptions;
+    addEntry({ ...mealEntry, meal: defaultMeal(), qty: 1 });
     navigation.navigate(FOOD_ROUTES.HOME, { tab: "diary" });
   };
 
@@ -74,6 +77,74 @@ export default function MealAnalysis() {
               <MacroRing label="Carbs" grams={result.carbs} goal={GOALS.carbs} color={macroColors.carbs} />
               <MacroRing label="Fat" grams={result.fat} goal={GOALS.fat} color={macroColors.fat} />
             </View>
+
+            {result.items?.length || result.visionLabels?.length ? (
+              <View style={s.foodBreakdown}>
+                {result.visionLabels?.length ? (
+                  <>
+                    <Text style={s.breakdownTitle}>Cloud Vision labels</Text>
+                    <Text style={s.breakdownNote}>{result.visionLabels.join(" · ")}</Text>
+                  </>
+                ) : null}
+                {result.items?.length ? (
+                  <>
+                    <Text style={[s.breakdownTitle, result.visionLabels?.length ? s.foodListTitle : null]}>Foods identified</Text>
+                    <Text style={s.breakdownNote}>
+                      Meal totals are photo estimates. IFCT values below use measured food data scaled to the estimated portion.
+                    </Text>
+                    {result.items.map((item, index) => (
+                      <View key={`${item.name}-${index}`} style={s.foodRow}>
+                        <View style={s.foodRowHeading}>
+                          <Text style={s.foodName}>{item.name}</Text>
+                          <Text style={s.foodWeight}>{Math.round(item.grams)} g</Text>
+                        </View>
+                        {item.ifctReference ? (
+                          <>
+                            <Text style={s.ifctSource}>
+                              {item.ifctReference.source} reference · {item.ifctReference.foodName}
+                            </Text>
+                            <Text style={s.ifctMacros}>
+                              {item.ifctReference.kcal} kcal · Protein {item.ifctReference.protein} g · Carbs {item.ifctReference.carbs} g · Fat {item.ifctReference.fat} g
+                            </Text>
+                          </>
+                        ) : (
+                          <Text style={s.ifctSource}>No close IFCT food match; included in the photo-based meal estimate.</Text>
+                        )}
+                      </View>
+                    ))}
+                  </>
+                ) : null}
+              </View>
+            ) : null}
+
+            {result.nutrientDescriptions ? (
+              <View style={s.referenceNotes}>
+                <Pressable
+                  onPress={() => setShowNutritionNotes(open => !open)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: showNutritionNotes }}
+                  style={s.referenceNotesToggle}
+                >
+                  <Text style={s.breakdownTitle}>About these nutrient values</Text>
+                  <Text style={s.referenceNotesAction}>{showNutritionNotes ? "−" : "+"}</Text>
+                </Pressable>
+                {showNutritionNotes ? (
+                  <>
+                    <Text style={s.breakdownNote}>IFCT 2017 nutrient definitions and measurement notes:</Text>
+                    {([
+                      ["Protein", result.nutrientDescriptions.protein],
+                      ["Carbohydrate", result.nutrientDescriptions.carbs],
+                      ["Total fat", result.nutrientDescriptions.fat],
+                    ] as const).map(([label, description]) => description ? (
+                      <View key={label} style={s.referenceNoteRow}>
+                        <Text style={s.referenceNoteLabel}>{label}</Text>
+                        <Text style={s.referenceNoteText}>{description}</Text>
+                      </View>
+                    ) : null)}
+                  </>
+                ) : null}
+              </View>
+            ) : null}
 
             <View style={s.scoreRow}>
               <Text style={s.scoreLabel}>Healthy score</Text>
@@ -113,6 +184,22 @@ const createStyles = (theme: any) =>
     kcal: { color: theme.colors.text, fontSize: 34, fontFamily: theme.typography.fontFamilyBold },
     desc: { color: theme.colors.muted, fontSize: 12, textAlign: "center", fontFamily: theme.typography.fontFamily },
     macros: { flexDirection: "row", justifyContent: "space-around", marginTop: 22 },
+    foodBreakdown: { marginTop: 24, padding: 14, borderRadius: 15, backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border },
+    breakdownTitle: { color: theme.colors.text, fontSize: 14, fontFamily: theme.typography.fontFamilyBold },
+    foodListTitle: { marginTop: 14 },
+    breakdownNote: { color: theme.colors.muted, fontSize: 11, lineHeight: 16, marginTop: 6, marginBottom: 8, fontFamily: theme.typography.fontFamily },
+    foodRow: { paddingVertical: 11, borderTopWidth: 1, borderTopColor: theme.colors.border },
+    foodRowHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+    foodName: { flex: 1, color: theme.colors.text, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
+    foodWeight: { color: theme.colors.muted, fontSize: 11, fontFamily: theme.typography.fontFamilyMedium },
+    ifctSource: { color: theme.colors.muted, fontSize: 10, lineHeight: 15, marginTop: 5, fontFamily: theme.typography.fontFamily },
+    ifctMacros: { color: theme.colors.text, fontSize: 11, lineHeight: 16, marginTop: 4, fontFamily: theme.typography.fontFamilyMedium },
+    referenceNotes: { gap: 10, marginTop: 14, padding: 14, borderRadius: 15, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
+    referenceNotesToggle: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    referenceNotesAction: { color: theme.colors.primaryDark, fontSize: 20, fontFamily: theme.typography.fontFamilyBold },
+    referenceNoteRow: { gap: 3 },
+    referenceNoteLabel: { color: theme.colors.text, fontSize: 11, fontFamily: theme.typography.fontFamilyBold },
+    referenceNoteText: { color: theme.colors.muted, fontSize: 10, lineHeight: 15, fontFamily: theme.typography.fontFamily },
     scoreRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 24 },
     scoreLabel: { color: theme.colors.text, fontSize: 12, fontFamily: theme.typography.fontFamilyBold },
     scoreValue: { color: theme.colors.muted, fontSize: 12, fontFamily: theme.typography.fontFamilyMedium },

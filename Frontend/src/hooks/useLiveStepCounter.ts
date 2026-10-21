@@ -29,10 +29,16 @@ export function useLiveStepCounter(
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const savedSteps = Math.max(0, Math.floor(initialSteps));
     if (!enabled) {
-      initialStepsRef.current = Math.max(0, Math.floor(initialSteps));
+      initialStepsRef.current = savedSteps;
+      setSteps(savedSteps);
+    } else {
+      const liveSteps = Math.max(0, steps - initialStepsRef.current);
+      initialStepsRef.current = Math.max(initialStepsRef.current, savedSteps - liveSteps);
+      setSteps(current => Math.max(current, savedSteps, initialStepsRef.current + liveSteps));
     }
-  }, [enabled, initialSteps]);
+  }, [enabled, initialSteps, steps]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -127,7 +133,7 @@ export function useLiveStepCounter(
         if (!filtered || !mounted) return;
 
         liveSteps = Math.max(liveSteps, Math.floor(filtered.steps));
-        setSteps(initialStepsRef.current + liveSteps);
+        setSteps(current => Math.max(current, initialStepsRef.current + liveSteps));
         setStatus("tracking");
         setError(null);
 

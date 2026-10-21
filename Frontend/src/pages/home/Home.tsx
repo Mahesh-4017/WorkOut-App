@@ -162,7 +162,14 @@ export default function Home() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         {/* App bar */}
         <View style={s.appBar}>
-          <Text style={s.appTitle}>WorkOut</Text>
+          <View style={s.brandLockup} accessibilityLabel="WorkOut">
+            <Image
+              source={require("../../assets/workout-wordmark.png")}
+              style={s.brandWordmark}
+              resizeMode="cover"
+              accessibilityLabel="WorkOut"
+            />
+          </View>
           <View style={s.appActions}>
             <Pressable onPress={toggleTheme} style={s.iconButton} accessibilityLabel="Toggle theme">
               <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={18} color={theme.colors.text} />
@@ -235,36 +242,6 @@ export default function Home() {
             </Pressable>
           </View>
         ) : null}
-
-        {/* Hero: today's workout */}
-        {/* <Pressable onPress={startFeatured} style={s.hero} accessibilityRole="button" accessibilityLabel="Start today's workout">
-          <Image source={require("../../assets/challenge.png")} style={s.heroImage} resizeMode="cover" />
-          <View style={s.heroShade} />
-          <View style={s.heroTopRow}>
-            <View style={s.heroChip}>
-              <Text style={s.heroChipText}>Today's workout</Text>
-            </View>
-            {featured ? (
-              <View style={s.heroChip}>
-                <Ionicons name="time-outline" size={12} color="#FFFFFF" />
-                <Text style={s.heroChipText}>{featured.duration}</Text>
-              </View>
-            ) : null}
-          </View>
-          <View style={s.heroBottom}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text numberOfLines={2} style={s.heroTitle}>
-                {featured?.name ?? "Pick a workout"}
-              </Text>
-              <Text numberOfLines={1} style={s.heroSub}>
-                {featured ? `${featured.sets} sets × ${featured.reps} reps · ${featured.difficulty}` : "Browse the full library"}
-              </Text>
-            </View>
-            <View style={s.heroPlay}>
-              <Ionicons name="play" size={22} color={theme.colors.onPrimary} />
-            </View>
-          </View>
-        </Pressable> */}
 
         {/* Week progress */}
         <View style={s.weekCard}>
@@ -432,13 +409,20 @@ export default function Home() {
                 accessibilityRole="button"
                 accessibilityLabel={`View details for ${exercise.title}`}
               >
-                {exercise.imageUrl ? (
-                  <Image source={{ uri: resolveApiMediaUrl(exercise.imageUrl) }} style={s.cardImage} resizeMode="cover" />
-                ) : (
-                  <View style={[s.cardImage, s.cardPlaceholder]}>
-                    <Ionicons name="barbell-outline" size={22} color={theme.colors.primary} />
-                  </View>
-                )}
+                <View style={s.latestImageFrame}>
+                  {exercise.imageUrl ? (
+                    <Image
+                      source={{ uri: resolveApiMediaUrl(exercise.imageUrl) }}
+                      style={s.latestImage}
+                      resizeMode="cover"
+                      accessibilityLabel={`${exercise.title} exercise`}
+                    />
+                  ) : (
+                    <View style={s.latestImagePlaceholder}>
+                      <Ionicons name="barbell-outline" size={28} color={theme.colors.primary} />
+                    </View>
+                  )}
+                </View>
                 <View style={s.latestCardBody}>
                   <Text style={s.latestMeta}>{exercise.level} · {exercise.durationMinutes} min</Text>
                   <Text numberOfLines={2} style={s.cardTitle}>{exercise.title}</Text>
@@ -460,7 +444,8 @@ const createStyles = (theme: any) =>
     scroll: { paddingHorizontal: 18, paddingBottom: 120 },
 
     appBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10 },
-    appTitle: { color: theme.colors.text, fontSize: 16, fontFamily: theme.typography.fontFamilyBold },
+    brandLockup: { width: 106, height: 30, justifyContent: "center" },
+    brandWordmark: { width: "100%", height: "100%" },
     appActions: { flexDirection: "row", gap: 8 },
     iconButton: {
       width: 36,
@@ -642,12 +627,26 @@ const createStyles = (theme: any) =>
     badgeText: { color: "#FFFFFF", fontSize: 10, fontFamily: theme.typography.fontFamilyMedium },
     cardBody: { padding: 12 },
     latestCard: {
-      width: responsiveWidth(56),
+      width: responsiveWidth(66),
       borderRadius: 18,
       overflow: "hidden",
       backgroundColor: theme.colors.card,
       borderWidth: 1,
       borderColor: theme.colors.border,
+    },
+    latestImageFrame: {
+      width: "100%",
+      height: 176,
+      padding: 0,
+      backgroundColor: theme.colors.surface,
+    },
+    latestImage: { width: "100%", height: "100%" },
+    latestImagePlaceholder: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 12,
+      backgroundColor: theme.colors.card,
     },
     latestCardBody: { padding: 12 },
     latestMeta: { color: theme.colors.primaryDark, fontSize: 10, marginBottom: 6, fontFamily: theme.typography.fontFamilyMedium },
