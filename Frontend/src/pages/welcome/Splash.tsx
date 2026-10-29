@@ -24,6 +24,6 @@ export default function Splash() {
       const next = restoredUser ? ROUTES.HOME : onboardingDone ? ROUTES.LOGIN : ROUTES.WELCOME;
       navigation.reset({ index: 0, routes: [{ name: next }] });
     })();
-  }, [navigation, restore]);
+  }, [navigation, restore, setUser]);
   return <View style={styles.screen}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
 }

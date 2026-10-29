@@ -35,6 +35,11 @@ export async function signInWithGoogle() {
       if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         throw new Error("Google Play Services is not available or outdated on this device.");
       }
+      if (error.code === "12500" || error.message?.toLowerCase().includes("non-recoverable sign in failure")) {
+        throw new Error(
+          "Google Sign-In failed (12500). In the same Google Cloud project as the Web client ID, configure the OAuth consent screen and add an Android OAuth client for package 'com.workoutapp.fitness' with this debug signing SHA-1: 5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25. If the consent screen is in testing mode, add your Google account as a test user."
+        );
+      }
       if (error.code === "10" || error.message?.includes("DEVELOPER_ERROR")) {
         throw new Error(
           "Google Sign-In DEVELOPER_ERROR (code 10): Ensure the Android OAuth Client ID with package 'com.workoutapp.fitness' and SHA-1 certificate is added to Google Cloud Console."

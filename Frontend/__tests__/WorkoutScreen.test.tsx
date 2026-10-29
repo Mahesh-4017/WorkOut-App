@@ -5,27 +5,24 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import Workout from '../src/pages/workout/Workout';
 import { ThemeProvider } from '../src/theme/ThemeProvider';
 
-jest.mock('react-native', () => {
-  const actual = jest.requireActual('react-native');
-
-  return {
-    ...actual,
-    useColorScheme: () => 'light',
-  };
-});
-
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: jest.fn(),
   }),
+  useRoute: () => ({ params: {} }),
+  useFocusEffect: jest.fn(),
+}));
+
+jest.mock('../src/data/UserProvider', () => ({
+  useUser: () => ({ history: [] }),
 }));
 
 jest.mock('@react-native-vector-icons/ionicons', () => {
-  const React = require('react');
-  const { Text: RNText } = require('react-native');
+  const ReactLib = require('react');
+  const ReactNative = require('react-native');
 
   return function MockIonicons(props: any) {
-    return React.createElement(RNText, props, props.name || 'icon');
+    return ReactLib.createElement(ReactNative.Text, props, props.name || 'icon');
   };
 });
 
